@@ -11,7 +11,7 @@ class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
     
     @abstractmethod
-    def __init__(self, api_key: str, model_name: str, prompt_template: str, temperature: float, top_p: float):
+    def __init__(self, model_name: str, prompt_template: str, temperature: float, top_p: float):
         """Initialize the model with necessary parameters"""
         pass
     
@@ -54,7 +54,7 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         The top_p parameter for the model.
     """
     
-    def __init__(self, api_key: str, model_name: str, prompt_template: str, temperature: float, top_p: float):
+    def __init__(self, model_name: str, prompt_template: str, temperature: float, top_p: float):
         """
         Parameters:
         -----------
@@ -70,8 +70,8 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
             The top_p parameter for the model.
         """
         # Groq client
-        self.client = Groq(api_key=api_key)
-        self.api_key = api_key
+        self.client = Groq(api_key=os.getenv('API_KEY'))
+        self.api_key = os.getenv('API_KEY')
         self.model_name = model_name
         self.prompt_template = prompt_template
         self.temperature = temperature
