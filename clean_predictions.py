@@ -52,18 +52,18 @@ class PredictionDataCleaner(DataCleaningFactory):
     """A concrete class for cleaning prediction data"""
 
     def lower_case(self, col_name: str):
-        """Convert all reviews to lower case
+        """Convert all text to lower case
 
-        Parameters
-        ----------
+        Parameters:
+        -----------
         df: `pd.DataFrame`
-            The data
+            The input data to lower case
         
         col_name: `str`
-            Column with reviews
+            Column to lower case
 
-        Return
-        ------
+        Return:
+        -------
         df: `pd.DataFrame`
             An updated DataFrame with the lower cased reviews
         """
