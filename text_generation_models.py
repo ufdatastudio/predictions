@@ -9,9 +9,12 @@ import os
 
 import pandas as pd
 
-from typing import Dict, List
-from abc import ABC, abstractmethod
 from groq import Groq
+from typing import Dict, List
+from dotenv import load_dotenv
+from abc import ABC, abstractmethod
+
+load_dotenv()  # Load environment variables from .env file
 
 class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
