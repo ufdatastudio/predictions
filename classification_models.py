@@ -42,3 +42,32 @@ class PerceptronModel(Models):
         # test_metrics = test_eval_metric(y_test, y_test_predictions)
 
         return y_train_predictions, y_test_predictions
+
+class EvaluationMetric:
+
+    def eval_accuracy(self, y_true, y_prediction):
+        return sklearn.metrics.accuracy_score(y_true, y_prediction)
+
+    def eval_precision(self, y_true, y_prediction):
+        return sklearn.metrics.precision_score(y_true, y_prediction)
+
+    def eval_recall(self, y_true, y_prediction):
+        return sklearn.metrics.recall_score(y_true, y_prediction)
+
+    def eval_f1_score(self, y_true, y_prediction):
+        return sklearn.metrics.f1_score(y_true, y_prediction)
+
+    def eval_metric(self, y_train_true, y_train_predictions):
+        accuracy = self.eval_accuracy(y_train_true, y_train_predictions)
+        precision = self.eval_precision(y_train_true, y_train_predictions)
+        recall = self.eval_recall(y_train_true, y_train_predictions)
+        f1 = self.eval_f1_score(y_train_true, y_train_predictions)
+
+        metrics_dict = {
+            'Accuracy': accuracy,
+            'Precision': precision,
+            'Recall': recall,
+            'F1 Score': f1
+        }
+
+        return metrics_dict
