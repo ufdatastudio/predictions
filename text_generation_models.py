@@ -9,9 +9,12 @@ import os
 
 import pandas as pd
 
-from typing import Dict, List
-from abc import ABC, abstractmethod
 from groq import Groq
+from typing import Dict, List
+from dotenv import load_dotenv
+from abc import ABC, abstractmethod
+
+load_dotenv()  # Load environment variables from .env file
 
 class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
@@ -142,7 +145,7 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         )
         return response.choices[0].message.content
     
-    def completion(self, cols_name) -> pd.DataFrame:
+    def completion(self, cols_name, prediction_label) -> pd.DataFrame:
         """
         Generate a completion response and return as a DataFrame.
 
@@ -150,6 +153,9 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         -----------
         cols_name: `List[str]`
             The column names for the DataFrame.
+        
+        prediction_label: bool
+            The label for the prediction column.
         
         Returns:
         --------
@@ -167,5 +173,6 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         
         # Convert to DataFrame
         df = pd.DataFrame(predictions, columns=cols_name)
+        df['Prediction Label'] = prediction_label
         
         return df
