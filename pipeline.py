@@ -1,6 +1,9 @@
 import pandas as pd
 
 from abc import ABC, abstractmethod
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+
 from clean_predictions import PredictionDataCleaner
 from text_generation_models import LlamaTextGenerationModel
 
@@ -58,7 +61,25 @@ class BasePipeline(PipelineFactory):
         # cleaner.remove_non_alphabetical_characters(predictions_col) # May need to keep so we don't remove numbers, percentages, etc.
         cleaner.remove_extra_spaces(predictions_col)
 
-        return predictions_df
+        return cleaner.df
 
+    def tfidf_vectorize_predictions(self, predictions_df: pd.DataFrame, visualize: bool = False) -> pd.DataFrame:
+        """Vectorize the predictions DataFrame using a TfidfVectorizer"""
+        vectorizer = TfidfVectorizer()
+        predictions_col = predictions_df.columns[0]
+        vectorized_predictions = vectorizer.fit_transform(predictions_df[predictions_col])
 
+        if visualize:
+            # Convert the TF-IDF matrix to a dense matrix for easy viewing
+            dense_matrix = vectorized_predictions.todense()
 
+            # Get the feature names (terms) learned by the vectorizer
+            feature_names = vectorizer.get_feature_names_out()
+
+            # Create a DataFrame to visualize the TF-IDF scores
+            tfidf_df = pd.DataFrame(dense_matrix, columns=feature_names)
+
+            # Print the shape of the complete TF-IDF DataFrame; # Display the first few rows of the DataFrame
+            print(f"Shape {tfidf_df.shape}:\n   {tfidf_df.shape[0]} rows\n   {tfidf_df.shape[1]} unique words\n\nVisualize TF-IDF scores:\n{tfidf_df.head()}")
+
+        return vectorized_predictions
