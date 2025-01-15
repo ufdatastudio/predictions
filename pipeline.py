@@ -1,7 +1,9 @@
 import pandas as pd
 
 from abc import ABC, abstractmethod
+from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
+from classification_models import PerceptronModel, EvaluationMetric
 
 
 from clean_predictions import PredictionDataCleaner
@@ -83,3 +85,53 @@ class BasePipeline(PipelineFactory):
             print(f"Shape {tfidf_df.shape}:\n   {tfidf_df.shape[0]} rows\n   {tfidf_df.shape[1]} unique words\n\nVisualize TF-IDF scores:\n{tfidf_df.head()}")
 
         return vectorized_predictions
+    
+    def split_data(self, tfidf_vectorize_predictions: pd.DataFrame, prediction_labels: pd.DataFrame):
+        """Split the data into training and testing sets
+        
+        Parameters:
+        -----------
+        tfidf_vectorize_predictions: `pd.DataFrame`
+            A DataFrame containing the vectorized predictions
+        
+        prediction_labels: `pd.DataFrame`
+            A DataFrame containing the prediction labels
+
+        Returns:
+        --------
+        tuple
+            A tuple containing the training and testing sets for the vectorized predictions and prediction labels
+        """
+        X_train, X_test, y_train, y_test = train_test_split(tfidf_vectorize_predictions, prediction_labels, test_size=0.2, random_state=42)
+        print(f"X_train: {X_train.shape}")
+        print(f"X_test: {X_test.shape}")
+        print(f"y_train: {y_train.shape}")
+        print(f"y_test: {y_test.shape}")
+        return X_train, X_test, y_train, y_test
+
+    def train_model(self, df: pd.DataFrame, prediction_labels: pd.DataFrame, eval_metric: bool):
+        """Split the data into training and testing sets
+        
+        Parameters:
+        -----------
+        tfidf_vectorize_predictions: `pd.DataFrame`
+            A DataFrame containing the vectorized predictions
+        
+        prediction_labels: `pd.DataFrame`
+            A DataFrame containing the prediction labels
+
+        Returns:
+        --------
+        """
+
+        X_train, X_test, y_train, y_test = self.split_data(df, prediction_labels)
+
+        perceptron_model = PerceptronModel()
+        perceptron_train, perceptron_test = perceptron_model.train_model(X_train, X_test, y_train, y_test)
+
+        if eval_metric:
+            eval_metric = EvaluationMetric()
+            metrics = eval_metric.eval_metrics(y_train, perceptron_train)
+
+        return perceptron_train, perceptron_test, metrics
+    

@@ -57,7 +57,7 @@ class EvaluationMetric:
     def eval_f1_score(self, y_true, y_prediction):
         return sklearn.metrics.f1_score(y_true, y_prediction)
 
-    def eval_metric(self, y_train_true, y_train_predictions):
+    def eval_metrics(self, y_train_true, y_train_predictions):
         accuracy = self.eval_accuracy(y_train_true, y_train_predictions)
         precision = self.eval_precision(y_train_true, y_train_predictions)
         recall = self.eval_recall(y_train_true, y_train_predictions)
