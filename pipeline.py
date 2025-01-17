@@ -3,11 +3,11 @@ import pandas as pd
 from abc import ABC, abstractmethod
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
-from classification_models import PerceptronModel, EvaluationMetric
 
-
+from pre_processing import PreProcessing
 from clean_predictions import PredictionDataCleaner
 from text_generation_models import LlamaTextGenerationModel
+from classification_models import PerceptronModel, EvaluationMetric
 
 
 class PipelineFactory(ABC):
@@ -65,7 +65,13 @@ class BasePipeline(PipelineFactory):
 
         return cleaner.df
 
-    def tfidf_vectorize_predictions(self, predictions_df: pd.DataFrame, visualize: bool = False) -> pd.DataFrame:
+    def pre_process_data(self, predictions_df: pd.DataFrame) -> pd.DataFrame:
+        """Pre-process the predictions DataFrame by removing any empty rows"""
+        df = PreProcessing.concat_dfs(predictions_df)
+        df = PreProcessing.shuffle_df(df)
+        return df
+    
+    def tfidf_features(self, predictions_df: pd.DataFrame, visualize: bool = False) -> pd.DataFrame:
         """Vectorize the predictions DataFrame using a TfidfVectorizer"""
         vectorizer = TfidfVectorizer()
         predictions_col = predictions_df.columns[0]
@@ -109,13 +115,39 @@ class BasePipeline(PipelineFactory):
         print(f"y_test: {y_test.shape}")
         return X_train, X_test, y_train, y_test
 
-    def train_model(self, df: pd.DataFrame, prediction_labels: pd.DataFrame, eval_metric: bool):
+    def select_model(self, model_name: str):
+        """Select a model based on the provided model name
+        
+        Parameters:
+        -----------
+        model_name: `str`
+            The name of the model to select
+        
+        Returns:
+        --------
+        object
+            An instance of the selected model
+        """
+        models = {
+            "perceptron": PerceptronModel(),
+            # Add other models here as needed
+        }
+
+        if model_name in models:
+            return models[model_name]
+        else:
+            raise ValueError(f"Model {model_name} not found. Available models: {list(models.keys())}")
+
+    def train_model(self, model, vectorized_features_df: pd.DataFrame, prediction_labels: pd.DataFrame, eval_metric: bool = True):
         """Split the data into training and testing sets
         
         Parameters:
         -----------
-        tfidf_vectorize_predictions: `pd.DataFrame`
-            A DataFrame containing the vectorized predictions
+        model: `object`
+            An instance of the selected model
+            
+        vectorized_features_df: `pd.DataFrame`
+            A DataFrame containing the vectorized features
         
         prediction_labels: `pd.DataFrame`
             A DataFrame containing the prediction labels
@@ -124,14 +156,14 @@ class BasePipeline(PipelineFactory):
         --------
         """
 
-        X_train, X_test, y_train, y_test = self.split_data(df, prediction_labels)
+        X_train, X_test, y_train, y_test = self.split_data(vectorized_features_df, prediction_labels)
 
-        perceptron_model = PerceptronModel()
-        perceptron_train, perceptron_test = perceptron_model.train_model(X_train, X_test, y_train, y_test)
+        model_train, model_test = model.train_model(X_train, X_test, y_train, y_test)
 
         if eval_metric:
             eval_metric = EvaluationMetric()
-            metrics = eval_metric.eval_metrics(y_train, perceptron_train)
-
-        return perceptron_train, perceptron_test, metrics
+            metrics = eval_metric.eval_metrics(y_train, model_train)
+            return model_train, model_test, metrics
+        
+        return model_train, model_test
     

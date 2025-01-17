@@ -30,10 +30,13 @@ class Models(ABC):
     #     pass
 
 class PerceptronModel(Models):
+    def __name__(self):
+        return "Perceptron Model"
+    
     def train_model(self, X_train, X_test, y_train, y_test): 
 
-        technique = Perceptron(tol=1e-3, random_state=0)
-        technique.fit(X_train, y_train)
+        technique = Perceptron(tol=1e-3, random_state=0) # instantiate the model
+        technique.fit(X_train, y_train) # train the model on the training data; sklearn intializes the weights and bias randomly
         y_train_predictions = technique.predict(X_train)
         y_test_predictions = technique.predict(X_test)
 
