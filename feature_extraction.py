@@ -34,7 +34,7 @@ class TfidfFeatureExtraction(FeatureExtractionFactory):
             A sparse matrix containing the vectorized predictions
         """
 
-        self.vectorizer = TfidfVectorizer()
+        self.vectorizer = TfidfVectorizer(max_features=100)
         col_to_vectorize = self.df_df_to_vectorize.columns[0]
         vectorized_features = self.vectorizer.fit_transform(self.df_df_to_vectorize[col_to_vectorize])
         
