@@ -356,3 +356,4 @@ class PredictionDataCleaner(DataCleaningFactory):
 
         self.df[col_name] = single_spaced_reviews
         return self.df
+    
