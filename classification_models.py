@@ -5,7 +5,9 @@ from abc import ABC, abstractmethod
 from sklearn.linear_model import Perceptron
 from sklearn.model_selection import train_test_split
 
-class Models(ABC):
+from data_processing import DataProcessing
+
+class ModelFactory(ABC):
     """Abstract implementation of a model. Each specified model inherits from this base class.
 
     Methods decorated with @abstractmethod must be implemented and if not, the interpreter will throw an error. Methods not decorated will be shared by all other classes that inherit from Model.
@@ -15,33 +17,70 @@ class Models(ABC):
         return "ML MODEL BASE"
     
     def __init__(self):
-        super().__init__()
+        self.classifer = None
     
     @abstractmethod
     def train_model(self):
         pass
 
-    # @abstractmethod
-    # def train_eval_metric(self):
-    #     pass
+    @abstractmethod
+    def predict(self):
+        pass
 
-    # @abstractmethod
-    # def test_eval_metric(self):
-    #     pass
+    def get_model_name(self):
+        return self.__name__()
+    
+    def select_model(model_name: str):
+        """Select a model based on the provided model name
+        
+        Parameters:
+        -----------
+        model_name: `str`
+            The name of the model to select
+        
+        Returns:
+        --------
+        object
+            An instance of the selected model
+        """
+        models = {
+            "perceptron": PerceptronModel(),
+            # Add other models here as needed
+        }
 
-class PerceptronModel(Models):
-    def train_model(self, X_train, X_test, y_train, y_test): 
+        if model_name in models:
+            return models[model_name]
+        else:
+            raise ValueError(f"Model {model_name} not found. Available models: {list(models.keys())}")
 
-        technique = Perceptron(tol=1e-3, random_state=0)
-        technique.fit(X_train, y_train)
-        y_train_predictions = technique.predict(X_train)
-        y_test_predictions = technique.predict(X_test)
+class PerceptronModel(ModelFactory):      
 
+    def __init__(self):
+        super().__init__()  
 
-        # train_metrics = train_eval_metric(y_train, y_train_predictions)
-        # test_metrics = test_eval_metric(y_test, y_test_predictions)
+    def __name__(self):
+        return "Perceptron Model"
+    
+    def train_model(self, X, y):
 
-        return y_train_predictions, y_test_predictions
+        self.classifer = Perceptron(tol=1e-3, random_state=0) # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+    
+    def predict(self, X_test, to_series: bool = True):
+        """Predict the test data using the trained model
+        
+        Parameters:
+        -----------
+        X_test: `pd.DataFrame`
+            A DataFrame containing the test data to predict
+        
+        to_series: `bool`
+            A boolean value to convert the predictions to a pd.Series
+        """
+        predictions = self.classifer.predict(X_test)
+        if to_series:
+            return DataProcessing.array_to_df(predictions)
+        return predictions
 
 class EvaluationMetric:
 
@@ -56,18 +95,6 @@ class EvaluationMetric:
 
     def eval_f1_score(self, y_true, y_prediction):
         return sklearn.metrics.f1_score(y_true, y_prediction)
-
-    def eval_metric(self, y_train_true, y_train_predictions):
-        accuracy = self.eval_accuracy(y_train_true, y_train_predictions)
-        precision = self.eval_precision(y_train_true, y_train_predictions)
-        recall = self.eval_recall(y_train_true, y_train_predictions)
-        f1 = self.eval_f1_score(y_train_true, y_train_predictions)
-
-        metrics_dict = {
-            'Accuracy': accuracy,
-            'Precision': precision,
-            'Recall': recall,
-            'F1 Score': f1
-        }
-
-        return metrics_dict
+    
+    def eval_classification_report(self, y_true, y_prediction):
+        return sklearn.metrics.classification_report(y_true, y_prediction)
