@@ -36,7 +36,7 @@
     14. The prediction should be unique and not repeated
     15. The $\hat{y}_{f}$ should always be after $\hat{y}_{t}$
     16. Do not number the preditions
-    17. Do not say, "As the Chief Financial Officer at a publicly traded company on the US Stock Exchange, I will generate five company-based financial predictions using the provided templates." or "As the Chief Meteorologist at a national weather forecasting agency, I will generate five weather-based predictions using the provided templates.", "As the Chief Financial Officer at a publicly traded company on the US Stock Exchange, I will generate five company-based financial predictions using the provided templates.", or anything similar
+    17. Do not say, "As the Chief Financial Officer at a publicly traded company on the US Stock Exchange, I will generate five company-based financial predictions using the provided templates." or "As the Chief Meteorologist at a national weather forecasting agency, I will generate five weather-based predictions using the provided templates.", "As the Chief Financial Officer at a publicly traded company on the US Stock Exchange, I will generate five company-based financial predictions using the provided templates.", or "**Company-Based Financial Predictions**", anything similar
 
 - Financial Template 1: On [ $\hat{y}_{t}$,], [$\hat{y}_{s}$ person name] predicts that the [ $\hat{y}_{a}$] at [ $\hat{y}_{s}$ company name] [ $\hat{y}_{v}$] [ $\hat{y}_{m}$] by [$\hat{y}_{m}$, ] in [ $\hat{y}_{f}$]
 - Template 2: On [ $\hat{y}_{t}$ ], [ $\hat{y}_{s}$ person name ] from [ $\hat{y}_{s}$ company name ] predicts that the [ $\hat{y}_{a}$ ] [ $\hat{y}_{v}$ ] by [ $\hat{y}_{m}$ ] in [ $\hat{y}_{f}$ ].
