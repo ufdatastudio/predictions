@@ -108,6 +108,28 @@ Suppose you are a health organization (that the US have), researcher, doctor, fi
     8. According to [Rachel Kim, MD] from the [University of California], on [Wednesday, July 16, 2029], the prevalence of [type 2 diabetes in adults] [will] [decline] by [5 percent] in the timeframe of [2030].	
 - Examples for template 5: 
     9. In [2026], the [average weekly exercise hours] in [United States] is [expected to rise] by [20%], as predicted by [Harvard School of Public Health] on [Monday, December 1, 2025].
-    10. In [2027], the [average weekly walking hours] in the [United States] is [expected to rise] by [15%], as predicted by the [National Institutes of Health] on [Friday, December 12, 2025].	
+    10. In [2027], the [average weekly walking hours] in the [United States] is [expected to rise] by [15%], as predicted by the [National Institutes of Health] on [Friday, December 12, 2025].
+
+    - Public Policy Template 1: On [ $\hat{y}_{t}$ ], [$\hat{y}_{s}$ person/organization name] predicts that the [ $\hat{y}_{a}$ ] in [ $\hat{y}_{s}$ location ] [ $\hat{y}_{v}$ ] [ $\hat{y}_{m}$ ] by [ $\hat{y}_{f}$ ].
+    - Public Policy Template 2: On [ $\hat{y}_{t}$ ], [$\hat{y}_{s}$ person/organization name] from [ $\hat{y}_{s}$ institution ] forecasts that the [ $\hat{y}_{a}$ ] [ $\hat{y}_{v}$ ] by [ $\hat{y}_{m}$ ] in [ $\hat{y}_{f}$ ].
+    - Public Policy Template 3: [$\hat{y}_{s}$ person/organization name] predicts on [ $\hat{y}_{t}$ ] that the [ $\hat{y}_{a}$ ] in [ $\hat{y}_{s}$ location ] [ $\hat{y}_{v}$ ] by [ $\hat{y}_{m}$ ] in [ $\hat{y}_{f}$ ].
+    - Public Policy Template 4: According to [$\hat{y}_{s}$ person/organization name] from [ $\hat{y}_{s}$ institution ], on [ $\hat{y}_{t}$ ], the [ $\hat{y}_{a}$ ] [ $\hat{y}_{v}$ ] by [ $\hat{y}_{m}$ ] in the timeframe of [ $\hat{y}_{f}$ ].
+    - Public Policy Template 5: In [ $\hat{y}_{f}$ ], the [ $\hat{y}_{a}$ ] in [ $\hat{y}_{s}$ location ] is [expected to  $\hat{y}_{v}$ ] by [ $\hat{y}_{m}$ ], as predicted by [ $\hat{y}_{s}$ person/organization name ] on [ $\hat{y}_{t}$ ].
+
+    - Examples for template 1:
+        1. On [Monday, January 10, 2025], [President John Doe] predicts that the [unemployment rate] in [the United States] [will] [decrease] by [2%] by [2027].
+        2. On [Tuesday, February 15, 2025], [Dr. Jane Smith] forecasts that the [population growth rate] in [California] [is likely to] [increase] by [3%] by [2028].
+    - Examples for template 2:
+        3. On [Wednesday, March 20, 2025], [Senator Emily Johnson] from [the Senate Committee on Finance] forecasts that the [inflation rate] [should] [fall] by [1.5%] in [2026].
+        4. On [Thursday, April 25, 2025], [Governor Michael Brown] from [the State of Texas] predicts that the [number of registered voters] [will] [rise] by [10%] in [2028].
+    - Examples for template 3:
+        5. [The Congressional Budget Office] predicts on [Friday, May 30, 2025] that the [national debt] in [the United States] [will] [increase] by [$1 trillion] by [2029].
+        6. [Dr. Sarah Lee] forecasts on [Monday, June 10, 2025] that the [median household income] in [New York] [will] [rise] by [5%] by [2027].
+    - Examples for template 4:
+        7. According to [General Robert Williams] from [the Department of Defense], on [Wednesday, July 16, 2025], the number of [active-duty soldiers] [is expected to] [decline] by [3%] in the timeframe of [2028].
+        8. According to [Dr. Olivia Martinez] from [the Census Bureau], on [Friday, August 22, 2025], the [population density] in [urban areas] [is likely to] [increase] by [4%] in the timeframe of [2030].
+    - Examples for template 5:
+        9. In [2027], the [number of citizens] in [the United States] is [expected to rise] by [15%], as predicted by [the President] on [Friday, December 12, 2025].
+        10. In [2028], the [number of Navy members] in [the United States] is [expected to decline] by [5%], as predicted by [Rachel Kim] from [the Department of Defense] on [Wednesday, July 16, 2025].
 
 """
