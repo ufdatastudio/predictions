@@ -35,9 +35,13 @@ class BasePipeline(PipelineFactory):
             A DataFrame containing the generated prediction or non-prediction with the label
         """
 
+        # models: https://console.groq.com/docs/models
+
         # Constants for model names
         LLAMA3_70B_INSTRUCT = "llama-3.1-70b-versatile"
         LLAMA3_8B_INSTRUCT = "llama3.1-8b-instant"
+
+        LLAMA3_70B_INSTRUCT = "llama-3.3-70b-versatile"
         DEFAULT_MODEL = LLAMA3_70B_INSTRUCT
 
         # Create an instance of the LlamaModel
