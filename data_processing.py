@@ -1,3 +1,4 @@
+import re
 import numpy as np
 import pandas as pd
 
@@ -111,3 +112,40 @@ class DataProcessing:
         joint_df.loc[:, model_col_name] = y_predictions.values
         
         return joint_df
+    
+    def ex_sentence_to_df(sentence: str) -> pd.DataFrame:
+        """Convert an example sentence to a DataFrame
+
+        NOTE: This function is specific to the template used in the example sentence
+        
+        Parameters:
+        -----------
+        sentence: `str`
+            A sentence containing the variables to extract
+
+        Returns:
+        --------
+        `pd.DataFrame`
+            A DataFrame containing the extracted variables
+        """
+        
+        # Define the regex pattern to extract the variables from the sentence
+        pattern = r"On \[(.*?)\], \[(.*?)\] predicts that the \[(.*?)\] at \[(.*?)\] \[(.*?)\] \[(.*?)\] by \[(.*?)\] in \[(.*?)\]"
+        match = re.match(pattern, sentence)
+        
+        if match:
+            y_t, y_p, y_a, y_o, y_v, y_s, y_m, y_f = match.groups()
+            data = {
+                'y_p': [y_p],
+                'y_o': [y_o],
+                'y_t': [y_t],
+                'y_f': [y_f],
+                'y_a': [y_a],
+                'y_s': [y_s],
+                'y_m': [y_m],
+                'y_v': [y_v],
+                'y_l': [None]  # Assuming y_l is not used in this template
+            }
+            return pd.DataFrame(data)
+        else:
+            raise ValueError("The sentence does not match the expected template.")
