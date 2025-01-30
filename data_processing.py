@@ -149,3 +149,21 @@ class DataProcessing:
             return pd.DataFrame(data)
         else:
             raise ValueError("The sentence does not match the expected template.")
+    
+    def df_to_list(df: pd.DataFrame, col: str) -> list:
+        """Convert a DataFrame to a list
+        
+        Parameters:
+        -----------
+        df: `pd.DataFrame`
+            A DataFrame containing the data
+        
+        col: `str`
+            The column to convert to a list
+
+        Returns:
+        --------
+        list
+            A list containing the data
+        """
+        return df[col].values.tolist()
