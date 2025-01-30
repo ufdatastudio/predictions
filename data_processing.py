@@ -9,7 +9,7 @@ class DataProcessing:
 
     def concat_dfs(dfs: list[pd.DataFrame]):
         """Concatenate multiple DataFrames"""
-        df = pd.concat(dfs)
+        df = pd.concat(dfs, ignore_index=True)
         return df
     
     def shuffle_df(df: pd.DataFrame):
