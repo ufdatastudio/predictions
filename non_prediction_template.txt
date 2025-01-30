@@ -16,7 +16,7 @@
 
     Please generate 15 non-predictions with the following requirements below:
 
-    1. Only a simple non-prediction (sentence)) (and NOT compounding using "and" or "or")
+    1. Only a simple non-prediction (sentence) (and NOT compounding using "and" or "or")
     2. Include no additional information such as "Here are nine simple sentences that are not predictions:", number before non-prediction
     3. At least 10 words and no more than 20 words in the non-prediction
     4. Do not generate redundant non-predictions
