@@ -113,6 +113,69 @@ class DataProcessing:
         
         return joint_df
     
+    def select_pattern(sentence: str) -> str:
+        """Select the pattern to use based on the sentence
+        
+        Parameters:
+        -----------
+        sentence: `str`
+            A sentence containing the variables to extract
+
+        Returns:
+        --------
+        `str`
+            A string containing the pattern to use
+        """
+        template = sentence.split()[0]
+        if first_wordd == "On":
+            pattern = r"On \[(.*?)\], \[(.*?)\] predicts that the \[(.*?)\] at \[(.*?)\] \[(.*?)\] \[(.*?)\] by \[(.*?)\] in \[(.*?)\]"
+        elif first_wordd == "In":
+            pattern = r"In \[(.*?)\], \[(.*?)\] predicts that the \[(.*?)\] at \[(.*?)\] \[(.*?)\] \[(.*?)\] by \[(.*?)\] in \[(.*?)\]"
+        
+    def reformat_df_with_template_number(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
+        """Reformat the DataFrame with the template number
+        
+        Parameters:
+        -----------
+        df: `pd.DataFrame`
+            A DataFrame containing the data
+        
+        col_name: `str`
+            The column name to use for the template number
+        
+        Returns:
+        --------
+        `pd.DataFrame`
+            A DataFrame with the template number in the specified column
+        """
+        
+        template_numbers = []
+        reformat_predictions = []
+
+        for prediction in df[col_name].values:
+            first_word = prediction.split()[0]
+            if first_word == "T1:":
+                template_numbers.append(1)
+                reformat_predictions.append(prediction[4:])
+            elif first_word == "T2:":
+                template_numbers.append(2)
+                reformat_predictions.append(prediction[4:])
+            elif first_word == "T3:":
+                template_numbers.append(3)
+                reformat_predictions.append(prediction[4:])
+            elif first_word == "T4:":
+                template_numbers.append(4)
+                reformat_predictions.append(prediction[4:])
+            elif first_word == "T5:":
+                template_numbers.append(5)
+                reformat_predictions.append(prediction[4:])
+            else:
+                raise ValueError("The template number is not recognized.")
+        
+        df[col_name] = reformat_predictions
+        df['Template Number'] = template_numbers
+        return df
+    
     def ex_sentence_to_df(sentence: str) -> pd.DataFrame:
         """Convert an example sentence to a DataFrame
 
@@ -130,7 +193,7 @@ class DataProcessing:
         """
         
         # Define the regex pattern to extract the variables from the sentence
-        pattern = r"On \[(.*?)\], \[(.*?)\] predicts that the \[(.*?)\] at \[(.*?)\] \[(.*?)\] \[(.*?)\] by \[(.*?)\] in \[(.*?)\]"
+
         match = re.match(pattern, sentence)
         
         if match:
@@ -167,3 +230,6 @@ class DataProcessing:
             A list containing the data
         """
         return df[col].values.tolist()
+    
+
+    
