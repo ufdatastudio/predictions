@@ -1,4 +1,4 @@
-import re
+import re, spacy
 import numpy as np
 import pandas as pd
 
@@ -113,25 +113,6 @@ class DataProcessing:
         
         return joint_df
     
-    def select_pattern(sentence: str) -> str:
-        """Select the pattern to use based on the sentence
-        
-        Parameters:
-        -----------
-        sentence: `str`
-            A sentence containing the variables to extract
-
-        Returns:
-        --------
-        `str`
-            A string containing the pattern to use
-        """
-        template = sentence.split()[0]
-        if first_wordd == "On":
-            pattern = r"On \[(.*?)\], \[(.*?)\] predicts that the \[(.*?)\] at \[(.*?)\] \[(.*?)\] \[(.*?)\] by \[(.*?)\] in \[(.*?)\]"
-        elif first_wordd == "In":
-            pattern = r"In \[(.*?)\], \[(.*?)\] predicts that the \[(.*?)\] at \[(.*?)\] \[(.*?)\] \[(.*?)\] by \[(.*?)\] in \[(.*?)\]"
-        
     def reformat_df_with_template_number(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
         """Reformat the DataFrame with the template number
         
@@ -176,43 +157,6 @@ class DataProcessing:
         df['Template Number'] = template_numbers
         return df
     
-    def ex_sentence_to_df(sentence: str) -> pd.DataFrame:
-        """Convert an example sentence to a DataFrame
-
-        NOTE: This function is specific to the template used in the example sentence
-        
-        Parameters:
-        -----------
-        sentence: `str`
-            A sentence containing the variables to extract
-
-        Returns:
-        --------
-        `pd.DataFrame`
-            A DataFrame containing the extracted variables
-        """
-        
-        # Define the regex pattern to extract the variables from the sentence
-
-        match = re.match(pattern, sentence)
-        
-        if match:
-            y_t, y_p, y_a, y_o, y_v, y_s, y_m, y_f = match.groups()
-            data = {
-                'y_p': [y_p],
-                'y_o': [y_o],
-                'y_t': [y_t],
-                'y_f': [y_f],
-                'y_a': [y_a],
-                'y_s': [y_s],
-                'y_m': [y_m],
-                'y_v': [y_v],
-                'y_l': [None]  # Assuming y_l is not used in this template
-            }
-            return pd.DataFrame(data)
-        else:
-            raise ValueError("The sentence does not match the expected template.")
-    
     def df_to_list(df: pd.DataFrame, col: str) -> list:
         """Convert a DataFrame to a list
         
@@ -230,6 +174,164 @@ class DataProcessing:
             A list containing the data
         """
         return df[col].values.tolist()
+    
+    @staticmethod
+    def setup_spacy():
+        """
+        Setup the NLP pipeline with SpaCy and add custom entity rulers if needed.
+        
+        Returns:
+        --------
+        nlp : spacy.Language
+            A SpaCy language processing object with an added entity ruler for custom patterns.
+        """
+        nlp = spacy.load("en_core_web_sm")
+        ruler = nlp.add_pipe("entity_ruler", before="ner")
+        patterns = [
+            {"label": "DATE", "pattern": [{"TEXT": {"REGEX": "20\\d{2}/\\d{2}/\\d{2}"}}]},
+            {"label": "DATE", "pattern": [{"TEXT": {"REGEX": "20\\d{2}"}}, {"TEXT": {"REGEX": "Q[1-4]"}}]}
+        ]
+        ruler.add_patterns(patterns)
+        return nlp
+
+    @staticmethod
+    def extract_entities(data: pd.Series, nlp: spacy.Language):
+        """
+        Extract entities using the provided SpaCy NLP model.
+        
+        Parameters:
+        -----------
+        data : `pd.Series`
+            A Series containing textual data for entity extraction.
+        nlp : `spacy.Language`
+            A SpaCy NLP model with or without custom configurations.
+        
+        Returns:
+        --------
+        list
+            A list of entities, each containing document entities and their labels.
+        """
+        entities = []
+        all_ner_tags = set()  # Initialize here to collect all tags
+        label_counts = {}
+        for doc in nlp.pipe(data, disable=["tok2vec", "tagger", "parser", "lemmatizer"]):
+            doc_entities = []
+            for ent in doc.ents:
+                label = ent.label_
+                count_key = f"{label}_{doc}"
+                if count_key in label_counts:
+                    label_counts[count_key] += 1
+                else:
+                    label_counts[count_key] = 1
+                unique_label = f"{label}_{label_counts[count_key]}"
+                doc_entities.append((ent.text, unique_label))
+                all_ner_tags.add(unique_label)  # Collect all unique tags
+            entities.append(doc_entities)
+        return entities, all_ner_tags  # Return both entities and tags
+
+    @staticmethod
+    def entities_to_dataframe(entities, all_ner_tags):
+        """
+        Convert extracted entities into a pandas DataFrame.
+        
+        Parameters:
+        -----------
+        entities : list
+            A list of entities extracted from documents.
+        all_ner_tags : list
+            A list of all unique NER tags.
+
+        Returns:
+        --------
+        pd.DataFrame
+            A DataFrame containing entities organized by NER tags.
+        """
+        df_ner = pd.DataFrame(columns=list(all_ner_tags))
+        for i, document_entities in enumerate(entities):
+            for text, label in document_entities:
+                df_ner.at[i, label] = text
+        return df_ner
+    
+    def select_pattern(template_number: int) -> str:
+        """Select the pattern to use based on the template number
+        
+        Parameters:
+        -----------
+        template_number: `int`
+           The template number that corresponds to the pattern to use
+
+        Returns:
+        --------
+        `str`
+            A string containing the pattern to use
+        """
+
+        if template_number == 1:
+            pattern = r"On \[(.*?)\], \[(.*?)\] (.*?) that the \[(.*?)\] at \[(.*?)\] \[(.*?)\] \[(.*?)\] by \[(.*?)\] in \[(.*?)\]."
+            return pattern
+        elif template_number == 2:
+            pattern = r"In \[(.*?)\], \[(.*?)\] from \[(.*?)\], (.*?) that the \[(.*?)\] \[(.*?)\] \[(.*?)\] from \[(.*?)\] to \[(.*?)\] in \[(.*?)\]."
+            return pattern
+        elif template_number == 3:
+            pattern = r"\[(.*?)\] (.*?) on \[(.*?)\] that the \[(.*?)\] in \[(.*?)\] \[(.*?)\] \[(.*?)\] by \[(.*?)\] in \[(.*?)\]."
+            return pattern
+        elif template_number == 4:
+            pattern = r"According to a \[(.*?)\] from \[(.*?)\], on \[(.*?)\], the \[(.*?)\] \[(.*?)\] \[(.*?)\] beyond \[(.*?)\] in the timeframe of \[(.*?)\]."
+            return pattern
+        elif template_number == 5:
+            pattern = r"In \[(.*?)\], the \[(.*?)\] in \[(.*?)\] \[(.*?)\] \[(.*?)\] by \[(.*?)\], as (.*?) by \[(.*?)\] on \[(.*?)\]."
+            return pattern
+        else:
+            raise ValueError("The template number is not recognized.")
+    
+    def sentence_to_df(df: pd.DataFrame) -> pd.DataFrame:
+        """Convert an example sentence to a DataFrame
+
+        NOTE: This function is specific to the template used in the example sentence
+        
+        Parameters:
+        -----------
+        sentence: `str`
+            A sentence containing the variables to extract
+
+        Returns:
+        --------
+        `pd.DataFrame`
+            A DataFrame containing the extracted variables
+        """
+        template_numbers = df['Template Number'].values
+        base_sentences = df['Base Sentence'].values
+        
+        extracted_data = []
+
+        for template_number, sentence in zip(template_numbers, base_sentences):
+            print(sentence)
+            pattern = DataProcessing.select_pattern(template_number)
+            print(pattern)
+            
+            match = re.match(pattern, sentence)
+            
+            if match:
+                p_t, p_p, p_a, p_o, p_v, p_s, p_m, p_f = match.groups()
+                data = {
+                    'p_p': p_p,
+                    'p_o': p_o,
+                    'p_t': p_t,
+                    'p_f': p_f,
+                    'p_a': p_a,
+                    'p_s': p_s,
+                    'p_m': p_m,
+                    'p_v': p_v,
+                    'p_l': None  # Assuming y_l is not used in this template
+                }
+                extracted_data.append(data)
+            else:
+                print(sentence)
+                raise ValueError("The sentence does not match the expected template.")
+        
+        return pd.DataFrame(extracted_data)
+    
+
     
 
     
