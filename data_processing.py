@@ -186,48 +186,95 @@ class DataProcessing:
             A SpaCy language processing object with an added entity ruler for custom patterns.
         """
         nlp = spacy.load("en_core_web_sm")
-        ruler = nlp.add_pipe("entity_ruler", before="ner")
-        patterns = [
-            {"label": "DATE", "pattern": [{"TEXT": {"REGEX": "20\\d{2}/\\d{2}/\\d{2}"}}]},
-            {"label": "DATE", "pattern": [{"TEXT": {"REGEX": "20\\d{2}"}}, {"TEXT": {"REGEX": "Q[1-4]"}}]}
-        ]
-        ruler.add_patterns(patterns)
+        # ruler = nlp.add_pipe("entity_ruler", before="ner")
+        # patterns = [
+        #     {"label": "DATE", "pattern": [{"TEXT": {"REGEX": "20\\d{2}/\\d{2}/\\d{2}"}}]},
+        #     {"label": "DATE", "pattern": [{"TEXT": {"REGEX": "20\\d{2}"}}, {"TEXT": {"REGEX": "Q[1-4]"}}]},
+        #     {"label": "GPE", "pattern": [{"TEXT": {"REGEX": "LOC"}}, {"TEXT": {"REGEX": "LOC_\d"}}]},
+        #     {"label": "DATE", "pattern": [{"TEXT": {"REGEX": "\d{1,2} [a-zA-Z]+ \d{4}"}}]} # NOT WORKING for ex 15 November 2021
+        # ]
+        # ruler.add_patterns(patterns)
         return nlp
 
     @staticmethod
-    def extract_entities(data: pd.Series, nlp: spacy.Language):
+    def update_ner(label, text):
+        """Updates the NER label based on provided rules."""
+        if label == "LOC" or label.startswith("LOC_"):
+            return "GPE"
+        elif label == "FAC":
+            return "PERSON"
+        elif label == "WORK_OF_ART":
+            if re.match(r"Q\d of \d{4}|Quarter \d|\d Q\d", text):
+                return "DATE"
+            elif text in ["Weather Underground", "The Weather Channel]"]:
+                return "ORG"
+            else:
+                return label  # Keep original label if no match
+        elif label == "CARDINAL":
+            if re.match(r"\d{1,2} [a-zA-Z]+ \d{4}", text):
+                return "DATE"
+            elif re.match(r"-\d+°[CF]|-\d+°[CF] to -\d+°[CF]|\d+°[CF] to \d+°[CF]|\d+°[CF]", text):
+                return "TEMPERATURE"
+            else: return label
+        else:
+            return label
+
+
+    @staticmethod
+    def extract_entities(data: pd.Series, nlp: spacy.Language, disable_components: list, batch_size: int = 50):
         """
         Extract entities using the provided SpaCy NLP model.
-        
+
         Parameters:
         -----------
         data : `pd.Series`
             A Series containing textual data for entity extraction.
-        nlp : `spacy.Language`
-            A SpaCy NLP model with or without custom configurations.
         
+        nlp : `spacy.Language`
+            A SpaCy NLP model.
+        
+        batch_size : `int`
+            The batch size for processing the data.
+
         Returns:
         --------
-        list
-            A list of entities, each containing document entities and their labels.
+        tuple
+            A tuple containing a list of entities and a set of unique NER tags.
         """
+        tags = []
+        all_pos_tags = set()
+
         entities = []
-        all_ner_tags = set()  # Initialize here to collect all tags
+        all_ner_tags = set()
+
         label_counts = {}
-        for doc in nlp.pipe(data, disable=["tok2vec", "tagger", "parser", "lemmatizer"]):
+
+        for doc in nlp.pipe(data, disable=disable_components, batch_size=batch_size):
+            doc_tags = []
+            for token in doc:
+                doc_tags.append((token.text, token.pos_))
+                all_pos_tags.add(token.pos_)
+            tags.append(doc_tags)
+
             doc_entities = []
             for ent in doc.ents:
                 label = ent.label_
+                text = ent.text
+                # updated_label = DataProcessing.update_ner(label, text)  # update the label
+                
                 count_key = f"{label}_{doc}"
                 if count_key in label_counts:
                     label_counts[count_key] += 1
                 else:
                     label_counts[count_key] = 1
                 unique_label = f"{label}_{label_counts[count_key]}"
-                doc_entities.append((ent.text, unique_label))
-                all_ner_tags.add(unique_label)  # Collect all unique tags
+
+                doc_entities.append((text, unique_label))  # changed label to updated_label
+                all_ner_tags.add(unique_label)
+
             entities.append(doc_entities)
-        return entities, all_ner_tags  # Return both entities and tags
+
+        return tags, all_pos_tags, entities, all_ner_tags
 
     @staticmethod
     def entities_to_dataframe(entities, all_ner_tags):
@@ -252,6 +299,8 @@ class DataProcessing:
                 df_ner.at[i, label] = text
         return df_ner
     
+
+ # Functions to disregard   
     def select_pattern(template_number: int) -> str:
         """Select the pattern to use based on the template number
         
