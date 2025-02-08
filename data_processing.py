@@ -7,9 +7,9 @@ from sklearn.model_selection import train_test_split
 class DataProcessing:
     """A class to preprocess data"""
 
-    def concat_dfs(dfs: list[pd.DataFrame]):
+    def concat_dfs(dfs: list[pd.DataFrame], axis: int = 0, ignore_index=True) -> pd.DataFrame:
         """Concatenate multiple DataFrames"""
-        df = pd.concat(dfs, ignore_index=True)
+        df = pd.concat(dfs, axis=axis, ignore_index=ignore_index)
         return df
     
     def shuffle_df(df: pd.DataFrame):
@@ -277,7 +277,7 @@ class DataProcessing:
         return tags, all_pos_tags, entities, all_ner_tags
 
     @staticmethod
-    def entities_to_dataframe(entities, all_ner_tags):
+    def entities_to_dataframe(entities, all_ner_entities):
         """
         Convert extracted entities into a pandas DataFrame.
         
@@ -285,19 +285,44 @@ class DataProcessing:
         -----------
         entities : list
             A list of entities extracted from documents.
-        all_ner_tags : list
-            A list of all unique NER tags.
+        
+        all_ner_entities : list
+            A list of all unique NER (Named Entity Recognition) tags.
 
         Returns:
         --------
         pd.DataFrame
             A DataFrame containing entities organized by NER tags.
         """
-        df_ner = pd.DataFrame(columns=list(all_ner_tags))
+        df_ner = pd.DataFrame(columns=list(all_ner_entities))
         for i, document_entities in enumerate(entities):
             for text, label in document_entities:
                 df_ner.at[i, label] = text
         return df_ner
+    
+    @staticmethod
+    def tags_to_dataframe(tags, all_pos_tags):
+        """
+        Convert extracted entities into a pandas DataFrame.
+        
+        Parameters:
+        -----------
+        entities : list
+            A list of entities extracted from documents.
+        
+        all_pos_tags : list
+            A list of all unique POS (Part-Of-Speech) tags.
+
+        Returns:
+        --------
+        pd.DataFrame
+            A DataFrame containing entities organized by NER tags.
+        """
+        df_pos = pd.DataFrame(columns=list(all_pos_tags))
+        for i, document_tags in enumerate(tags):
+            for text, label in document_tags:
+                df_pos.at[i, label] = text
+        return df_pos
     
 
  # Functions to disregard   
