@@ -174,7 +174,91 @@ class DataProcessing:
             A list containing the data
         """
         return df[col].values.tolist()
-    
+
+    @staticmethod
+    def extract_entities(data: pd.Series, nlp: spacy.Language, disable_components: list, batch_size: int = 50):
+        """
+        Extract entities using the provided SpaCy NLP model.
+
+        Parameters:
+        -----------
+        data : `pd.Series`
+            A Series containing textual data for entity extraction.
+        
+        nlp : `spacy.Language`
+            A SpaCy NLP model.
+
+        disable_components : `list`
+            A list of components to disable in the SpaCy pipeline.
+        
+        batch_size : `int`
+            The batch size for processing the data.
+
+        Returns:
+        --------
+        tuple
+            A tuple containing the POS tags, POS to word mappings, NER tags, and NER to word mappings.
+        """
+        tags = []
+        all_pos_tags = set()
+
+        entities = []
+        all_ner_tags = set()
+
+        label_counts = {}
+
+        for doc in nlp.pipe(data, disable=disable_components, batch_size=batch_size):
+            doc_tags = []
+            for token in doc:
+                doc_tags.append((token.text, token.pos_))
+                all_pos_tags.add(token.pos_)
+            tags.append(doc_tags)
+
+            doc_entities = []
+            for ent in doc.ents:
+                label = ent.label_
+                text = ent.text
+                # updated_label = DataProcessing.update_ner(label, text)  # update the label
+                
+                count_key = f"{label}_{doc}"
+                if count_key in label_counts:
+                    label_counts[count_key] += 1
+                else:
+                    label_counts[count_key] = 1
+                unique_label = f"{label}_{label_counts[count_key]}"
+
+                doc_entities.append((text, unique_label))  # changed label to updated_label
+                all_ner_tags.add(unique_label)
+
+            entities.append(doc_entities)
+
+        return all_pos_tags, tags, all_ner_tags, entities
+
+    @staticmethod
+    def convert_tags_entities_to_dataframe(keys_of_mappings, mappings):
+        """
+        Convert extracted entities into a pandas DataFrame.
+        
+        Parameters:
+        -----------
+        entities : list
+            A list of entities extracted from documents.
+        
+        all_ner_entities : list
+            A list of all unique NER (Named Entity Recognition) tags.
+
+        Returns:
+        --------
+        pd.DataFrame
+            A DataFrame containing entities organized by NER tags.
+        """
+        df_ner = pd.DataFrame(columns=list(keys_of_mappings))
+        for i, document_mapping in enumerate(mappings):
+            for text, label in document_mapping:
+                df_ner.at[i, label] = text
+        return df_ner
+
+ # Functions to disregard
     @staticmethod
     def setup_spacy():
         """
@@ -218,114 +302,7 @@ class DataProcessing:
             else: return label
         else:
             return label
-
-
-    @staticmethod
-    def extract_entities(data: pd.Series, nlp: spacy.Language, disable_components: list, batch_size: int = 50):
-        """
-        Extract entities using the provided SpaCy NLP model.
-
-        Parameters:
-        -----------
-        data : `pd.Series`
-            A Series containing textual data for entity extraction.
-        
-        nlp : `spacy.Language`
-            A SpaCy NLP model.
-        
-        batch_size : `int`
-            The batch size for processing the data.
-
-        Returns:
-        --------
-        tuple
-            A tuple containing a list of entities and a set of unique NER tags.
-        """
-        tags = []
-        all_pos_tags = set()
-
-        entities = []
-        all_ner_tags = set()
-
-        label_counts = {}
-
-        for doc in nlp.pipe(data, disable=disable_components, batch_size=batch_size):
-            doc_tags = []
-            for token in doc:
-                doc_tags.append((token.text, token.pos_))
-                all_pos_tags.add(token.pos_)
-            tags.append(doc_tags)
-
-            doc_entities = []
-            for ent in doc.ents:
-                label = ent.label_
-                text = ent.text
-                # updated_label = DataProcessing.update_ner(label, text)  # update the label
-                
-                count_key = f"{label}_{doc}"
-                if count_key in label_counts:
-                    label_counts[count_key] += 1
-                else:
-                    label_counts[count_key] = 1
-                unique_label = f"{label}_{label_counts[count_key]}"
-
-                doc_entities.append((text, unique_label))  # changed label to updated_label
-                all_ner_tags.add(unique_label)
-
-            entities.append(doc_entities)
-
-        return tags, all_pos_tags, entities, all_ner_tags
-
-    @staticmethod
-    def entities_to_dataframe(entities, all_ner_entities):
-        """
-        Convert extracted entities into a pandas DataFrame.
-        
-        Parameters:
-        -----------
-        entities : list
-            A list of entities extracted from documents.
-        
-        all_ner_entities : list
-            A list of all unique NER (Named Entity Recognition) tags.
-
-        Returns:
-        --------
-        pd.DataFrame
-            A DataFrame containing entities organized by NER tags.
-        """
-        df_ner = pd.DataFrame(columns=list(all_ner_entities))
-        for i, document_entities in enumerate(entities):
-            for text, label in document_entities:
-                df_ner.at[i, label] = text
-        return df_ner
     
-    @staticmethod
-    def tags_to_dataframe(tags, all_pos_tags):
-        """
-        Convert extracted entities into a pandas DataFrame.
-        
-        Parameters:
-        -----------
-        entities : list
-            A list of entities extracted from documents.
-        
-        all_pos_tags : list
-            A list of all unique POS (Part-Of-Speech) tags.
-
-        Returns:
-        --------
-        pd.DataFrame
-            A DataFrame containing entities organized by NER tags.
-        """
-        df_pos = pd.DataFrame(columns=list(all_pos_tags))
-        for i, document_tags in enumerate(tags):
-            for text, label in document_tags:
-                df_pos.at[i, label] = text
-        return df_pos
-    
-
- # Functions to disregard   
     def select_pattern(template_number: int) -> str:
         """Select the pattern to use based on the template number
         
