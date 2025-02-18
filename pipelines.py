@@ -55,7 +55,7 @@ class BasePipeline(PipelineFactory):
             top_p=0.9, # Lower top_p to focus on high-probability words
         )
 
-        df_col_names = ['Base Sentences']
+        df_col_names = ['Base Sentence']
         # Use the model to generate a prediction prompt and return it as a DataFrame
         df = llama_model.completion(df_col_names, label, DEFAULT_MODEL, domain)
 

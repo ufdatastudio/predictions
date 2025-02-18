@@ -67,6 +67,12 @@ class DataProcessing:
         model_name = model.__name__()
         model_col_name = f"{model_name} Prediction"
         test_df.loc[:, model_col_name] = y_predictions.values
+
+        # Move "Prediction Label" column to second to last position
+        cols = list(test_df.columns)
+        cols.remove("Prediction Label")
+        cols.insert(-1, "Prediction Label")
+        test_df = test_df[cols]
         
         return test_df
     

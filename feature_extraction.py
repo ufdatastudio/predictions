@@ -1,5 +1,6 @@
 import spacy
 
+import numpy as np
 import pandas as pd
 
 from abc import ABC, abstractmethod
@@ -38,7 +39,7 @@ class TfidfFeatureExtraction(FeatureExtractionFactory):
     def __name__(self):
         return "TF x IDF Feature Extraction"
 
-    def word_feature_extraction(self):
+    def word_feature_extraction(self, max_features: int = 100):
         """Vectorize the predictions DataFrame using a TfidfVectorizer for word features
         
         Returns:
@@ -46,7 +47,7 @@ class TfidfFeatureExtraction(FeatureExtractionFactory):
             A sparse matrix containing the vectorized word features
         """
 
-        self.vectorizer = TfidfVectorizer(max_features=100)
+        self.vectorizer = TfidfVectorizer(max_features=max_features)
         text_to_vectorize = self.extract_text_to_vectorize()
         vectorized_features = self.vectorizer.fit_transform(text_to_vectorize)
         
@@ -73,6 +74,10 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
     def __name__(self):
         return "Spacy Feature Extraction"
     
+    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str):
+        super().__init__(df_to_vectorize, col_name_to_vectorize)
+        self.nlp = spacy.load("en_core_web_md")  # Load a SpaCy model with word vectors
+    
     def word_feature_extraction(self):
         """Extract word vector embeddings using Spacy
         
@@ -80,16 +85,21 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         list
             A list containing the word vector embeddings
         """
-        text_to_vectorize = self.extract_text_to_vectorize()
-        word_embeddings = []
+        sentences = self.extract_text_to_vectorize()
         nlp = spacy.load("en_core_web_sm")
+        word_features = []
 
-        for sentence in text_to_vectorize:
-            doc = nlp(sentence)
-            for token in doc:
-                word_embeddings.append(token.vector)
-        
-        return word_embeddings
+        for sentence in sentences:
+                doc = self.nlp(sentence)
+                vectors = [token.vector for token in doc if not token.is_stop and not token.is_punct and token.has_vector]
+                if vectors:
+                    mean_vector = np.mean(vectors, axis=0)
+                else:
+                    mean_vector = np.zeros((self.nlp.meta['vectors']['width'],), dtype=float)
+                word_features.append(mean_vector)
+            
+        return np.array(word_features)  # Ensuring it returns a 2D array with consistent dimensions
+
 
     def sentence_feature_extraction(self):
         """Extract sentence vector embeddings using Spacy
@@ -109,5 +119,8 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         
         return sent_embeddings
     
-    def feature_scores(self):
-        pass
+    def word_feature_scores(self):
+        """Get the word vector embeddings for the predictions"""
+
+        sentence_embeddings = self.word_feature_extraction()
+        return sentence_embeddings
