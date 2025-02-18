@@ -37,22 +37,7 @@ class DataProcessing:
         X_train, X_test, y_train, y_test = train_test_split(vectorized_features, prediction_labels, test_size=0.2, random_state=42)
 
         return X_train, X_test, y_train, y_test
-    
-    def array_to_df(data: np.array) -> pd.DataFrame:
-        """Convert a numpy array to a DataFrame
-        
-        Parameters:
-        -----------
-        data: `np.array`
-            An array containing the data to convert to a DataFrame
 
-        Returns:
-        --------
-        `pd.Series`
-            A Series containing the data
-        """
-        return pd.Series(data)
-    
     def join_predictions_with_labels(df: pd.DataFrame, true_labels: pd.Series, y_predictions: pd.Series, model) -> pd.DataFrame:
         """Join the predictions with the true labels DF
         
@@ -175,7 +160,6 @@ class DataProcessing:
         """
         return df[col].values.tolist()
 
-    @staticmethod
     def extract_entities(data: pd.Series, nlp: spacy.Language, disable_components: list, batch_size: int = 50):
         """
         Extract entities using the provided SpaCy NLP model.
@@ -234,8 +218,58 @@ class DataProcessing:
 
         return all_pos_tags, tags, all_ner_tags, entities
 
-    @staticmethod
-    def convert_tags_entities_to_dataframe(keys_of_mappings, mappings):
+    def drop_df_columns(df: pd.DataFrame, columns: list):
+        """Drop columns
+        
+        Parameters:
+        -----------
+        df: `pd.DataFrame`
+            The DataFrame to drop columns from
+        
+        columns: `list` 
+            The list of columns to drop from the DataFrame
+        
+        Returns:
+        --------
+        df: `pd.DataFrame`
+            The DataFrame with the columns dropped
+        """
+        df = df.drop(columns=columns)
+        return df
+
+    def encode_tags_entities_dataframe(df: pd.DataFrame):
+        """Encode the tags or entities in the DataFrame. Use 1 for the presence of the tag or entity and 0 if NaN
+        
+        Parameters:
+        -----------
+        df: `pd.DataFrame`
+            The DataFrame to encode
+
+        Returns:
+        --------
+        encoded_df: `pd.DataFrame`
+            The DataFrame with the tags or entities encoded
+        """
+        bool_df = df.notnull() # Convert the DataFrame to boolean where if presence, place True and NaN place False
+        encoded_df = bool_df.astype('int') # Convert the boolean DataFrame to integer where True is 1 and False is 0
+        return encoded_df
+
+    def array_to_df(data: np.array) -> pd.DataFrame:
+        """Convert a numpy array to a DataFrame
+        
+        Parameters:
+        -----------
+        data: `np.array`
+            An array containing the data to convert to a DataFrame
+
+        Returns:
+        --------
+        `pd.Series`
+            A Series containing the data
+        """
+        return pd.Series(data)
+    
+    def convert_tags_entities_to_dataframe(keys_of_mappings: set, mappings: list[list]):
         """
         Convert extracted entities into a pandas DataFrame.
         
@@ -257,8 +291,31 @@ class DataProcessing:
             for text, label in document_mapping:
                 df_ner.at[i, label] = text
         return df_ner
+    
+    def convert_to_df(data, mapping=None):
+        """Convert data to a DataFrame or Series.
 
- # Functions to disregard
+        Parameters:
+        -----------
+        data: `np.array`, `list`, `dict`, or `set`
+            An array, list, dictionary, or set containing the data to convert to a DataFrame or Series.
+        
+        mapping: `dict`, `optional`
+            A dictionary containing mappings for tags/entities.
+
+        Returns:
+        --------
+        `pd.DataFrame` or `pd.Series`
+            A DataFrame or Series containing the data.
+        """
+        if isinstance(data, np.ndarray):
+            return DataProcessing.array_to_df(data)
+        elif isinstance(data, set) and isinstance(mapping, list):
+            return DataProcessing.convert_tags_entities_to_dataframe(data, mapping)
+        else:
+            raise ValueError("Invalid input: data must be a numpy array, dictionary, list, or set with a mapping.")
+        
+# Functions to disregard
     @staticmethod
     def setup_spacy():
         """
