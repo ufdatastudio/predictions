@@ -60,19 +60,6 @@ class BasePipeline(PipelineFactory):
         df = llama_model.completion(df_col_names, label, DEFAULT_MODEL, domain)
 
         return df
-    
-    def clean_predictions(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean the predictions DataFrame by removing any empty rows"""
-        cleaner = PredictionDataCleaner(df)
-        predictions_col = df.columns[0]
-
-        cleaner.lower_case(predictions_col)
-        cleaner.remove_html_and_urls(predictions_col)
-        cleaner.remove_contractions(predictions_col)
-        # cleaner.remove_non_alphabetical_characters(predictions_col) # May need to keep so we don't remove numbers, percentages, etc.
-        cleaner.remove_extra_spaces(predictions_col)
-
-        return cleaner.df
 
     def pre_process_data(self, df) -> pd.DataFrame:
         """Pre-process the predictions DataFrame by removing any empty rows"""

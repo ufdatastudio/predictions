@@ -126,7 +126,10 @@ class DataProcessing:
 
         for prediction in df[col_name].values:
             first_word = prediction.split()[0]
-            if first_word == "T1:":
+            if first_word == "T0:":
+                template_numbers.append(0)
+                reformat_predictions.append(prediction[4:])
+            elif first_word == "T1:":
                 template_numbers.append(1)
                 reformat_predictions.append(prediction[4:])
             elif first_word == "T2:":
@@ -166,64 +169,6 @@ class DataProcessing:
         """
         return df[col].values.tolist()
 
-    def extract_entities(data: pd.Series, nlp: spacy.Language, disable_components: list, batch_size: int = 50):
-        """
-        Extract entities using the provided SpaCy NLP model.
-
-        Parameters:
-        -----------
-        data : `pd.Series`
-            A Series containing textual data for entity extraction.
-        
-        nlp : `spacy.Language`
-            A SpaCy NLP model.
-
-        disable_components : `list`
-            A list of components to disable in the SpaCy pipeline.
-        
-        batch_size : `int`
-            The batch size for processing the data.
-
-        Returns:
-        --------
-        tuple
-            A tuple containing the POS tags, POS to word mappings, NER tags, and NER to word mappings.
-        """
-        tags = []
-        all_pos_tags = set()
-
-        entities = []
-        all_ner_tags = set()
-
-        label_counts = {}
-
-        for doc in nlp.pipe(data, disable=disable_components, batch_size=batch_size):
-            doc_tags = []
-            for token in doc:
-                doc_tags.append((token.text, token.pos_))
-                all_pos_tags.add(token.pos_)
-            tags.append(doc_tags)
-
-            doc_entities = []
-            for ent in doc.ents:
-                label = ent.label_
-                text = ent.text
-                # updated_label = DataProcessing.update_ner(label, text)  # update the label
-                
-                count_key = f"{label}_{doc}"
-                if count_key in label_counts:
-                    label_counts[count_key] += 1
-                else:
-                    label_counts[count_key] = 1
-                unique_label = f"{label}_{label_counts[count_key]}"
-
-                doc_entities.append((text, unique_label))  # changed label to updated_label
-                all_ner_tags.add(unique_label)
-
-            entities.append(doc_entities)
-
-        return all_pos_tags, tags, all_ner_tags, entities
-
     def drop_df_columns(df: pd.DataFrame, columns: list):
         """Drop columns
         
@@ -243,7 +188,7 @@ class DataProcessing:
         df = df.drop(columns=columns)
         return df
 
-    def encode_tags_entities_dataframe(df: pd.DataFrame):
+    def encode_tags_entities_df(df: pd.DataFrame):
         """Encode the tags or entities in the DataFrame. Use 1 for the presence of the tag or entity and 0 if NaN
         
         Parameters:
@@ -322,17 +267,7 @@ class DataProcessing:
             raise ValueError("Invalid input: data must be a numpy array, dictionary, list, or set with a mapping.")
         
 # Functions to disregard
-    @staticmethod
-    def setup_spacy():
-        """
-        Setup the NLP pipeline with SpaCy and add custom entity rulers if needed.
-        
-        Returns:
-        --------
-        nlp : spacy.Language
-            A SpaCy language processing object with an added entity ruler for custom patterns.
-        """
-        nlp = spacy.load("en_core_web_sm")
+    def patterns(nlp):
         # ruler = nlp.add_pipe("entity_ruler", before="ner")
         # patterns = [
         #     {"label": "DATE", "pattern": [{"TEXT": {"REGEX": "20\\d{2}/\\d{2}/\\d{2}"}}]},
@@ -341,9 +276,8 @@ class DataProcessing:
         #     {"label": "DATE", "pattern": [{"TEXT": {"REGEX": "\d{1,2} [a-zA-Z]+ \d{4}"}}]} # NOT WORKING for ex 15 November 2021
         # ]
         # ruler.add_patterns(patterns)
-        return nlp
+        pass
 
-    @staticmethod
     def update_ner(label, text):
         """Updates the NER label based on provided rules."""
         if label == "LOC" or label.startswith("LOC_"):

@@ -78,6 +78,61 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         super().__init__(df_to_vectorize, col_name_to_vectorize)
         self.nlp = spacy.load("en_core_web_md")  # Load a SpaCy model with word vectors
     
+    def extract_entities(self, data: pd.Series, disable_components: list, batch_size: int = 50):
+        """
+        Extract entities using the provided SpaCy NLP model.
+
+        Parameters:
+        -----------
+        data : `pd.Series`
+            A Series containing textual data for entity extraction.
+
+        disable_components : `list`
+            A list of components to disable in the SpaCy pipeline.
+        
+        batch_size : `int`
+            The batch size for processing the data.
+
+        Returns:
+        --------
+        tuple
+            A tuple containing the POS tags, POS to word mappings, NER tags, and NER to word mappings.
+        """
+        tags = []
+        all_pos_tags = set()
+
+        entities = []
+        all_ner_tags = set()
+
+        label_counts = {}
+
+        for doc in self.nlp.pipe(data, disable=disable_components, batch_size=batch_size):
+            doc_tags = []
+            for token in doc:
+                doc_tags.append((token.text, token.pos_))
+                all_pos_tags.add(token.pos_)
+            tags.append(doc_tags)
+
+            doc_entities = []
+            for ent in doc.ents:
+                label = ent.label_
+                text = ent.text
+                # updated_label = DataProcessing.update_ner(label, text)  # update the label
+                
+                count_key = f"{label}_{doc}"
+                if count_key in label_counts:
+                    label_counts[count_key] += 1
+                else:
+                    label_counts[count_key] = 1
+                unique_label = f"{label}_{label_counts[count_key]}"
+
+                doc_entities.append((text, unique_label))  # changed label to updated_label
+                all_ner_tags.add(unique_label)
+
+            entities.append(doc_entities)
+
+        return all_pos_tags, tags, all_ner_tags, entities
+   
     def word_feature_extraction(self):
         """Extract word vector embeddings using Spacy
         
@@ -86,7 +141,6 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             A list containing the word vector embeddings
         """
         sentences = self.extract_text_to_vectorize()
-        nlp = spacy.load("en_core_web_sm")
         word_features = []
 
         for sentence in sentences:
@@ -110,10 +164,9 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         """
         text_to_vectorize = self.extract_text_to_vectorize()
         sent_embeddings = []
-        nlp = spacy.load("en_core_web_sm")
 
         for sentence in text_to_vectorize:
-            doc = nlp(sentence)
+            doc = self.nlp(sentence)
             for sent in doc.sents:
                 sent_embeddings.append(sent.vector)
         
