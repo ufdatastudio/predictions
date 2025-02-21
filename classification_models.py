@@ -2,12 +2,12 @@ import sklearn
 
 from abc import ABC, abstractmethod
 
-from sklearn.linear_model import Perceptron
+from sklearn.linear_model import Perceptron, SGDClassifier
 from sklearn.model_selection import train_test_split
 
 from data_processing import DataProcessing
 
-class ModelFactory(ABC):
+class SkLearnModelFactory(ABC):
     """Abstract implementation of a model. Each specified model inherits from this base class.
 
     Methods decorated with @abstractmethod must be implemented and if not, the interpreter will throw an error. Methods not decorated will be shared by all other classes that inherit from Model.
@@ -44,7 +44,8 @@ class ModelFactory(ABC):
             An instance of the selected model
         """
         models = {
-            "perceptron": PerceptronModel(),
+            "perceptron": SkLearnPerceptronModel(),
+            "sgdclassifier": SkLearnSGDClassifier(),
             # Add other models here as needed
         }
 
@@ -53,7 +54,7 @@ class ModelFactory(ABC):
         else:
             raise ValueError(f"Model {model_name} not found. Available models: {list(models.keys())}")
 
-class PerceptronModel(ModelFactory):      
+class SkLearnPerceptronModel(SkLearnModelFactory):      
 
     def __init__(self):
         super().__init__()  
@@ -63,7 +64,36 @@ class PerceptronModel(ModelFactory):
     
     def train_model(self, X, y):
 
-        self.classifer = Perceptron(tol=1e-3, random_state=0) # instantiate the model
+        self.classifer = Perceptron() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+    
+    def predict(self, X_test, to_series: bool = True):
+        """Predict the test data using the trained model
+        
+        Parameters:
+        -----------
+        X_test: `pd.DataFrame`
+            A DataFrame containing the test data to predict
+        
+        to_series: `bool`
+            A boolean value to convert the predictions to a pd.Series
+        """
+        predictions = self.classifer.predict(X_test)
+        if to_series:
+            return DataProcessing.array_to_df(predictions)
+        return predictions
+
+class SkLearnSGDClassifier(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Perceptron Model"
+    
+    def train_model(self, X, y):
+
+        self.classifer = SGDClassifier() # instantiate the model
         self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
     
     def predict(self, X_test, to_series: bool = True):
