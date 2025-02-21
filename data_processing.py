@@ -188,13 +188,16 @@ class DataProcessing:
         df = df.drop(columns=columns)
         return df
 
-    def encode_tags_entities_df(df: pd.DataFrame):
+    def encode_tags_entities_df(df: pd.DataFrame, sentence_and_label_df: pd.DataFrame) -> pd.DataFrame:
         """Encode the tags or entities in the DataFrame. Use 1 for the presence of the tag or entity and 0 if NaN
         
         Parameters:
         -----------
         df: `pd.DataFrame`
             The DataFrame to encode
+
+        sentence_and_label_df: `pd.DataFrame`
+            The DataFrame containing the sentence and prediction labels
 
         Returns:
         --------
@@ -203,7 +206,9 @@ class DataProcessing:
         """
         bool_df = df.notnull() # Convert the DataFrame to boolean where if presence, place True and NaN place False
         encoded_df = bool_df.astype('int') # Convert the boolean DataFrame to integer where True is 1 and False is 0
-        return encoded_df
+        updated_encoded_df = DataProcessing.include_sentence_and_label(encoded_df, sentence_and_label_df)
+
+        return updated_encoded_df
 
     def array_to_df(data: np.array) -> pd.DataFrame:
         """Convert a numpy array to a DataFrame
@@ -243,6 +248,17 @@ class DataProcessing:
                 df_ner.at[i, label] = text
         return df_ner
     
+    def include_sentence_and_label(df_to_update: pd.DataFrame, sentence_and_label_df: pd.DataFrame) -> pd.DataFrame:
+        """Include the sentence and prediction labels in the DataFrame"""
+
+        if len(df_to_update) == len(sentence_and_label_df):
+            df_to_update.insert(0, 'Base Sentence', sentence_and_label_df['Base Sentence'].values)
+            df_to_update.insert(1, 'Prediction Label', sentence_and_label_df['Prediction Label'].values)
+            return df_to_update
+        else:
+            print("Error: The lengths of df_to_update and sentence_and_label_df do not match.")
+            return df_to_update
+        
     def convert_to_df(data, mapping=None):
         """Convert data to a DataFrame or Series.
 

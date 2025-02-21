@@ -39,7 +39,7 @@ class TfidfFeatureExtraction(FeatureExtractionFactory):
     def __name__(self):
         return "TF x IDF Feature Extraction"
 
-    def word_feature_extraction(self, max_features: int = 100):
+    def word_feature_extraction(self, max_features: int):
         """Vectorize the predictions DataFrame using a TfidfVectorizer for word features
         
         Returns:
@@ -53,10 +53,10 @@ class TfidfFeatureExtraction(FeatureExtractionFactory):
         
         return vectorized_features
     
-    def feature_scores(self) -> pd.DataFrame:
+    def feature_scores(self, max_features: int) -> pd.DataFrame:
         """Get the TF-IDF scores for the predictions"""
 
-        vectorized_predictions = self.word_feature_extraction()
+        vectorized_predictions = self.word_feature_extraction(max_features)
         # Convert the TF-IDF matrix to a dense matrix for easy viewing
         dense_matrix = vectorized_predictions.todense()
 
@@ -64,9 +64,12 @@ class TfidfFeatureExtraction(FeatureExtractionFactory):
         feature_names = self.vectorizer.get_feature_names_out()
 
         # Create a DataFrame to visualize the TF-IDF scores
-        tfidf_df = pd.DataFrame(dense_matrix, columns=feature_names)   
+        tfidf_df = pd.DataFrame(dense_matrix, columns=feature_names)
+        
+        # Add the actual sentences and prediction labels to the DataFrame
+        sentence_label_tfidf_df = DataProcessing.include_sentence_and_label(tfidf_df, self.df_to_vectorize)
 
-        return tfidf_df
+        return sentence_label_tfidf_df
     
 class SpacyFeatureExtraction(FeatureExtractionFactory):
     """An extension of the abstract base class called FeatureExtractionFactory"""
@@ -153,7 +156,6 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 word_features.append(mean_vector)
             
         return np.array(word_features)  # Ensuring it returns a 2D array with consistent dimensions
-
 
     def sentence_feature_extraction(self):
         """Extract sentence vector embeddings using Spacy
