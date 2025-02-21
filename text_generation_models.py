@@ -40,7 +40,7 @@ class TextGenerationModelFactory(ABC):
         pass
     
     @abstractmethod
-    def completion(self) -> pd.DataFrame:
+    def generate_predictions(self) -> pd.DataFrame:
         """Generate a completion response and return as a DataFrame"""
         pass
 
@@ -62,29 +62,20 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         The top_p parameter for the model.
     """
     
-    def __init__(self, model_name: str, prompt_template: str, temperature: float, top_p: float):
-        """
-        Parameters:
-        -----------
-        model_name: `str`
-            The name of the LLaMA model, e.g., "llama-3.1-70b-versatile".
-        prompt_template: `str`
-            The prompt template to generate a prediction prompt or a non-prediction prompt.
-        temperature: `float`
-            The temperature parameter for the model.
-        top_p: `float`
-            The top_p parameter for the model.
-        """
+    def __init__(self):
+        # models: https://console.groq.com/docs/models
+
+        # Constants for model names
+        LLAMA3_70B_INSTRUCT = "llama-3.3-70b-versatile"
         # Groq client
         api_key = os.getenv('API_KEY')
         if api_key is None:
             raise ValueError("API_KEY environment variable not set")
         self.client = Groq(api_key=api_key)
-        self.model_name = model_name
-        self.prompt_template = prompt_template
-        self.temperature = temperature
-        self.top_p = top_p
-    
+        self.model_name = LLAMA3_70B_INSTRUCT
+        self.temperature = 0.3
+        self.top_p = 0.9
+
     def assistant(self, content: str) -> Dict:
         """
         Create an assistant message.
@@ -117,7 +108,7 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         """
         return {"role": "user", "content": content}
 
-    def chat_completion(self, messages: List[Dict], temperature: float = 0.3, top_p: float = 0.9) -> str:
+    def chat_completion(self, messages: List[Dict]) -> str:
         """
         Generate a chat completion response.
         
@@ -125,15 +116,18 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         -----------
         messages: `List[Dict]`
             A list of dictionaries representing the chat history.
+        
         model: `str`
             The name of the model to use.
+        
         temperature: `float`
             Sampling temperature.
+        
         top_p: `float`
             Nucleus sampling parameter.
         
         Returns:
-        -------
+        --------
         `str`
             The generated chat completion response.
         """
@@ -145,26 +139,23 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         )
         return response.choices[0].message.content
     
-    def completion(self, cols_name: list[str], prediction_label: bool, model_name: str, domain: str) -> pd.DataFrame:
+    def generate_predictions(self, prompt_template: str, label: str, domain: str) -> pd.DataFrame:
         """
         Generate a completion response and return as a DataFrame.
 
         Parameters:
         -----------
-        cols_name: `List[str]`
-            The column names for the DataFrame.
+        prompt_template: `str`
+            The prompt template to generate a prediction prompt or a non-prediction prompt.
         
-        prediction_label: `bool`
-            The label for the prediction column.
-
-        model_name: `str`
-            The name of the model used for the prediction.
+        label: `str`
+            The prediction label for the prediction. Either 0 (non-prediction) or 1 (prediction).
         
         domain: `str`
-            The domain of the prediction.
+            The domain of the prediction. As of now, the domains are finance, weather, health, and policy.
 
         template_number: `int`
-            The template number to use for the prediction.
+            The template number to use for the prediction. For non-prediction prompts, the template number is 0 and for prediction prompts, the template number is 1 to 5.
         
         Returns:
         --------
@@ -172,7 +163,7 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
             The generated completion response formatted as a DataFrame.
         """
         # Generate the raw prediction text
-        raw_text = self.chat_completion([self.user(self.prompt_template)])
+        raw_text = self.chat_completion([self.user(prompt_template)])
         
         # Parse the raw text into structured data (assuming a consistent format)
         predictions = []
@@ -181,10 +172,8 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
                 predictions.append(line.strip())
         
         # Convert to DataFrame
-        df = pd.DataFrame(predictions, columns=cols_name)
-        df['Prediction Label'] = prediction_label
-        df['Model Name'] = model_name
+        df = pd.DataFrame(predictions, columns=['Base Sentence'])
+        df['Sentence Label'] = label
+        df['Model Name'] = self.model_name
         df['Domain'] = domain
-        # df['Template Number'] = template_number
-        
         return df
