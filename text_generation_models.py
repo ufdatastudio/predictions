@@ -145,7 +145,7 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         )
         return response.choices[0].message.content
     
-    def completion(self, cols_name, prediction_label) -> pd.DataFrame:
+    def completion(self, cols_name: list[str], prediction_label: bool, model_name: str, domain: str) -> pd.DataFrame:
         """
         Generate a completion response and return as a DataFrame.
 
@@ -154,8 +154,17 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         cols_name: `List[str]`
             The column names for the DataFrame.
         
-        prediction_label: bool
+        prediction_label: `bool`
             The label for the prediction column.
+
+        model_name: `str`
+            The name of the model used for the prediction.
+        
+        domain: `str`
+            The domain of the prediction.
+
+        template_number: `int`
+            The template number to use for the prediction.
         
         Returns:
         --------
@@ -174,5 +183,8 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         # Convert to DataFrame
         df = pd.DataFrame(predictions, columns=cols_name)
         df['Prediction Label'] = prediction_label
+        df['Model Name'] = model_name
+        df['Domain'] = domain
+        # df['Template Number'] = template_number
         
         return df

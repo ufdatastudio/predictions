@@ -318,6 +318,43 @@ class PredictionDataCleaner(DataCleaningFactory):
         self.df[col_name] = alphabetical_char_reviews
         return self.df
     
+    def remove_symbols(self, col_name: str):
+        """Remove symbols (except for % and $) from all text
+
+        Parameters:
+        -----------
+        col_name: `str`
+            Column with reviews
+
+        Return:
+        -------
+        df: `pd.DataFrame`
+            An updated DataFrame with the non-alphabetical characters removed
+        """
+
+        alphabetical_char_reviews = []
+        text_reviews = self.get_reviews(col_name)
+        for text_reviews_idx in range(len(text_reviews)):
+            text_review = text_reviews[text_reviews_idx]
+            
+            if isinstance(text_review, str):
+
+                # Check for non-alphabetical characters
+                has_non_alphabetical_char = bool(re.search(r'[^a-zA-Z]', text_review))
+                if has_non_alphabetical_char == True:
+                    # print("Review", text_reviews_idx, "has HTML -- ", text_review)
+                    pass
+                
+                # Remove non-alphabetical characters
+                with_alphabetical_char = re.sub(r'[^a-zA-Z0-9\$\%\s]', ' ', text_review)
+                # print("Review", text_reviews_idx, "has HTML -- ", with_alphabetical_char)
+                alphabetical_char_reviews.append(with_alphabetical_char)
+            else:
+                alphabetical_char_reviews.append(text_review)
+
+        self.df[col_name] = alphabetical_char_reviews
+        return self.df
+    
     def remove_extra_spaces(self, col_name: str):
         """Remove extra spaces from all reviews
 
