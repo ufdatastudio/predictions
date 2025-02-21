@@ -18,7 +18,7 @@ class PipelineFactory(ABC):
 class BasePipeline(PipelineFactory):
     """An extension of the abstract base class called PipelineFactory"""
 
-    def generate_predictions(self, text: str, label: int) -> pd.DataFrame:
+    def generate_predictions(self, text: str, label: int, domain: str) -> pd.DataFrame:
         """Generate a prediction or non-prediction (general sentence) given the text and label
         
         Parameters:
@@ -28,6 +28,9 @@ class BasePipeline(PipelineFactory):
         
         label: `int`
             An int that should be either 1 (prediction) or 0 (non-prediction)
+        
+        domain: `str`
+            The domain of the text, e.g., financial, weather, health, etc.
         
         Returns:
         --------
@@ -49,32 +52,19 @@ class BasePipeline(PipelineFactory):
             model_name=DEFAULT_MODEL,
             prompt_template=text,
             temperature=0.3, # Lower temperature for more deterministic output (so less random)
-            top_p=0.9, # # Lower top_p to focus on high-probability words
+            top_p=0.9, # Lower top_p to focus on high-probability words
         )
 
-        df_col_names = ['Base Predictions']
+        df_col_names = ['Base Sentence']
         # Use the model to generate a prediction prompt and return it as a DataFrame
-        df = llama_model.completion(df_col_names, label)
+        df = llama_model.completion(df_col_names, label, DEFAULT_MODEL, domain)
 
         return df
-    
-    def clean_predictions(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean the predictions DataFrame by removing any empty rows"""
-        cleaner = PredictionDataCleaner(df)
-        predictions_col = df.columns[0]
-
-        cleaner.lower_case(predictions_col)
-        cleaner.remove_html_and_urls(predictions_col)
-        cleaner.remove_contractions(predictions_col)
-        # cleaner.remove_non_alphabetical_characters(predictions_col) # May need to keep so we don't remove numbers, percentages, etc.
-        cleaner.remove_extra_spaces(predictions_col)
-
-        return cleaner.df
 
     def pre_process_data(self, df) -> pd.DataFrame:
         """Pre-process the predictions DataFrame by removing any empty rows"""
-        df = PreProcessing.concat_dfs(df)
-        df = PreProcessing.shuffle_df(df)
+        df = DataProcessing.concat_dfs(df)
+        df = DataProcessing.shuffle_df(df)
         return df
     
     def tfidf_features(self, df, feature_scores: bool = False) -> pd.DataFrame:
