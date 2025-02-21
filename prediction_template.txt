@@ -2,9 +2,6 @@
 - $\hat{y}$, prediction
     - $\hat{y}_{s}$, source that predicted $\hat{y}$
         - Source can be person, organization, and any type of entity.
-        - Analyst forecasts, financial reports, company executives, etc.
-        - Meteorologists, weather organizations, or any type of weather-predicting entity.
-        - Health organization, researcher, doctor, physical therapist, physician assistant, nurse practictioners, fitness expert, etc.
     - $\hat{y}_{t}$, time when $\hat{y}$ was made
         - Time is the exact moment that can be measured in day, hour, minutes, seconds, etc.
     - $\hat{y}_{f}$, forecast time when $\hat{y}$ is expected to come to fruition
@@ -44,7 +41,12 @@
 - Template 4: According to [ $\hat{y}_{s}$ person name ] from [ $\hat{y}_{s}$ company name ], on [ $\hat{y}_{t}$ ], the [ $\hat{y}_{a}$ ] [ $\hat{y}_{v}$ ] by [ $\hat{y}_{m}$ ] in the timeframe of [ $\hat{y}_{f}$ ].
 - Template 5: In [ $\hat{y}_{f}$ ], the [ $\hat{y}_a$ ] at [ $\hat{y}_s$ company name ] is expected to [ $\hat{y}_v$ ] by [ $\hat{y}_m$ ], as predicted by [ $\hat{y}s$ person name ] on [ $\hat{y}{t}$ ].
 
+- Analyst forecasts, financial reports, company executives, earnings reports, etc.
+- Financial based attributes such as stock price, net profit, revenue, etc.
 Suppose you are the Chief Financial Officer at a publicly traded company on the US Stock Exchange. Using the above templates, please generate one of each (so five total) company-based financial prediction that will occur in the future following the requirements above.
+    4. Suppose the time when $\hat{y}$ was made is during any earning season
+    5. Include attributes ($\hat{y}_{a}$) like stock price, net profit, revenue, temperature, precipitation, wind speed, etc.
+    6. Include at least 5 stocks from all industries such as technology, energy, etc
 
 - Examples for template 1:
     1. On [Monday, December 16, 2024], [Detravious] forecasts that the [revenue] at [Apple] [will] [rise] from [8% to $120 per share] in [Q1 of 2025].
@@ -62,6 +64,8 @@ Suppose you are the Chief Financial Officer at a publicly traded company on the 
     10. In [Q1 of 2026], the [net profit] at [Amazon (AMZN)] is expected to [increase] from [10% to $15 billion], as predicted by [Emily Davis] on [Monday, January 15, 2024].
     11. In [Q3 of 2027], the [revenue] at [Facebook (META)] is expected to [rise] by [20% to $50 billion], as predicted by [John Smith] on [Tuesday, February 20, 2024].
 
+- Meteorologists, weather organizations, or any type of weather-predicting entity.
+- Weather-based attributes such as temperature, precipitation, wind speed, humidity, etc.
 Suppose you are the Chief Meteorologist at a national weather forecasting agency. Using the above templates, please generate one of each (so five total) weather-based predictions that will occur in the future following the requirements above.
 
 - Weather Template 1: On [ $\hat{y}_{t}$,], [$\hat{y}_{s}$ meteorologist name] predicts that the [ $\hat{y}_{a}$ ] [ $\hat{y}_{v}$ ] [ $\hat{y}_{m}$ ] in [ $\hat{y}_{f}$ ].
@@ -86,6 +90,9 @@ Suppose you are the Chief Meteorologist at a national weather forecasting agency
     9. In [April 2025], the [average temperature] in [Houston] is expected to [rise] by [5°F], as predicted by [Emily Cooper] on [Monday, February 18, 2025].
     10. In [January 2025], the [wind chill] in [Minneapolis] is expected to [fall] by [10°F], as predicted by [James Ortiz] on [Tuesday, December 3, 2024].
 
+        
+- Health organization, researcher, doctor, physical therapist, physician assistant, nurse practictioners, fitness expert, etc.
+- Health-based attributes such as obesity rates, prevalence of chronic illnesses, average physical activity levels, nutritional intake, etc.
 Suppose you are a health organization (that the US have), researcher, doctor, fitness expert, etc in the US. Using the above templates, please generate one of each (so five total) health-based predictions that will occur in the future following the requirements above.
 
 - Health Template 1: On [ $\hat{y}_{t}$ ], [$\hat{y}_{s}$ person/organization name] predicts that the [ $\hat{y}_{a}$ ] in [ $\hat{y}_{s}$ location or population ] [ $\hat{y}_{v}$ ] [ $\hat{y}_{m}$ ] below [ $\hat{y}_{f}$ ].
