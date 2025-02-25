@@ -20,65 +20,19 @@ class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
     
     @abstractmethod
-    def __init__(self, model_name: str, prompt_template: str, temperature: float, top_p: float):
-        """Initialize the model with necessary parameters"""
-        pass
-    
-    @abstractmethod
-    def assistant(self, content: str) -> Dict:
-        """Generate an assistant message"""
-        pass
-    
-    @abstractmethod
-    def user(self, content: str) -> Dict:
-        """Create a user message"""
-        pass
-    
-    @abstractmethod
-    def chat_completion(self, messages: List[Dict]) -> str:
-        """Generate a chat completion response"""
-        pass
-    
-    @abstractmethod
-    def generate_predictions(self) -> pd.DataFrame:
-        """Generate a completion response and return as a DataFrame"""
-        pass
-
-class LlamaTextGenerationModel(TextGenerationModelFactory):
-    """
-    A class to interact with the LLaMA model.
-    
-    Attributes:
-    -----------
-    api_key: `str`
-        The API key to authenticate the user.
-    model_name: `str`
-        The name of the LLaMA model, e.g., "llama-3.1-70b-versatile".
-    prompt_template: `str`
-        The prompt template to generate a prediction prompt or a non-prediction prompt.
-    temperature: `float`
-        The temperature parameter for the model.
-    top_p: `float`
-        The top_p parameter for the model.
-    """
-    
     def __init__(self):
+        """Initialize the model with necessary parameters"""
         # models: https://console.groq.com/docs/models
-
-        # Constants for model names
-        LLAMA3_70B_INSTRUCT = "llama-3.3-70b-versatile"
         # Groq client
-        api_key = os.getenv('API_KEY')
-        if api_key is None:
+        self.api_key = os.getenv('API_KEY')
+        if self.api_key is None:
             raise ValueError("API_KEY environment variable not set")
-        self.client = Groq(api_key=api_key)
-        self.model_name = LLAMA3_70B_INSTRUCT
+        # self.client = Groq(api_key=self.api_key)
         self.temperature = 0.3
         self.top_p = 0.9
 
     def assistant(self, content: str) -> Dict:
-        """
-        Create an assistant message.
+        """Create an assistant message.
         
         Parameters:
         -----------
@@ -90,11 +44,11 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         Dict
             A dictionary representing the assistant message.
         """
-        return {"role": "assistant", "content": content}
 
+        return {"role": "assistant", "content": content}
+    
     def user(self, content: str) -> Dict:
-        """
-        Create a user message.
+        """Create a user message.
         
         Parameters:
         -----------
@@ -106,11 +60,11 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         Dict
             A dictionary representing the user message.
         """
-        return {"role": "user", "content": content}
 
+        return {"role": "user", "content": content}
+    
     def chat_completion(self, messages: List[Dict]) -> str:
-        """
-        Generate a chat completion response.
+        """Generate a chat completion response.
         
         Parameters:
         -----------
@@ -131,6 +85,7 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         `str`
             The generated chat completion response.
         """
+
         response = self.client.chat.completions.create(
             messages=messages,
             model=self.model_name,
@@ -140,8 +95,7 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         return response.choices[0].message.content
     
     def generate_predictions(self, prompt_template: str, label: str, domain: str) -> pd.DataFrame:
-        """
-        Generate a completion response and return as a DataFrame.
+        """Generate a completion response and return as a DataFrame.
 
         Parameters:
         -----------
@@ -162,6 +116,7 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         `pd.DataFrame`
             The generated completion response formatted as a DataFrame.
         """
+
         # Generate the raw prediction text
         raw_text = self.chat_completion([self.user(prompt_template)])
         
@@ -177,3 +132,101 @@ class LlamaTextGenerationModel(TextGenerationModelFactory):
         df['Model Name'] = self.model_name
         df['Domain'] = domain
         return df
+
+class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):    
+    def __init__(self):
+        super().__init__()
+        self.api_key = os.getenv('API_KEY')
+        if self.api_key is None:
+            raise ValueError("API_KEY environment variable not set")
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = "llama-3.3-70b-versatile"
+
+class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_key = os.getenv('API_KEY')
+        if self.api_key is None:
+            raise ValueError("API_KEY environment variable not set")
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = "llama-3.1-8b-instant"
+
+class Llama70B8192TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_key = os.getenv('API_KEY')
+        if self.api_key is None:
+            raise ValueError("API_KEY environment variable not set")
+        self.client = Groq(api_key=self.api_key) 
+        self.model_name = "llama3-70b-8192"
+
+class Llama8B8192TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_key = os.getenv('API_KEY')
+        if self.api_key is None:
+            raise ValueError("API_KEY environment variable not set")
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = "llama3-8b-8192"
+
+class MixtralTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_key = os.getenv('API_KEY')
+        if self.api_key is None:
+            raise ValueError("API_KEY environment variable not set")
+        self.client = Groq(api_key=self.api_key)  
+        self.model_name = "mixtral-8x7b-32768"
+
+# class DeepScaleRTextGenerationModel(TextGenerationModelFactory):
+#     """
+#     A class to interact with the DeepScaleR model.
+    
+#     Attributes:
+#     -----------
+
+#     """
+    
+#     def __init__(self):
+#         self.model_name = "agentica-org/DeepScaleR-1.5B-Preview"
+#         self.pipe = pipeline("text-generation", model=self.model_name)
+
+    
+
+#     def generate_predictions(self, prompt_template: str, label: str, domain: str) -> pd.DataFrame:
+#         """
+#         Generate a completion response and return as a DataFrame.
+
+#         Parameters:
+#         -----------
+#         prompt_template: `str`
+#             The prompt template to generate a prediction prompt or a non-prediction prompt.
+        
+#         label: `str`
+#             The prediction label for the prediction. Either 0 (non-prediction) or 1 (prediction).
+        
+#         domain: `str`
+#             The domain of the prediction. As of now, the domains are finance, weather, health, and policy.
+
+#         Returns:
+#         --------
+#         `pd.DataFrame`
+#             The generated completion response formatted as a DataFrame.
+#         """
+#         # Generate the raw prediction text
+#         raw_text = self.pipe(prompt_template)[0]["generated_text"]
+        
+#         # Parse the raw text into structured data (assuming a consistent format)
+#         predictions = [line.strip() for line in raw_text.split("\n") if line.strip()]
+        
+#         # Convert to DataFrame
+#         df = pd.DataFrame(predictions, columns=['Base Sentence'])
+#         df['Sentence Label'] = label
+#         df['Model Name'] = self.model_name
+#         df['Domain'] = domain
+#         return df
+
+
+
+
+
