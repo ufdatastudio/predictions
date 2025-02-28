@@ -133,33 +133,37 @@ class TextGenerationModelFactory(ABC):
         df['Domain'] = domain
         return df
 
-    def batch_generate_predictions(self, batch_size, total_predictions, domains, text_generation_models, prompt_outputs, prediction_label):
-        dfs = []
-        # Outer loop: Iterate until total predictions per model is reached
-        for batch_idx in tqdm(range(total_predictions // batch_size)):
-            batch_dfs = []
+    def batch_generate_predictions(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label):
+        all_batches_df = []
+   
+        for batch_idx in tqdm(range(N_batches)):
+            batch_dfs = [] # Reset when starting a new batch
 
             # print(f"Batch ID: {batch_idx}")
-
+            # print(f"Batch ID: {batch_idx}")
             for domain in domains:
-                # print(f"    Domain: {domain}")
-            
+                # print(f"    Domain: {domain}")            
                 for text_generation_model in text_generation_models:
+ 
                     # print(f"Batch ID: {batch_idx} --- {text_generation_model}")
 
                     # print(f"Batch ID: {batch_idx} --- Domain: {domain} --- Model: {text_generation_model}")
-                    print(f"Batch ID: {batch_idx} --- {domain} --- {text_generation_model}")
+                    # print(f"Batch ID: {batch_idx} --- {domain} --- {text_generation_model}")
+                    print(f"{domain} --- {text_generation_model}")
 
                     prompt_output = prompt_outputs[domain]
-                    df = text_generation_model.generate_predictions(prompt_output, label=prediction_label, domain=domain)
-                    df["Batch Index"] = batch_idx
-                    batch_dfs.append(df)
-                print()
-            
-            # Extend the main DataFrame list with the batch DataFrames
-            dfs.extend(batch_dfs)
+                    model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain)
+                    model_df["Batch Index"] = batch_idx
 
-        return dfs    
+                    batch_dfs.append(model_df)
+                print()
+                
+            print(f"====================================================================================")
+      
+            # Extend the main DataFrame list with the batch DataFrames
+            all_batches_df.extend(batch_dfs)
+
+        return all_batches_df    
 
     def __name__(self):
         pass

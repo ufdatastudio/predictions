@@ -28,21 +28,16 @@ class DataFrameFormatter(logging.Formatter):
     
     # if file exists, then create new version
     
-    def log_df(self, df, prediction_label):
+    def log_df(self, df, sentence_label):
 
         log_dir = 'log_text_generation'
         os.makedirs(log_dir, exist_ok=True)
 
         # Get the current date and time
         now = datetime.now()
-        date_time_str = now.strftime("%d%b%Y-%H%M")
+        date_time_str = now.strftime("%d%b%Y-%H%M%S")
 
-        # Configure logging to use the specified directory and file name
-        # version = 1
-        # while os.path.exists(os.path.join('../log_text_generation/', f'{date_time_str}-v{version}.log')):
-        #     version += 1
-        # log_file = os.path.join('../log_text_generation/', f'{date_time_str}-v{version}.log')
-        log_file = os.path.join('../log_text_generation/', f'{date_time_str}-{prediction_label}.log')
+        log_file = os.path.join('../log_text_generation/', f'{date_time_str}-{sentence_label}.log')
         logging.basicConfig(filename=log_file, filemode='w', format='%(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 
@@ -52,9 +47,9 @@ class DataFrameFormatter(logging.Formatter):
         ch.setFormatter(self)
         logger.addHandler(ch)
 
-        logger.info(df, extra={'header': "this is a header line"})
-        logger.debug('foo')    
-        logger.info(df, extra={'n_rows': 2})
+        logger.info(f"Start logging df for {sentence_label}")
+        logger.info(df)
+        logger.info(f"End logging df for {sentence_label}")
     
     def open_log_df(self, log_file_path):
       # Define the path to the log file
