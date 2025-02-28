@@ -10,6 +10,7 @@ import os
 import pandas as pd
 
 from groq import Groq
+from tqdm import tqdm
 from typing import Dict, List
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
@@ -19,7 +20,6 @@ load_dotenv()  # Load environment variables from .env file
 class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
     
-    @abstractmethod
     def __init__(self):
         """Initialize the model with necessary parameters"""
         # models: https://console.groq.com/docs/models
@@ -133,6 +133,37 @@ class TextGenerationModelFactory(ABC):
         df['Domain'] = domain
         return df
 
+    def batch_generate_predictions(self, batch_size, total_predictions, domains, text_generation_models, prompt_outputs, prediction_label):
+        dfs = []
+        # Outer loop: Iterate until total predictions per model is reached
+        for batch_idx in tqdm(range(total_predictions // batch_size)):
+            batch_dfs = []
+
+            # print(f"Batch ID: {batch_idx}")
+
+            for domain in domains:
+                # print(f"    Domain: {domain}")
+            
+                for text_generation_model in text_generation_models:
+                    # print(f"Batch ID: {batch_idx} --- {text_generation_model}")
+
+                    # print(f"Batch ID: {batch_idx} --- Domain: {domain} --- Model: {text_generation_model}")
+                    print(f"Batch ID: {batch_idx} --- {domain} --- {text_generation_model}")
+
+                    prompt_output = prompt_outputs[domain]
+                    df = text_generation_model.generate_predictions(prompt_output, label=prediction_label, domain=domain)
+                    df["Batch Index"] = batch_idx
+                    batch_dfs.append(df)
+                print()
+            
+            # Extend the main DataFrame list with the batch DataFrames
+            dfs.extend(batch_dfs)
+
+        return dfs    
+
+    def __name__(self):
+        pass
+
 class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):    
     def __init__(self):
         super().__init__()
@@ -141,6 +172,9 @@ class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):
             raise ValueError("API_KEY environment variable not set")
         self.client = Groq(api_key=self.api_key)
         self.model_name = "llama-3.3-70b-versatile"
+    
+    def __name__(self):
+        return "llama-3.3-70b-versatile"
 
 class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -151,6 +185,9 @@ class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
         self.client = Groq(api_key=self.api_key)
         self.model_name = "llama-3.1-8b-instant"
 
+    def __name__(self):
+        return "llama-3.1-8b-instant"
+
 class Llama70B8192TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
@@ -160,6 +197,9 @@ class Llama70B8192TextGenerationModel(TextGenerationModelFactory):
         self.client = Groq(api_key=self.api_key) 
         self.model_name = "llama3-70b-8192"
 
+    def __name__(self):
+        return "llama3-70b-8192"
+
 class Llama8B8192TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
@@ -168,6 +208,9 @@ class Llama8B8192TextGenerationModel(TextGenerationModelFactory):
             raise ValueError("API_KEY environment variable not set")
         self.client = Groq(api_key=self.api_key)
         self.model_name = "llama3-8b-8192"
+    
+    def __name__(self):
+        return "llama3-8b-8192"
 
 class MixtralTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -177,6 +220,9 @@ class MixtralTextGenerationModel(TextGenerationModelFactory):
             raise ValueError("API_KEY environment variable not set")
         self.client = Groq(api_key=self.api_key)  
         self.model_name = "mixtral-8x7b-32768"
+    
+    def __name__(self):
+        return "mixtral-8x7b-32768"
 
 # class DeepScaleRTextGenerationModel(TextGenerationModelFactory):
 #     """

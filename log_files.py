@@ -28,7 +28,7 @@ class DataFrameFormatter(logging.Formatter):
     
     # if file exists, then create new version
     
-    def log_df(self, df):
+    def log_df(self, df, prediction_label):
 
         log_dir = 'log_text_generation'
         os.makedirs(log_dir, exist_ok=True)
@@ -42,7 +42,7 @@ class DataFrameFormatter(logging.Formatter):
         # while os.path.exists(os.path.join('../log_text_generation/', f'{date_time_str}-v{version}.log')):
         #     version += 1
         # log_file = os.path.join('../log_text_generation/', f'{date_time_str}-v{version}.log')
-        log_file = os.path.join('../log_text_generation/', f'{date_time_str}.log')
+        log_file = os.path.join('../log_text_generation/', f'{date_time_str}-{prediction_label}.log')
         logging.basicConfig(filename=log_file, filemode='w', format='%(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 
