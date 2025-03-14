@@ -2,7 +2,7 @@ import sklearn
 
 from abc import ABC, abstractmethod
 
-from sklearn.linear_model import Perceptron, SGDClassifier
+from sklearn.linear_model import Perceptron, SGDClassifier, LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 
@@ -112,6 +112,36 @@ class SkLearnSGDClassifier(SkLearnModelFactory):
         if to_series:
             return DataProcessing.array_to_df(predictions)
         return predictions
+
+class SkLearnLogisticRegression(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Perceptron Model"
+    
+    def train_model(self, X, y):
+
+        self.classifer = LogisticRegression() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+    
+    def predict(self, X_test, to_series: bool = True):
+        """Predict the test data using the trained model
+        
+        Parameters:
+        -----------
+        X_test: `pd.DataFrame`
+            A DataFrame containing the test data to predict
+        
+        to_series: `bool`
+            A boolean value to convert the predictions to a pd.Series
+        """
+        predictions = self.classifer.predict(X_test)
+        if to_series:
+            return DataProcessing.array_to_df(predictions)
+        return predictions
+
 
 class EvaluationMetric:
 
