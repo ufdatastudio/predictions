@@ -47,6 +47,7 @@ class SkLearnModelFactory(ABC):
         models = {
             "perceptron": SkLearnPerceptronModel(),
             "sgdclassifier": SkLearnSGDClassifier(),
+            "logistic regression": SkLearnLogisticRegression(),
             # Add other models here as needed
         }
 
@@ -90,7 +91,7 @@ class SkLearnSGDClassifier(SkLearnModelFactory):
         super().__init__()  
 
     def __name__(self):
-        return "Perceptron Model"
+        return "SDGClassifier Model"
     
     def train_model(self, X, y):
 
@@ -119,7 +120,7 @@ class SkLearnLogisticRegression(SkLearnModelFactory):
         super().__init__()  
 
     def __name__(self):
-        return "Perceptron Model"
+        return "Logistic Regression Model"
     
     def train_model(self, X, y):
 
@@ -178,3 +179,36 @@ class EvaluationMetric:
         print(classification_report(y_true, y_prediction))
 
 
+def train_and_evaluate_model(model_name, X_train, y_train, X_test, y_test):
+    """
+    Train and evaluate a model.
+    
+    Parameters:
+    -----------
+    model_name: `str`
+        The name of the model to be trained and evaluated.
+    X_train: `pd.DataFrame`
+        The training features.
+    y_train: `pd.Series`
+        The training labels.
+    X_test: `pd.DataFrame`
+        The test features.
+    y_test: `pd.Series`
+        The test labels.
+    
+    Returns:
+    --------
+    dict
+        A dictionary containing the model name and its evaluation metrics.
+    pd.Series
+        The predictions made by the model.
+    """
+    model = SkLearnModelFactory.select_model(model_name)
+    model.train_model(X_train, y_train)
+    predictions = model.predict(X_test)
+    
+    eval_metric = EvaluationMetric()
+    metrics = eval_metric.custom_evaluation_metrics(y_true=y_test, y_prediction=predictions)
+    metrics['Model'] = model.get_model_name()
+    
+    return metrics, predictions
