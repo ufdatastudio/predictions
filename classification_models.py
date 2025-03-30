@@ -2,7 +2,7 @@ import sklearn
 
 from abc import ABC, abstractmethod
 
-from sklearn.linear_model import Perceptron, SGDClassifier, LogisticRegression
+from sklearn.linear_model import Perceptron, SGDClassifier, LogisticRegression, RidgeClassifier, LinearRegression, ElasticNet
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 
@@ -14,9 +14,13 @@ class SkLearnModelFactory(ABC):
     Methods decorated with @abstractmethod must be implemented and if not, the interpreter will throw an error. Methods not decorated will be shared by all other classes that inherit from Model.
     """
 
+    @abstractmethod
     def __name__(self):
         return "ML MODEL BASE"
     
+    def get_model_name(self):
+        return self.__name__()
+
     def __init__(self):
         self.classifer = None
     
@@ -24,12 +28,21 @@ class SkLearnModelFactory(ABC):
     def train_model(self):
         pass
 
-    @abstractmethod
-    def predict(self):
-        pass
-
-    def get_model_name(self):
-        return self.__name__()
+    def predict(self, X_test, to_series: bool = True):
+        """Predict the test data using the trained model
+        
+        Parameters:
+        -----------
+        X_test: `pd.DataFrame`
+            A DataFrame containing the test data to predict
+        
+        to_series: `bool`
+            A boolean value to convert the predictions to a pd.Series
+        """
+        predictions = self.classifer.predict(X_test)
+        if to_series:
+            return DataProcessing.array_to_df(predictions)
+        return predictions
     
     def select_model(model_name: str):
         """Select a model based on the provided model name
@@ -46,9 +59,11 @@ class SkLearnModelFactory(ABC):
         """
         models = {
             "perceptron": SkLearnPerceptronModel(),
-            "sgdclassifier": SkLearnSGDClassifier(),
-            "logistic regression": SkLearnLogisticRegression(),
-            # Add other models here as needed
+            "sgd_classifier": SkLearnSGDClassifier(),
+            "logistic_regression": SkLearnLogisticRegression(),
+            "ridge_classifier": SkLearnRidgeClassifier(),
+            "linear_regression": SkLearnLinearRegression(),
+            "elastic_net": SkLearnElasticNet()
         }
 
         if model_name in models:
@@ -62,28 +77,12 @@ class SkLearnPerceptronModel(SkLearnModelFactory):
         super().__init__()  
 
     def __name__(self):
-        return "Perceptron Model"
+        return "Perceptron"
     
     def train_model(self, X, y):
 
         self.classifer = Perceptron() # instantiate the model
         self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
-    
-    def predict(self, X_test, to_series: bool = True):
-        """Predict the test data using the trained model
-        
-        Parameters:
-        -----------
-        X_test: `pd.DataFrame`
-            A DataFrame containing the test data to predict
-        
-        to_series: `bool`
-            A boolean value to convert the predictions to a pd.Series
-        """
-        predictions = self.classifer.predict(X_test)
-        if to_series:
-            return DataProcessing.array_to_df(predictions)
-        return predictions
 
 class SkLearnSGDClassifier(SkLearnModelFactory):      
 
@@ -91,28 +90,12 @@ class SkLearnSGDClassifier(SkLearnModelFactory):
         super().__init__()  
 
     def __name__(self):
-        return "SDGClassifier Model"
+        return "SDG Classifier"
     
     def train_model(self, X, y):
 
         self.classifer = SGDClassifier() # instantiate the model
         self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
-    
-    def predict(self, X_test, to_series: bool = True):
-        """Predict the test data using the trained model
-        
-        Parameters:
-        -----------
-        X_test: `pd.DataFrame`
-            A DataFrame containing the test data to predict
-        
-        to_series: `bool`
-            A boolean value to convert the predictions to a pd.Series
-        """
-        predictions = self.classifer.predict(X_test)
-        if to_series:
-            return DataProcessing.array_to_df(predictions)
-        return predictions
 
 class SkLearnLogisticRegression(SkLearnModelFactory):      
 
@@ -120,29 +103,51 @@ class SkLearnLogisticRegression(SkLearnModelFactory):
         super().__init__()  
 
     def __name__(self):
-        return "Logistic Regression Model"
+        return "Logistic Regression"
     
     def train_model(self, X, y):
 
         self.classifer = LogisticRegression() # instantiate the model
         self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
-    
-    def predict(self, X_test, to_series: bool = True):
-        """Predict the test data using the trained model
-        
-        Parameters:
-        -----------
-        X_test: `pd.DataFrame`
-            A DataFrame containing the test data to predict
-        
-        to_series: `bool`
-            A boolean value to convert the predictions to a pd.Series
-        """
-        predictions = self.classifer.predict(X_test)
-        if to_series:
-            return DataProcessing.array_to_df(predictions)
-        return predictions
 
+class SkLearnRidgeClassifier(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Ridge Classifier"
+    
+    def train_model(self, X, y):
+
+        self.classifer = RidgeClassifier() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+
+class SkLearnLinearRegression(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Ridge Classifier"
+    
+    def train_model(self, X, y):
+
+        self.classifer = LinearRegression() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+
+class SkLearnElasticNet(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Ridge Classifier"
+    
+    def train_model(self, X, y):
+
+        self.classifer = ElasticNet() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
 
 class EvaluationMetric:
 
@@ -177,7 +182,6 @@ class EvaluationMetric:
 
     def eval_classification_report(self, y_true, y_prediction):
         print(classification_report(y_true, y_prediction))
-
 
 def train_and_evaluate_model(model_name, X_train, y_train, X_test, y_test):
     """

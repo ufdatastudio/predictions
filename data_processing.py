@@ -2,6 +2,8 @@ import re, spacy
 import numpy as np
 import pandas as pd
 
+from pathlib import Path
+from spacy import displacy
 from sklearn.model_selection import train_test_split
 
 class DataProcessing:
@@ -403,7 +405,18 @@ class DataProcessing:
         
         return pd.DataFrame(extracted_data)
     
+    def visualize_spacy_doc(doc):
 
-    
+        from PIL import Image
+        import io
+        import cairosvg
 
-    
+        options = {"compact": True, 
+                   "bg": "#09a3d5", 
+                   "font": "Source Sans Pro"}
+        svg = displacy.render(doc, style="dep", jupyter=False, options=options)
+
+            # Convert SVG to PNG
+        png_data = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+        img = Image.open(io.BytesIO(png_data))
+        img.save("../paper/exSentence.png")
