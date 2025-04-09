@@ -96,6 +96,9 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         
         batch_size : `int`
             The batch size for processing the data.
+          
+        visualize : `bool`
+            Show the entities using Spacy visualizations.
 
         Returns:
         --------
