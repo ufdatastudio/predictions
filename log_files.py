@@ -2,154 +2,110 @@ import logging, os
 
 import pandas as pd
 
-from pathlib import Path
 from datetime import datetime
 
+class LogData:
 
-# class DataFrameFormatter(logging.Formatter):
-#     def __init__(self, fmt: str, n_rows: int = 4) -> None:
-#         self.n_rows = n_rows
-#         super().__init__(fmt)
+    def __init__(self, log_directory, file_name):
+        # Configure logging (if not already configured)
+        self.log_directory = log_directory
+        os.makedirs(log_directory, exist_ok=True)
+        self.log_file_path = os.path.join(log_directory, file_name)
+
+        if not logging.root.handlers:
+            logging.basicConfig(level=logging.INFO,
+                                format='%(asctime)s - %(levelname)s - %(message)s',
+                                filename=self.log_file_path)
+            logging.info(f"Logging configured to save to: {self.log_file_path}")
+        else:
+            logging.info("Logging already configured.")
+
+    def dataframe_to_csv(self, df, csv_file_path):
+        """Writes a Pandas DataFrame to a CSV file."""
+        try:
+            df.to_csv(csv_file_path, index=False)  # index=False to avoid writing DataFrame index
+            logging.info(f"DataFrame successfully written to CSV: {csv_file_path}")
+            return True
+        except Exception as e:
+            logging.error(f"Error writing DataFrame to CSV: {e}")
+            return False
+
+    def csv_to_log(self, csv_file_path, file_name):
+        """Reads a CSV file and writes its content to a log file."""
+        log_output_path = os.path.join(self.log_directory, file_name)
+
+        try:
+            with open(csv_file_path, 'r') as csvfile, open(log_output_path, 'a') as logfile:
+                reader = csv.reader(csvfile)
+                for row in reader:
+                    log_message = f"CSV Row: {', '.join(map(str, row))}"
+                    logfile.write(log_message + '\n')
+            logging.info(f"CSV content successfully written to log file: {log_output_path}")
+            return True
+        except FileNotFoundError:
+            logging.error(f"CSV file not found: {csv_file_path}")
+            return False
+        except Exception as e:
+            logging.error(f"Error writing CSV to log file: {e}")
+            return False
+
+    def log_to_csv(self, file_name, csv_file_path, lines_to_ignore=None, delimiter=','):
+        """
+        Reads a log file, extracts relevant lines, and writes them to a CSV file.
+
+        Args:
+            log_file_path (str): Path to the log file.
+            csv_file_path (str): Path to save the CSV file.
+            lines_to_ignore (list, optional): List of strings or patterns to identify lines to skip. Defaults to None.
+            delimiter (str, optional): Delimiter for the CSV file. Defaults to ','.
+        """
+        log_input_path = os.path.join(self.log_directory, file_name)
         
-#     def format(self, record: logging.LogRecord) -> str:
-#         if isinstance(record.msg, pd.DataFrame):
-#             s = ''
-#             if hasattr(record, 'n_rows'):
-#                 self.n_rows = record.n_rows
-#             lines = record.msg.head(self.n_rows).to_string().splitlines()
-#             if hasattr(record, 'header'):
-#                 record.msg = record.header.strip()
-#                 s += super().format(record) + '\n'
-#             for line in lines:
-#                 record.msg = line
-#                 s += super().format(record) + '\n'
-#             return s.strip()
-#         return super().format(record)
-    
-#     # if file exists, then create new version
-    
-#     def log_df(self, df, sentence_label):
+        if lines_to_ignore is None:
+            lines_to_ignore = []
 
-#         log_dir = 'log_text_generation'
-#         os.makedirs(log_dir, exist_ok=True)
+        try:
+            extracted_data = []
+            with open(log_input_path, 'r') as logfile:
+                for line in logfile:
+                    skip_line = False
+                    for ignore_pattern in lines_to_ignore:
+                        if ignore_pattern in line:
+                            skip_line = True
+                            break
+                    if not skip_line:
+                        # Assuming the relevant data in the log file is comma-separated
+                        # You might need more sophisticated parsing based on your log format
+                        parts = line.strip().split(delimiter)
+                        extracted_data.append(parts)
 
-#         # Get the current date and time
-#         now = datetime.now()
-#         date_time_str = now.strftime("%d%b%Y-%H%M%S")
+            with open(csv_file_path, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile, delimiter=delimiter)
+                writer.writerows(extracted_data)
 
-#         log_file = os.path.join('../log_text_generation/', f'{date_time_str}-{sentence_label}.log')
-#         logging.basicConfig(filename=log_file, filemode='w', format='%(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
-
-#         logger = logging.getLogger()
-#         logger.setLevel(logging.DEBUG)
-#         ch = logging.StreamHandler()
-#         ch.setFormatter(self)
-#         logger.addHandler(ch)
-
-#         logger.info(f"Start logging df for {sentence_label}")
-#         logger.info(df)
-#         logger.info(f"End logging df for {sentence_label}")
-    
-#     def open_log_df(self, log_file_path):
-#         # Load the log file
-#         try:
-#             with open(log_file_path, 'r') as file:
-#                 log_lines = file.readlines()
-#         except FileNotFoundError:
-#             print(f"Error: The file at {log_file_path} does not exist.")
-#             return pd.DataFrame()  # Return an empty DataFrame
+            logging.info(f"Successfully extracted data from log file to CSV: {csv_file_path}, ignoring lines containing: {lines_to_ignore}")
+            return True
+        except FileNotFoundError:
+            logging.error(f"Log file not found: {log_input_path}")
+            return False
+        except Exception as e:
+            logging.error(f"Error processing log file to CSV: {e}")
+            return False
         
-#         # Initialize an empty list to store the data
-#         data = []
-        
-#         # Process each line in the log file
-#         for line in log_lines:
-#             print(f"Reading line: {line.strip()}")  # Debug print
-#             if line.startswith('root - INFO -'):
-#                 # Clean and split the line into fields
-#                 clean_line = line.strip().replace('root - INFO - ', '')
-#                 fields = clean_line.split('\t')  # Split by tab since the data is tab-separated
-#                 print(f"Fields: {fields}")  # Debug print
-                
-#                 # Check if the line contains actual data
-#                 if len(fields) == 5:
-#                     data.append(fields)
-#                 else:
-#                     print("Warning: Line format is incorrect or does not contain exactly five fields.")
-        
-#         if not data:
-#             print("No data lines were parsed correctly.")
-        
-#         # Create DataFrame with the essential columns
-#         df = pd.DataFrame(data, columns=["Base Sentence", "Sentence Label", "Model Name", "Domain", "Batch Index"])
-        
-#         return df
 
+    def csv_to_dataframe(self, csv_file_path):
+        """Reads a CSV file into a Pandas DataFrame."""
+        try:
+            df = pd.read_csv(csv_file_path)
+            logging.info(f"CSV file successfully read into DataFrame: {csv_file_path}")
+            return df
+        except FileNotFoundError:
+            logging.error(f"CSV file not found: {csv_file_path}")
+            return None
+        except pd.errors.EmptyDataError:
+            logging.warning(f"CSV file is empty: {csv_file_path}")
+            return pd.DataFrame() # Return an empty DataFrame
+        except Exception as e:
+            logging.error(f"Error reading CSV file into DataFrame: {e}")
+            return None
 
-# class DataFrameLogger:
-#     def __init__(self, log_dir='../data/logs/', log_filename=None):
-#         if log_filename is None:
-#             now = datetime.now()
-#             date_time_str = now.strftime("%Y%m%d-%H%M%S")
-#             log_filename = f'{date_time_str}-log.csv'
-#         self.log_filepath = os.path.join(log_dir, log_filename)
-#         os.makedirs(log_dir, exist_ok=True)
-
-#         # Check if log file already exists, initialize if not
-#         if not os.path.exists(self.log_filepath):
-#             self.init_log_file()
-
-#     def init_log_file(self):
-#         # Initialize log file with column headers
-#         col_names = ["Base Sentence", "Sentence Label", "Model Name", "Domain", "Batch Index", "Timestamp"]
-#         empty_df = pd.DataFrame(columns=col_names)
-#         empty_df.to_csv(self.log_filepath, index=False)
-
-#     def log_df(self, df, additional_info):
-#         # Make sure additional_info keys match initialized columns except 'Timestamp'
-#         if 'Timestamp' not in df.columns:
-#             df['Timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-#         df.to_csv(self.log_filepath, mode='a', header=False, index=False)
-
-#     def load_log(self):
-#         return pd.read_csv(self.log_filepath)
-
-
-import os
-import pandas as pd
-from datetime import datetime
-
-class DataFrameLogger:
-    def __init__(self, log_dir='../data/logs/', log_filename=None):
-        if log_filename is None:
-            now = datetime.now()
-            date_time_str = now.strftime("%Y%m%d-%H%M%S")
-            log_filename = f'{date_time_str}-log.log'
-        self.log_filepath = os.path.join(log_dir, log_filename)
-        os.makedirs(log_dir, exist_ok=True)
-        
-        # Initialize if the log file doesn't exist
-        if not os.path.isfile(self.log_filepath):
-            with open(self.log_filepath, 'w') as file:
-                file.write(self.create_log_header())
-
-    def create_log_header(self):
-        col_names = ["Base Sentence", "Sentence Label", "Model Name", "Domain", "Batch Index", "Timestamp"]
-        return '\t'.join(col_names) + '\n'
-
-    def log_df(self, df):
-        # Ensure Timestamp is a column in df
-        if 'Timestamp' not in df.columns:
-            df['Timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        # Append to log file
-        with open(self.log_filepath, 'a') as file:
-            for index, row in df.iterrows():
-                log_line = '\t'.join(str(x) for x in row)
-                file.write(log_line + '\n')
-
-    def load_log(self):
-        # Load log file as DataFrame
-        return pd.read_csv(self.log_filepath, sep='\t')
-
-# Example Usage
