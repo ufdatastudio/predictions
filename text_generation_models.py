@@ -5,7 +5,7 @@ UF Data Studio (https://ufdatastudio.com/) with advisor Christan E. Grant, Ph.D.
 Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-method/python/example#lang-features)
 """
 
-import os
+import os, openai
 
 import pandas as pd
 
@@ -24,6 +24,8 @@ class TextGenerationModelFactory(ABC):
         """Initialize the model with necessary parameters"""
         self.temperature = 0.3
         self.top_p = 0.9
+        self.model_name = None
+   
 
     def map_platform_to_api(self, platform_name: str):
         """
@@ -46,9 +48,26 @@ class TextGenerationModelFactory(ABC):
         api_key = platform_to_api_mappings.get(platform_name)
         
         if api_key is None:
-            raise ValueError("GROQ_CLOUD_API_KEY environment variable not set")
+            raise ValueError("API_KEY environment variable not set")
         
         return api_key
+    
+    @classmethod        
+    def create_instance(self, model_name):
+
+        if model_name == 'llama-3.3-70b-versatile':
+            return LlamaVersatileTextGenerationModel()
+        elif model_name == 'llama-3.1-8b-instant':
+            return LlamaInstantTextGenerationModel()
+        elif model_name == 'llama3-70b-8192':
+            return Llama70B8192TextGenerationModel()
+        elif model_name == 'llama3-8b-8192':
+            return Llama8B8192TextGenerationModel()
+        elif model_name == 'gpt-3.5-turbo':
+            return OpenAiTextGenerationModel()
+        else:
+            raise ValueError(f"Unknown class name: {model_name}")
+
 
     def assistant(self, content: str) -> Dict:
         """Create an assistant message.
@@ -135,7 +154,6 @@ class TextGenerationModelFactory(ABC):
         `pd.DataFrame`
             The generated completion response formatted as a DataFrame.
         """
-
         # Generate the raw prediction text
         raw_text = self.chat_completion([self.user(prompt_template)])
         
@@ -211,7 +229,7 @@ class Llama70B8192TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_key = self.map_platform_to_api(platform_name="GROQ_CLOUD")
-        self.client = Groq(api_key=self.api_key) 
+        self.client = Groq(api_key=self.api_key)
         self.model_name = "llama3-70b-8192"
 
     def __name__(self):
@@ -227,9 +245,18 @@ class Llama8B8192TextGenerationModel(TextGenerationModelFactory):
     def __name__(self):
         return "llama3-8b-8192"
 
-
-
-
+class OpenAiTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_key = self.map_platform_to_api(platform_name="NAVI_GATOR")
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = "gpt-3.5-turbo"
+    
+    def __name__(self):
+        return "gpt-3.5-turbo"
 
 
 
