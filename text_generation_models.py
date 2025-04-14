@@ -5,7 +5,7 @@ UF Data Studio (https://ufdatastudio.com/) with advisor Christan E. Grant, Ph.D.
 Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-method/python/example#lang-features)
 """
 
-import os
+import os, openai
 
 import pandas as pd
 
@@ -22,14 +22,54 @@ class TextGenerationModelFactory(ABC):
     
     def __init__(self):
         """Initialize the model with necessary parameters"""
-        # models: https://console.groq.com/docs/models
-        # Groq client
-        self.api_key = os.getenv('API_KEY')
-        if self.api_key is None:
-            raise ValueError("API_KEY environment variable not set")
-        # self.client = Groq(api_key=self.api_key)
         self.temperature = 0.3
         self.top_p = 0.9
+        self.model_name = None
+   
+    def map_platform_to_api(self, platform_name: str):
+        """
+        Parameter:
+        ----------
+        platform_name : `str`
+            Platform to use for generations.
+        
+        Returns:
+        --------
+        api_key : `str`
+            The api key of specified platform.
+
+        """
+        platform_to_api_mappings = {
+            "GROQ_CLOUD" : os.getenv('GROQ_CLOUD_API_KEY'),
+            "NAVI_GATOR" : os.getenv('NAVI_GATOR_API_KEY')
+        }
+
+        api_key = platform_to_api_mappings.get(platform_name)
+        
+        if api_key is None:
+            raise ValueError("API_KEY environment variable not set")
+        
+        return api_key
+    
+    @classmethod        
+    def create_instance(self, model_name):
+
+        if model_name == 'llama-3.3-70b-versatile':
+            return LlamaVersatileTextGenerationModel()
+        elif model_name == 'llama-3.1-8b-instant':
+            return LlamaInstantTextGenerationModel()
+        elif model_name == 'llama3-70b-8192':
+            return Llama70B8192TextGenerationModel()
+        elif model_name == 'llama3-8b-8192':
+            return Llama8B8192TextGenerationModel()
+        elif model_name == 'gpt-3.5-turbo':
+            return Gpt35TurboTextGenerationModel()
+        elif model_name == 'gpt-4-turbo':
+            return Gpt4TurboTextGenerationModel()
+        elif model_name == 'mixtral-8x7b-instruct':
+            return Mixtral87BInstructTextGenerationModel()
+        else:
+            raise ValueError(f"Unknown class name: {model_name}")
 
     def assistant(self, content: str) -> Dict:
         """Create an assistant message.
@@ -116,7 +156,6 @@ class TextGenerationModelFactory(ABC):
         `pd.DataFrame`
             The generated completion response formatted as a DataFrame.
         """
-
         # Generate the raw prediction text
         raw_text = self.chat_completion([self.user(prompt_template)])
         
@@ -171,9 +210,7 @@ class TextGenerationModelFactory(ABC):
 class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):    
     def __init__(self):
         super().__init__()
-        self.api_key = os.getenv('API_KEY')
-        if self.api_key is None:
-            raise ValueError("API_KEY environment variable not set")
+        self.api_key = self.map_platform_to_api(platform_name="GROQ_CLOUD")
         self.client = Groq(api_key=self.api_key)
         self.model_name = "llama-3.3-70b-versatile"
     
@@ -183,9 +220,7 @@ class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):
 class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
-        self.api_key = os.getenv('API_KEY')
-        if self.api_key is None:
-            raise ValueError("API_KEY environment variable not set")
+        self.api_key = self.map_platform_to_api(platform_name="GROQ_CLOUD")
         self.client = Groq(api_key=self.api_key)
         self.model_name = "llama-3.1-8b-instant"
 
@@ -195,10 +230,8 @@ class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
 class Llama70B8192TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
-        self.api_key = os.getenv('API_KEY')
-        if self.api_key is None:
-            raise ValueError("API_KEY environment variable not set")
-        self.client = Groq(api_key=self.api_key) 
+        self.api_key = self.map_platform_to_api(platform_name="GROQ_CLOUD")
+        self.client = Groq(api_key=self.api_key)
         self.model_name = "llama3-70b-8192"
 
     def __name__(self):
@@ -207,76 +240,49 @@ class Llama70B8192TextGenerationModel(TextGenerationModelFactory):
 class Llama8B8192TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
-        self.api_key = os.getenv('API_KEY')
-        if self.api_key is None:
-            raise ValueError("API_KEY environment variable not set")
+        self.api_key = self.map_platform_to_api(platform_name="GROQ_CLOUD")
         self.client = Groq(api_key=self.api_key)
         self.model_name = "llama3-8b-8192"
     
     def __name__(self):
         return "llama3-8b-8192"
 
-class MixtralTextGenerationModel(TextGenerationModelFactory):
+class Gpt35TurboTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
-        self.api_key = os.getenv('API_KEY')
-        if self.api_key is None:
-            raise ValueError("API_KEY environment variable not set")
-        self.client = Groq(api_key=self.api_key)  
-        self.model_name = "mixtral-8x7b-32768"
+        self.api_key = self.map_platform_to_api(platform_name="NAVI_GATOR")
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = "gpt-3.5-turbo"
     
     def __name__(self):
-        return "mixtral-8x7b-32768"
+        return "gpt-3.5-turbo"
 
-# class DeepScaleRTextGenerationModel(TextGenerationModelFactory):
-#     """
-#     A class to interact with the DeepScaleR model.
+class Gpt4TurboTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_key = self.map_platform_to_api(platform_name="NAVI_GATOR")
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = "gpt-4-turbo"
     
-#     Attributes:
-#     -----------
+    def __name__(self):
+        return "gpt-4-turbo"
 
-#     """
+class Mixtral87BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_key = self.map_platform_to_api(platform_name="NAVI_GATOR")
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = "mixtral-8x7b-instruct"
     
-#     def __init__(self):
-#         self.model_name = "agentica-org/DeepScaleR-1.5B-Preview"
-#         self.pipe = pipeline("text-generation", model=self.model_name)
-
-    
-
-#     def generate_predictions(self, prompt_template: str, label: str, domain: str) -> pd.DataFrame:
-#         """
-#         Generate a completion response and return as a DataFrame.
-
-#         Parameters:
-#         -----------
-#         prompt_template: `str`
-#             The prompt template to generate a prediction prompt or a non-prediction prompt.
-        
-#         label: `str`
-#             The prediction label for the prediction. Either 0 (non-prediction) or 1 (prediction).
-        
-#         domain: `str`
-#             The domain of the prediction. As of now, the domains are finance, weather, health, and policy.
-
-#         Returns:
-#         --------
-#         `pd.DataFrame`
-#             The generated completion response formatted as a DataFrame.
-#         """
-#         # Generate the raw prediction text
-#         raw_text = self.pipe(prompt_template)[0]["generated_text"]
-        
-#         # Parse the raw text into structured data (assuming a consistent format)
-#         predictions = [line.strip() for line in raw_text.split("\n") if line.strip()]
-        
-#         # Convert to DataFrame
-#         df = pd.DataFrame(predictions, columns=['Base Sentence'])
-#         df['Sentence Label'] = label
-#         df['Model Name'] = self.model_name
-#         df['Domain'] = domain
-#         return df
-
-
-
-
+    def __name__(self):
+        return "mixtral-8x7b-instruct"
 
