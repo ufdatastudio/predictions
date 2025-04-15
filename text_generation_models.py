@@ -64,8 +64,8 @@ class TextGenerationModelFactory(ABC):
             return Llama8B8192TextGenerationModel()
         elif model_name == 'gpt-3.5-turbo':
             return Gpt35TurboTextGenerationModel()
-        elif model_name == 'gpt-4-turbo':
-            return Gpt4TurboTextGenerationModel()
+        elif model_name == 'gpt-4o':
+            return Gpt4oTextGenerationModel()
         elif model_name == 'mixtral-8x7b-instruct':
             return Mixtral87BInstructTextGenerationModel()
         else:
@@ -170,6 +170,7 @@ class TextGenerationModelFactory(ABC):
         df['Sentence Label'] = label
         df['Model Name'] = self.model_name
         df['Domain'] = domain
+        df['API Name'] = self.api_name
         return df
 
     def batch_generate_predictions(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label):
@@ -188,7 +189,7 @@ class TextGenerationModelFactory(ABC):
 
                     # print(f"Batch ID: {batch_idx} --- Domain: {domain} --- Model: {text_generation_model}")
                     # print(f"Batch ID: {batch_idx} --- {domain} --- {text_generation_model}")
-                    print(f"{domain} --- {text_generation_model}")
+                    print(f"{domain} --- {text_generation_model.__name__()} --- {text_generation_model.api_name}")
 
                     prompt_output = prompt_outputs[domain]
                     model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain)
@@ -210,17 +211,20 @@ class TextGenerationModelFactory(ABC):
 class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):    
     def __init__(self):
         super().__init__()
-        self.api_key = self.map_platform_to_api(platform_name="GROQ_CLOUD")
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
-        self.model_name = "llama-3.3-70b-versatile"
+        self.model_name = self.__name__()
     
     def __name__(self):
         return "llama-3.3-70b-versatile"
 
+
 class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
-        self.api_key = self.map_platform_to_api(platform_name="GROQ_CLOUD")
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
         self.model_name = "llama-3.1-8b-instant"
 
@@ -230,7 +234,8 @@ class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
 class Llama70B8192TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
-        self.api_key = self.map_platform_to_api(platform_name="GROQ_CLOUD")
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
         self.model_name = "llama3-70b-8192"
 
@@ -240,7 +245,8 @@ class Llama70B8192TextGenerationModel(TextGenerationModelFactory):
 class Llama8B8192TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
-        self.api_key = self.map_platform_to_api(platform_name="GROQ_CLOUD")
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
         self.model_name = "llama3-8b-8192"
     
@@ -250,7 +256,8 @@ class Llama8B8192TextGenerationModel(TextGenerationModelFactory):
 class Gpt35TurboTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
-        self.api_key = self.map_platform_to_api(platform_name="NAVI_GATOR")
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = openai.OpenAI(
             api_key= self.api_key,
             base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
@@ -260,15 +267,16 @@ class Gpt35TurboTextGenerationModel(TextGenerationModelFactory):
     def __name__(self):
         return "gpt-3.5-turbo"
 
-class Gpt4TurboTextGenerationModel(TextGenerationModelFactory):
+class Gpt4oTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
-        self.api_key = self.map_platform_to_api(platform_name="NAVI_GATOR")
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = openai.OpenAI(
             api_key= self.api_key,
             base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
             )
-        self.model_name = "gpt-4-turbo"
+        self.model_name = "gpt-4o"
     
     def __name__(self):
         return "gpt-4-turbo"
@@ -276,7 +284,8 @@ class Gpt4TurboTextGenerationModel(TextGenerationModelFactory):
 class Mixtral87BInstructTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
-        self.api_key = self.map_platform_to_api(platform_name="NAVI_GATOR")
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = openai.OpenAI(
             api_key= self.api_key,
             base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
