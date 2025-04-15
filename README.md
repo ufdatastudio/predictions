@@ -24,7 +24,7 @@ A project to recognize and assess prediction data (text, numerical, audio, visua
 ├── log_files.py                # Contains the code to produce a log file.
 ├── requirements.py             # Contains the requiremmts to run code in project.
 ├── text_generation_models.py   # Contains the LLMs to generate our data.
-└── README.md                   # Project documentation
+└── README.md                   # Contains the project documentation
 ```
 
 ## Installation
