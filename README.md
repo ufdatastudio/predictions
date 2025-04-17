@@ -24,11 +24,14 @@ A project to recognize and assess prediction data (text, numerical, audio, visua
 ├── log_files.py                # Contains the code to produce a log file.
 ├── requirements.py             # Contains the requiremmts to run code in project.
 ├── text_generation_models.py   # Contains the LLMs to generate our data.
-└── README.md                   # Contains the project documentation
+└── README.md                   # Project documentation
 ```
 
 ## Installation
 
 1. Install [conda](https://www.anaconda.com/download) package manager.
 2. Create a conda environment: `conda create --name myenv conda activate myenv`. Be sure to only change `myenv` to what you want.
-3. Install packages: `conda install --file requirements.txt`
+3. Install packages: `conda install requirements.txt`
+4. Create a `.env` file
+     - Create a [Groq Cloud](https://console.groq.com/) API key -- `GROQ_CLOUD_API_KEY = "djb"`
+     - Create a [NaviGator](https://api.ai.it.ufl.edu/) API key -- `NAVI_GATOR_API_KEY = "djb2"`
