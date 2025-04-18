@@ -5,15 +5,17 @@ UF Data Studio (https://ufdatastudio.com/) with advisor Christan E. Grant, Ph.D.
 Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-method/python/example#lang-features)
 """
 
-import os, openai
+import os, openai, pathlib
 
 import pandas as pd
 
 from groq import Groq
 from tqdm import tqdm
 from typing import Dict, List
+from log_files import LogData
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
+from data_processing import DataProcessing
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -168,38 +170,55 @@ class TextGenerationModelFactory(ABC):
         # Convert to DataFrame
         df = pd.DataFrame(predictions, columns=['Base Sentence'])
         df['Sentence Label'] = label
-        df['Model Name'] = self.model_name
         df['Domain'] = domain
+        df['Model Name'] = self.model_name
         df['API Name'] = self.api_name
         return df
 
+    def log_batch_df(self, batch_dfs):
+        print("Start logging batch")
+
+        batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
+        base_path = pathlib.Path(__file__).parent.resolve()
+        log_file_path = "data/prediction_logs"
+        log_directory = os.path.join(base_path, log_file_path)
+        print(f"log_directory: {log_directory}")
+        
+        n = 1
+        save_batch_directory = os.path.join(log_directory, f"batch_{n}-predictions")
+    
+        while os.path.exists(save_batch_directory):
+            n += 1
+            save_batch_directory = os.path.join(log_directory, f"batch_{n}-predictions")
+
+        os.makedirs(save_batch_directory)
+        save_batch_name = f"batch_{n}-info.log"
+        save_from_df_name = f"batch_{n}-from_df.csv"
+    
+        logger = LogData(batch_predictions_df, base_path, log_file_path, save_batch_directory, save_batch_name, n)
+        logger.dataframe_to_csv(save_from_df_name)
+
     def batch_generate_predictions(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label):
-        all_batches_df = []
-   
+        all_batches_df = []   
         for batch_idx in tqdm(range(N_batches)):
+            print(f"===================================== Batch {batch_idx} ===============================================")
+
             batch_dfs = [] # Reset when starting a new batch
 
-            # print(f"Batch ID: {batch_idx}")
-            # print(f"Batch ID: {batch_idx}")
             for domain in domains:
                 # print(f"    Domain: {domain}")            
                 for text_generation_model in text_generation_models:
  
-                    # print(f"Batch ID: {batch_idx} --- {text_generation_model}")
-
-                    # print(f"Batch ID: {batch_idx} --- Domain: {domain} --- Model: {text_generation_model}")
-                    # print(f"Batch ID: {batch_idx} --- {domain} --- {text_generation_model}")
                     print(f"{domain} --- {text_generation_model.__name__()} --- {text_generation_model.api_name}")
 
                     prompt_output = prompt_outputs[domain]
                     model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain)
-                    model_df["Batch Index"] = batch_idx
 
                     batch_dfs.append(model_df)
                 print()
-                
-            print(f"====================================================================================")
-      
+
+            self.log_batch_df(batch_dfs)
+
             # Extend the main DataFrame list with the batch DataFrames
             all_batches_df.extend(batch_dfs)
 
@@ -207,6 +226,8 @@ class TextGenerationModelFactory(ABC):
 
     def __name__(self):
         pass
+
+
 
 class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):    
     def __init__(self):

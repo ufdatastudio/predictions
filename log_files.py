@@ -1,41 +1,58 @@
-import logging, os, csv
+import logging, os, csv, pathlib
 
 import pandas as pd
 
 from datetime import datetime
 
 class LogData:
+    def __init__(self, df, base_path, log_file_path, batch_path, batch_name, batch_idx):
+        self.df_to_log = df
+        self.base_path = base_path
+        self.log_file_path = log_file_path
+        self.batch_path = batch_path
+        save_info_log_file_name = batch_name
+        self.batch_idx = batch_idx
 
-    def __init__(self, log_directory, file_name):
-        # Configure logging (if not already configured)
-        self.log_directory = log_directory
-        os.makedirs(log_directory, exist_ok=True)
-        self.log_file_path = os.path.join(log_directory, file_name)
+        self.log_directory = os.path.join(self.base_path, self.log_file_path)
+        print(f"self.log_directory: {self.log_directory}")
+        os.makedirs(self.log_directory, exist_ok=True)
 
-        if not logging.root.handlers:
-            logging.basicConfig(level=logging.INFO,
-                                format='%(asctime)s - %(levelname)s - %(message)s',
-                                filename=self.log_file_path)
-            logging.info(f"Logging configured to save to: {self.log_file_path}")
-        else:
-            logging.info("Logging already configured.")
+        self.save_info_file = os.path.join(self.batch_path, save_info_log_file_name)
 
-    def dataframe_to_csv(self, df, csv_file_path):
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+        
+        logging.basicConfig(level=logging.INFO,
+                            format='%(asctime)s - %(levelname)s - %(message)s',
+                            filename=self.save_info_file)
+        logging.info(f"Logging configured to save to: {self.log_directory}")
+
+
+    
+    def dataframe_to_csv(self, file_name):
         """Writes a Pandas DataFrame to a CSV file."""
+
+        save_csv = os.path.join(self.batch_path, file_name)
+        print(f"Save CSV: {save_csv}")
+
         try:
-            df.to_csv(csv_file_path, index=False)  # index=False to avoid writing DataFrame index
-            logging.info(f"DataFrame successfully written to CSV: {csv_file_path}")
+            self.df_to_log.to_csv(save_csv, index=False)  # index=False to avoid writing DataFrame index
+            logging.info(f"DataFrame successfully written to CSV: {save_csv}")
             return True
         except Exception as e:
             logging.error(f"Error writing DataFrame to CSV: {e}")
             return False
 
-    def csv_to_log(self, csv_file_path, file_name):
+    def csv_to_log(self):
         """Reads a CSV file and writes its content to a log file."""
-        log_output_path = os.path.join(self.log_directory, file_name)
+        print("\nCSV to Log")
+        csv_output_path = os.path.join(self.new_log_directory, 'from_dataframe.csv')
+        print(f"csv_output_path: {csv_output_path}")
+        log_output_path = os.path.join(self.new_log_directory, 'from_csv.log')
+        print(f"log_output_path: {log_output_path}")
 
         try:
-            with open(csv_file_path, 'r') as csvfile, open(log_output_path, 'a') as logfile:
+            with open(csv_output_path, 'r') as csvfile, open(log_output_path, 'a') as logfile:
                 reader = csv.reader(csvfile)
                 for row in reader:
                     log_message = f"CSV Row: {', '.join(map(str, row))}"
@@ -92,7 +109,6 @@ class LogData:
             logging.error(f"Error processing log file to CSV: {e}")
             return False
         
-
     def csv_to_dataframe(self, csv_file_path):
         """Reads a CSV file into a Pandas DataFrame."""
         try:
@@ -108,4 +124,5 @@ class LogData:
         except Exception as e:
             logging.error(f"Error reading CSV file into DataFrame: {e}")
             return None
+
 
