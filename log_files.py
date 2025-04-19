@@ -43,24 +43,22 @@ class LogData:
             logging.error(f"Error writing DataFrame to CSV: {e}")
             return False
 
-    def csv_to_log(self):
+    def csv_to_log(self, csv_file_name, log_file_name):
         """Reads a CSV file and writes its content to a log file."""
         print("\nCSV to Log")
-        csv_output_path = os.path.join(self.new_log_directory, 'from_dataframe.csv')
-        print(f"csv_output_path: {csv_output_path}")
-        log_output_path = os.path.join(self.new_log_directory, 'from_csv.log')
-        print(f"log_output_path: {log_output_path}")
+        saved_csv = os.path.join(self.batch_path, csv_file_name)
+        save_log = os.path.join(self.batch_path, log_file_name)
 
         try:
-            with open(csv_output_path, 'r') as csvfile, open(log_output_path, 'a') as logfile:
+            with open(saved_csv, 'r') as csvfile, open(save_log, 'a') as logfile:
                 reader = csv.reader(csvfile)
                 for row in reader:
                     log_message = f"CSV Row: {', '.join(map(str, row))}"
                     logfile.write(log_message + '\n')
-            logging.info(f"CSV content successfully written to log file: {log_output_path}")
+            logging.info(f"CSV content successfully written to log file: {save_log}")
             return True
         except FileNotFoundError:
-            logging.error(f"CSV file not found: {csv_file_path}")
+            logging.error(f"CSV file not found: {saved_csv}")
             return False
         except Exception as e:
             logging.error(f"Error writing CSV to log file: {e}")

@@ -194,9 +194,11 @@ class TextGenerationModelFactory(ABC):
         os.makedirs(save_batch_directory)
         save_batch_name = f"batch_{n}-info.log"
         save_from_df_name = f"batch_{n}-from_df.csv"
+        save_from_csv_name = f"batch_{n}-from_csv.log"
     
         logger = LogData(batch_predictions_df, base_path, log_file_path, save_batch_directory, save_batch_name, n)
         logger.dataframe_to_csv(save_from_df_name)
+        logger.csv_to_log(save_from_df_name, save_from_csv_name)
 
     def batch_generate_predictions(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label):
         all_batches_df = []   
