@@ -5,8 +5,7 @@ import pandas as pd
 from datetime import datetime
 
 class LogData:
-    def __init__(self, df, base_path, log_file_path, batch_path, batch_name, batch_idx):
-        self.df_to_log = df
+    def __init__(self, base_path, log_file_path, batch_path, batch_name, batch_idx):
         self.base_path = base_path
         self.log_file_path = log_file_path
         self.batch_path = batch_path
@@ -29,14 +28,14 @@ class LogData:
 
 
     
-    def dataframe_to_csv(self, file_name):
+    def dataframe_to_csv(self, df, file_name):
         """Writes a Pandas DataFrame to a CSV file."""
 
         save_csv = os.path.join(self.batch_path, file_name)
         print(f"Save CSV: {save_csv}")
 
         try:
-            self.df_to_log.to_csv(save_csv, index=False)  # index=False to avoid writing DataFrame index
+            df.to_csv(save_csv, index=False)  # index=False to avoid writing DataFrame index
             logging.info(f"DataFrame successfully written to CSV: {save_csv}")
             return True
         except Exception as e:
