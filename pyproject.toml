@@ -1,0 +1,21 @@
+[project]
+name = "predictions"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dotenv>=0.9.9",
+    "groq>=0.22.0",
+    "langchain-core>=0.3.55",
+    "openai>=1.75.0",
+    "pandas>=2.2.3",
+    "scikit-learn>=1.6.1",
+    "spacy>=3.8.5",
+    "tqdm>=4.67.1",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+]
