@@ -4,3 +4,4 @@
 *.log
 *.csv
 /data
+*.DS_Store
