@@ -1,3 +1,7 @@
 
 *.pyc
 .env
+*.log
+*.csv
+/data
+*.DS_Store

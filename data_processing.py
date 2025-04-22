@@ -1,7 +1,9 @@
-import re, spacy
+import re
 import numpy as np
 import pandas as pd
 
+from pathlib import Path
+from spacy import displacy
 from sklearn.model_selection import train_test_split
 
 class DataProcessing:
@@ -123,33 +125,41 @@ class DataProcessing:
         
         template_numbers = []
         reformat_predictions = []
+        indices_to_keep = []
 
-        for prediction in df[col_name].values:
+        for idx, prediction in enumerate(df[col_name].values):
             first_word = prediction.split()[0]
             if first_word == "T0:":
                 template_numbers.append(0)
                 reformat_predictions.append(prediction[4:])
+                indices_to_keep.append(idx)
             elif first_word == "T1:":
                 template_numbers.append(1)
                 reformat_predictions.append(prediction[4:])
+                indices_to_keep.append(idx)
             elif first_word == "T2:":
                 template_numbers.append(2)
                 reformat_predictions.append(prediction[4:])
+                indices_to_keep.append(idx)
             elif first_word == "T3:":
                 template_numbers.append(3)
                 reformat_predictions.append(prediction[4:])
+                indices_to_keep.append(idx)
             elif first_word == "T4:":
                 template_numbers.append(4)
                 reformat_predictions.append(prediction[4:])
+                indices_to_keep.append(idx)
             elif first_word == "T5:":
                 template_numbers.append(5)
                 reformat_predictions.append(prediction[4:])
+                indices_to_keep.append(idx)
             else:
-                raise ValueError("The template number is not recognized.")
+                continue
         
-        df[col_name] = reformat_predictions
-        df['Template Number'] = template_numbers
-        return df
+        new_df = df.iloc[indices_to_keep].copy()
+        new_df[col_name] = reformat_predictions
+        new_df['Template Number'] = template_numbers
+        return new_df
     
     def df_to_list(df: pd.DataFrame, col: str) -> list:
         """Convert a DataFrame to a list
@@ -253,7 +263,7 @@ class DataProcessing:
 
         if len(df_to_update) == len(sentence_and_label_df):
             df_to_update.insert(0, 'Base Sentence', sentence_and_label_df['Base Sentence'].values)
-            df_to_update.insert(1, 'Prediction Label', sentence_and_label_df['Prediction Label'].values)
+            df_to_update.insert(1, 'Sentence Label', sentence_and_label_df['Sentence Label'].values)
             return df_to_update
         else:
             print("Error: The lengths of df_to_update and sentence_and_label_df do not match.")
@@ -395,7 +405,18 @@ class DataProcessing:
         
         return pd.DataFrame(extracted_data)
     
+    def visualize_spacy_doc(doc):
 
-    
+        from PIL import Image
+        import io
+        import cairosvg
 
-    
+        options = {"compact": True, 
+                   "bg": "#09a3d5", 
+                   "font": "Source Sans Pro"}
+        svg = displacy.render(doc, style="dep", jupyter=False, options=options)
+
+            # Convert SVG to PNG
+        png_data = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+        img = Image.open(io.BytesIO(png_data))
+        img.save("../paper/exSentence.png")

@@ -5,8 +5,8 @@ from abc import ABC, abstractmethod
 from data_processing import DataProcessing
 from clean_predictions import PredictionDataCleaner
 from feature_extraction import TfidfFeatureExtraction
-from text_generation_models import LlamaTextGenerationModel
-from classification_models import PerceptronModel, EvaluationMetric
+# from text_generation_models import LlamaTextGenerationModel
+from classification_models import SkLearnPerceptronModel, EvaluationMetric
 
 
 class PipelineFactory(ABC):
