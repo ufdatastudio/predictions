@@ -10,12 +10,8 @@ dependencies = [
     "langchain-core>=0.3.55",
     "openai>=1.75.0",
     "pandas>=2.2.3",
+    "pip>=25.0.1",
     "scikit-learn>=1.6.1",
     "spacy>=3.8.5",
     "tqdm>=4.67.1",
-]
-
-[dependency-groups]
-dev = [
-    "ipykernel>=6.29.5",
 ]
