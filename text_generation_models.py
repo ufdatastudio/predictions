@@ -175,22 +175,32 @@ class TextGenerationModelFactory(ABC):
         df['API Name'] = self.api_name
         return df
 
-    def log_batch_df(self, batch_dfs):
+    def log_batch_df(self, batch_dfs, sentence_label):
         print("Start logging batch")
 
         batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
         reformat_batch_predictions_df = DataProcessing.reformat_df_with_template_number(batch_predictions_df, col_name="Base Sentence")
         base_path = pathlib.Path(__file__).parent.resolve()
-        log_file_path = "data/prediction_logs"
+        
+        prediction_files = None
+        if sentence_label == 0:
+            prediction_files = "observation"
+        elif sentence_label == 1:
+            prediction_files = "prediction"
+        else:
+            print("Invalid sentence label. It should be 0 (non-prediction) or 1 (prediction).")
+            quit()
+
+        log_file_path = f"data/{prediction_files}_logs"
         log_directory = os.path.join(base_path, log_file_path)
         print(f"log_directory: {log_directory}")
         
         n = 1
-        save_batch_directory = os.path.join(log_directory, f"batch_{n}-predictions")
+        save_batch_directory = os.path.join(log_directory, f"batch_{n}-{prediction_files}s")
     
         while os.path.exists(save_batch_directory):
             n += 1
-            save_batch_directory = os.path.join(log_directory, f"batch_{n}-predictions")
+            save_batch_directory = os.path.join(log_directory, f"batch_{n}-{prediction_files}")
 
         os.makedirs(save_batch_directory)
         save_batch_name = f"batch_{n}-info.log"
@@ -201,7 +211,32 @@ class TextGenerationModelFactory(ABC):
         logger.dataframe_to_csv(reformat_batch_predictions_df, save_from_df_name)
         logger.csv_to_log(save_from_df_name, save_from_csv_name)
 
-    def batch_generate_predictions(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label):
+    def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label):
+        """Generate a completion response and return as a DataFrame.
+
+        Parameters:
+        -----------
+        N_batches: `int`
+            The number of batches
+        
+        text_generation_models: `list`
+            The models to use to generate data
+        
+        domains: `str`
+            The domain of the prediction. As of now, the domains are finance, weather, health, and policy.
+
+        prompt_outputs: `dict`
+            Langchain dictionary to map the domain to which prompt to use for generation.
+
+        sentence_label: `int`
+            The prediction label for the prediction. Either 0 (non-prediction) or 1 (prediction).
+
+        Returns:
+        --------
+        `pd.DataFrame`
+            The generated completion response formatted as a DataFrame.
+    """
+
         all_batches_df = []   
         for batch_idx in tqdm(range(N_batches)):
             print(f"===================================== Batch {batch_idx} ===============================================")
@@ -220,7 +255,7 @@ class TextGenerationModelFactory(ABC):
                     batch_dfs.append(model_df)
                 print()
 
-            self.log_batch_df(batch_dfs)
+            self.log_batch_df(batch_dfs, sentence_label)
 
             # Extend the main DataFrame list with the batch DataFrames
             all_batches_df.extend(batch_dfs)
