@@ -29,9 +29,11 @@ A project to recognize and assess prediction data (text, numerical, audio, visua
 
 ## Installation
 
-1. Install [conda](https://www.anaconda.com/download) package manager.
-2. Create a conda environment: `conda create --name myenv conda activate myenv`. Be sure to only change `myenv` to what you want.
-3. Install packages: `conda install requirements.txt`
-4. Create a `.env` file
+1. Install the [uv package manager]([https://docs.astral.sh/uv/](https://docs.astral.sh/uv/getting-started/installation/#pypi)). For macOS, you can use `brew install uv`,
+2. Create a project with `uv init .` that'll default to name of directory. It may need to be repository name `predictions`, so you could try `uv init predictions`
+3. Create virtual environment with `uv venv` or `uv venv <name>` (`uv venv .venv_predictions`)
+4. Activate virtual environment with `source .venv/bin/activate` or `source .<name>/bin/activate` (`source .venv_predictions/bin/activate`)
+5. Install requirements with `uv pip install -r pyproject.toml`
+6. Create a `.env` file
      - Create a [Groq Cloud](https://console.groq.com/) API key -- `GROQ_CLOUD_API_KEY = "djb"`
      - Create a [NaviGator](https://api.ai.it.ufl.edu/) API key -- `NAVI_GATOR_API_KEY = "djb2"`
