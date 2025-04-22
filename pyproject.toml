@@ -13,5 +13,7 @@ dependencies = [
     "pip>=25.0.1",
     "scikit-learn>=1.6.1",
     "spacy>=3.8.5",
+    "torch>=2.6.0",
     "tqdm>=4.67.1",
+    "transformers>=4.51.3",
 ]
