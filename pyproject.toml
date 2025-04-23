@@ -5,15 +5,19 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "d2l>=0.17.0",
     "dotenv>=0.9.9",
     "groq>=0.22.0",
+    "keras>=3.9.2",
     "langchain-core>=0.3.55",
     "openai>=1.75.0",
     "pandas>=2.2.3",
     "pip>=25.0.1",
     "scikit-learn>=1.6.1",
     "spacy>=3.8.5",
+    "tensorflow>=2.19.0",
     "torch>=2.6.0",
+    "torchvision>=0.21.0",
     "tqdm>=4.67.1",
     "transformers>=4.51.3",
 ]
