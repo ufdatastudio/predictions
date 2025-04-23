@@ -13,6 +13,7 @@ dependencies = [
     "openai>=1.75.0",
     "pandas>=2.2.3",
     "pip>=25.0.1",
+    "pydot>=3.0.4",
     "scikit-learn>=1.6.1",
     "spacy>=3.8.5",
     "tensorflow>=2.19.0",

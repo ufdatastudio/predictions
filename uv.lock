@@ -2232,6 +2232,7 @@ dependencies = [
     { name = "openai" },
     { name = "pandas" },
     { name = "pip" },
+    { name = "pydot" },
     { name = "scikit-learn" },
     { name = "spacy" },
     { name = "tensorflow" },
@@ -2251,6 +2252,7 @@ requires-dist = [
     { name = "openai", specifier = ">=1.75.0" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "pip", specifier = ">=25.0.1" },
+    { name = "pydot", specifier = ">=3.0.4" },
     { name = "scikit-learn", specifier = ">=1.6.1" },
     { name = "spacy", specifier = ">=3.8.5" },
     { name = "tensorflow", specifier = ">=2.19.0" },
@@ -2437,6 +2439,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/0b/cd/c59707e35a47ba4cbbf153c3f7c56420c58653b5801b055dc52cccc8e2dc/pydantic_core-2.33.1-pp311-pypy311_pp73-musllinux_1_1_armv7l.whl", hash = "sha256:52928d8c1b6bda03cc6d811e8923dffc87a2d3c8b3bfd2ce16471c7147a24850", size = 2250175, upload_time = "2025-04-02T09:49:15.597Z" },
     { url = "https://files.pythonhosted.org/packages/84/32/e4325a6676b0bed32d5b084566ec86ed7fd1e9bcbfc49c578b1755bde920/pydantic_core-2.33.1-pp311-pypy311_pp73-musllinux_1_1_x86_64.whl", hash = "sha256:1b30d92c9412beb5ac6b10a3eb7ef92ccb14e3f2a8d7732e2d739f58b3aa7544", size = 2254674, upload_time = "2025-04-02T09:49:17.61Z" },
     { url = "https://files.pythonhosted.org/packages/12/6f/5596dc418f2e292ffc661d21931ab34591952e2843e7168ea5a52591f6ff/pydantic_core-2.33.1-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:f995719707e0e29f0f41a8aa3bcea6e761a36c9136104d3189eafb83f5cec5e5", size = 2080951, upload_time = "2025-04-02T09:49:19.559Z" },
+]
+
+[[package]]
+name = "pydot"
+version = "3.0.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyparsing" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/66/dd/e0e6a4fb84c22050f6a9701ad9fd6a67ef82faa7ba97b97eb6fdc6b49b34/pydot-3.0.4.tar.gz", hash = "sha256:3ce88b2558f3808b0376f22bfa6c263909e1c3981e2a7b629b65b451eee4a25d", size = 168167, upload_time = "2025-01-05T16:18:45.763Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/5f/1ebfd430df05c4f9e438dd3313c4456eab937d976f6ab8ce81a98f9fb381/pydot-3.0.4-py3-none-any.whl", hash = "sha256:bfa9c3fc0c44ba1d132adce131802d7df00429d1a79cc0346b0a5cd374dbe9c6", size = 35776, upload_time = "2025-01-05T16:18:42.836Z" },
 ]
 
 [[package]]
