@@ -10,6 +10,7 @@ dependencies = [
     "groq>=0.22.0",
     "keras>=3.9.2",
     "langchain-core>=0.3.55",
+    "nltk>=3.9.1",
     "openai>=1.75.0",
     "pandas>=2.2.3",
     "pip>=25.0.1",
