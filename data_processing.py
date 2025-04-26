@@ -153,6 +153,10 @@ class DataProcessing:
                 template_numbers.append(5)
                 reformat_predictions.append(prediction[4:])
                 indices_to_keep.append(idx)
+            elif first_word == "T6:":
+                template_numbers.append(6)
+                reformat_predictions.append(prediction[4:])
+                indices_to_keep.append(idx)
             else:
                 continue
         

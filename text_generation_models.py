@@ -136,7 +136,7 @@ class TextGenerationModelFactory(ABC):
         )
         return response.choices[0].message.content
     
-    def generate_predictions(self, prompt_template: str, label: str, domain: str) -> pd.DataFrame:
+    def generate_predictions(self, prompt_template: str, label: str, domain: str, batch_id: int) -> pd.DataFrame:
         """Generate a completion response and return as a DataFrame.
 
         Parameters:
@@ -173,13 +173,12 @@ class TextGenerationModelFactory(ABC):
         df['Domain'] = domain
         df['Model Name'] = self.model_name
         df['API Name'] = self.api_name
+        df['Batch ID'] = batch_id
         return df
 
-    def log_batch_df(self, batch_dfs, sentence_label):
+    def log_batch_df(self, reformat_batch_predictions_df, sentence_label):
         print("Start logging batch")
 
-        batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
-        reformat_batch_predictions_df = DataProcessing.reformat_df_with_template_number(batch_predictions_df, col_name="Base Sentence")
         base_path = pathlib.Path(__file__).parent.resolve()
         
         prediction_files = None
@@ -250,17 +249,21 @@ class TextGenerationModelFactory(ABC):
                     print(f"{domain} --- {text_generation_model.__name__()} --- {text_generation_model.api_name}")
 
                     prompt_output = prompt_outputs[domain]
-                    model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain)
+                    model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain, batch_id=batch_idx)
 
                     batch_dfs.append(model_df)
+                    batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
+                    reformat_batch_predictions_df = DataProcessing.reformat_df_with_template_number(batch_predictions_df, col_name="Base Sentence")
                 print()
 
-            self.log_batch_df(batch_dfs, sentence_label)
+            self.log_batch_df(reformat_batch_predictions_df, sentence_label)
+            print(reformat_batch_predictions_df)
 
             # Extend the main DataFrame list with the batch DataFrames
-            all_batches_df.extend(batch_dfs)
-
-        return all_batches_df    
+            all_batches_df.append(reformat_batch_predictions_df)
+        print(all_batches_df)
+        updated_all_batches_df = DataProcessing.concat_dfs(all_batches_df)
+        return updated_all_batches_df    
 
     def __name__(self):
         pass
