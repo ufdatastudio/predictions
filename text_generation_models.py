@@ -159,8 +159,9 @@ class TextGenerationModelFactory(ABC):
             The generated completion response formatted as a DataFrame.
         """
         # Generate the raw prediction text
+        # print(f"\nprompt_template: {prompt_template}\n\n")
         raw_text = self.chat_completion([self.user(prompt_template)])
-        print(f"{self.model_name} + {domain} generates: {raw_text}")
+        # print(f"{self.model_name} + {domain} generates: {raw_text}")
         
         # Parse the raw text into structured data (assuming a consistent format)
         predictions = []
