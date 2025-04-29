@@ -259,11 +259,11 @@ class TextGenerationModelFactory(ABC):
                 print()
 
             self.log_batch_df(reformat_batch_predictions_df, sentence_label)
-            print(reformat_batch_predictions_df)
+            # print(reformat_batch_predictions_df)
 
             # Extend the main DataFrame list with the batch DataFrames
             all_batches_df.append(reformat_batch_predictions_df)
-        print(all_batches_df)
+        # print(all_batches_df)
         updated_all_batches_df = DataProcessing.concat_dfs(all_batches_df)
         return updated_all_batches_df    
 
