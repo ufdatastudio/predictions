@@ -80,7 +80,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
     
     def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str):
         super().__init__(df_to_vectorize, col_name_to_vectorize)
-        self.nlp = spacy.load("en_core_web_md")  # Load a SpaCy model with word vectors
+        self.nlp = spacy.load("en_core_web_sm")  # Load a SpaCy model with word vectors
     
     def extract_entities(self, data: pd.Series, disable_components: list, batch_size: int = 50, visualize: bool = False):
         """
@@ -114,7 +114,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         label_counts = {}
 
         for doc in self.nlp.pipe(data, disable=disable_components, batch_size=batch_size):
-            print("Doc: ", doc)
+            print("Spacy Doc: ", doc)
             if visualize == True:
                 DataProcessing.visualize_spacy_doc(doc)
             doc_tags = []
