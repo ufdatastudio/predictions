@@ -5,3 +5,5 @@
 *.csv
 /data
 *.DS_Store
+misc/open_data.ipynb
+*.png
