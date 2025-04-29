@@ -5,9 +5,16 @@ UF Data Studio (https://ufdatastudio.com/) with advisor Christan E. Grant, Ph.D.
 Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-method/python/example#lang-features)
 """
 
-import re
+import re, nltk, spacy
+
 import pandas as pd
+
 from abc import ABC, abstractmethod
+
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+
+nltk.download('wordnet')
 
 class DataCleaningFactory(ABC):
     """An abstract base class for data cleaning steps"""
@@ -171,6 +178,10 @@ class DataCleaningFactory(ABC):
     @abstractmethod
     def remove_extra_spaces(self):
         """Remove extra spaces from the text"""
+        pass
+
+    def lemmatize(self):
+        """Convert data from conjugation to base"""
         pass
 
 class PredictionDataCleaner(DataCleaningFactory):
@@ -393,4 +404,78 @@ class PredictionDataCleaner(DataCleaningFactory):
 
         self.df[col_name] = single_spaced_reviews
         return self.df
+
+    def lemmatize(self, col_name: str, lem_col_name: str, lem_model: str = "Spacy"):
+        """Convert data from conjugation to base using WordNet
+
+        Parameters
+        ----------
+        df: `pd.DataFrame`
+            The data
+        
+        col_name: `str`
+            Column to lemmentize
+
+        lem_col_name: `str`
+
+        Return
+        ------
+        df: `pd.DataFrame`
+            An updated DataFrame with the extra spaces removed
+        """
     
+        lemmed_reviews = []
+        updated_df = self.df.copy()
+        text_reviews = self.df[col_name].values
+
+        lem = WordNetLemmatizer()
+        nlp = spacy.load("en_core_web_sm")
+
+        for text_reviews_idx in range(len(text_reviews)):
+            text_review = text_reviews[text_reviews_idx]   
+            if isinstance(text_review, str):
+                if lem_model == "Word Net":    
+                    # words_in_review = word_tokenize(text_review) 
+                    pass
+
+                    # print("Before lem update", text_reviews_idx, " -- ", text_review)
+                    # print("Lemmed words", words_in_review)
+                    
+
+                    # lemmed_sentence = []
+
+                    # # Split review into words
+                    # for lemmed_words_idx in range(len(words_in_review)):
+                    #     word = words_in_review[lemmed_words_idx]
+                        
+                    #     apply_lemmatization = lem.lemmatize(word)
+                    #     print(apply_lemmatization)
+                        
+                    #     lemmed_sentence.append(apply_lemmatization)
+                    #     filtered_review = " ".join(lemmed_sentence)
+                elif lem_model == "Spacy":
+                    print("Spacy...")
+                    words_in_sentence = nlp(text_review)
+
+                    lemmed_sentence = []
+
+                    # Split review into words
+                    for lemmed_words_idx in range(len(words_in_sentence)):
+                        word = words_in_sentence[lemmed_words_idx]
+                        print(f"before lem --- {word}")
+                        apply_lemmatization = word.lemma_
+                        print(f"after lem --- {apply_lemmatization}")
+                        print()
+                        
+                        lemmed_sentence.append(apply_lemmatization)
+                        filtered_review = " ".join(lemmed_sentence)
+                
+                # print("After lem update -- ", filtered_review)
+                # print()
+
+                lemmed_reviews.append(filtered_review)
+            else:
+                lemmed_reviews.append(text_review)
+
+        updated_df[lem_col_name] = lemmed_reviews
+        return updated_df
