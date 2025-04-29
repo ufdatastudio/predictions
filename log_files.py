@@ -138,7 +138,7 @@ def read_data(notebook_dir, log_file_path, predictions):
     base_path = os.path.join(notebook_dir, '../')
 
     log_directory = os.path.join(base_path, log_file_path)
-    # print(f"log_directory: {log_directory}")
+    print(f"log_directory: {log_directory}")
 
     N = len(os.listdir(log_directory))
     # print(f"{N}")
@@ -150,9 +150,13 @@ def read_data(notebook_dir, log_file_path, predictions):
         batch_i = f"batch_{i}"
         if predictions == True:
             save_batch_directory = os.path.join(log_directory, f"{batch_i}-predictions")
-        else:
+        elif predictions == False:
             save_batch_directory = os.path.join(log_directory, f"{batch_i}-observations")
+        else:
+            print("Invalid path")
+            quit()
 
+        print(f"save_batch_directory: {save_batch_directory}")
         save_batch_name = f"{batch_i}-info.log"
         save_from_df_name = f"{batch_i}-from_df.csv"
         save_from_csv_name = f"{batch_i}-from_csv.log"

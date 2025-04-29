@@ -201,7 +201,7 @@ class TextGenerationModelFactory(ABC):
     
         while os.path.exists(save_batch_directory):
             n += 1
-            save_batch_directory = os.path.join(log_directory, f"batch_{n}-{prediction_files}")
+            save_batch_directory = os.path.join(log_directory, f"batch_{n}-{prediction_files}s")
 
         os.makedirs(save_batch_directory)
         save_batch_name = f"batch_{n}-info.log"
