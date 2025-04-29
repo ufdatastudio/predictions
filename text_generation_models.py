@@ -160,6 +160,7 @@ class TextGenerationModelFactory(ABC):
         """
         # Generate the raw prediction text
         raw_text = self.chat_completion([self.user(prompt_template)])
+        print(f"{self.model_name} + {domain} generates: {raw_text}")
         
         # Parse the raw text into structured data (assuming a consistent format)
         predictions = []
