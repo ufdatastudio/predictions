@@ -4,6 +4,8 @@ import pandas as pd
 
 from datetime import datetime
 
+from data_processing import DataProcessing
+
 class LogData:
     def __init__(self, base_path, log_file_path, batch_path, batch_name):
         self.base_path = base_path
@@ -129,4 +131,36 @@ class LogData:
         except Exception as e:
             logging.error(f"Error reading CSV file into DataFrame: {e}")
             return None
+        
+def read_data(notebook_dir, log_file_path, predictions):
+    print("Start logging batch")
 
+    base_path = os.path.join(notebook_dir, '../')
+
+    log_directory = os.path.join(base_path, log_file_path)
+    # print(f"log_directory: {log_directory}")
+
+    N = len(os.listdir(log_directory))
+    # print(f"{N}")
+
+    dfs = []
+    for i in range(1, N):
+        # print(i)
+
+        batch_i = f"batch_{i}"
+        if predictions == True:
+            save_batch_directory = os.path.join(log_directory, f"{batch_i}-predictions")
+        else:
+            save_batch_directory = os.path.join(log_directory, f"{batch_i}-observations")
+
+        save_batch_name = f"{batch_i}-info.log"
+        save_from_df_name = f"{batch_i}-from_df.csv"
+        save_from_csv_name = f"{batch_i}-from_csv.log"
+        ignore_patterns = ['INFO', 'DEBUG', 'ERROR', 'WARNING', 'CSV Row: ']
+        logger = LogData(base_path, log_file_path, save_batch_directory, save_batch_name)
+        # logger.log_to_csv(save_from_csv_name, save_from_df_name, ignore_patterns)
+        df = logger.csv_to_dataframe(save_from_df_name)
+        dfs.append(df)
+
+    data_df = DataProcessing.concat_dfs(dfs)
+    return data_df
