@@ -80,7 +80,27 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
     
     def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str):
         super().__init__(df_to_vectorize, col_name_to_vectorize)
-        self.nlp = spacy.load("en_core_web_sm")  # Load a SpaCy model with word vectors
+        self.nlp = spacy.load("en_core_web_lg")  # Load a SpaCy model with word vectors
+    
+    def update_futures_count(self, label, doc_i, label_counts):
+        count_key = f"{label}_{doc_i}"
+        # print(f"      Count Key: {count_key}")
+        
+        old_count_for_label = 0
+        # print(f"        Label ({label}) --- Old count ({old_count_for_label})")
+        if count_key in label_counts:
+            label_counts[count_key] += 1
+            old_count_for_label += 1
+            # print("     Count key is in Label counts")
+            # print(f"    Updated Label Counts: {label_counts}\n")
+        else:
+            label_counts[count_key] = 1
+            old_count_for_label = 1
+            # print("     Count key is NOT in Label counts")
+            # print(f"    Updated Label Counts: {label_counts}\n")
+        
+        new_count_for_label = label_counts[count_key]
+        return new_count_for_label
     
     def extract_entities(self, data: pd.Series, disable_components: list, batch_size: int = 50, visualize: bool = False):
         """
@@ -111,35 +131,71 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         entities = []
         all_ner_tags = set()
 
+        pos_label_counts = {}
         label_counts = {}
 
-        for doc in self.nlp.pipe(data, disable=disable_components, batch_size=batch_size):
-            print("Spacy Doc: ", doc)
+        for doc_i, doc in enumerate(self.nlp.pipe(data, disable=disable_components, batch_size=batch_size)):
+            # print(f"Spacy Doc ({doc_i}): ", doc)
+            if doc_i <= 7:
+                print(f"Spacy Doc ({doc_i}): ", doc)
+                
             if visualize == True:
                 DataProcessing.visualize_spacy_doc(doc)
-            doc_tags = []
-            for token in doc:
-                doc_tags.append((token.text, token.pos_))
-                all_pos_tags.add(token.pos_)
-            tags.append(doc_tags)
 
+            """Extract POSs"""    
+            doc_tags = []
+            # print(doc.ents)
+            for token in doc:
+                label = token.pos_
+                text = token.text
+                # print(f"    Word : Tag >>> {token.text} : {token.pos_}")
+                new_count_for_label = self.update_futures_count(label, doc_i, pos_label_counts)
+                # print(f"        Label ({label}) --- New count ({new_count_for_label})")
+                unique_label = f"{label}_{new_count_for_label}"
+
+                doc_tags.append((text, unique_label))
+                all_pos_tags.add(unique_label)
+            tags.append(doc_tags)
+            # print(f"    Doc POSs : {tags}")
+            
+            """Extract NERs"""
             doc_entities = []
+            # print(doc.ents)
             for ent in doc.ents:
                 label = ent.label_
                 text = ent.text
+                # print(f"    Entity : Word >>> {label} : {text}")
                 # updated_label = DataProcessing.update_ner(label, text)  # update the label
+                # print(f"\n      Label Counts: {label_counts}")
+                # count_key = f"{label}_{doc_i}"
+                # # print(f"      Count Key: {count_key}")
                 
-                count_key = f"{label}_{doc}"
-                if count_key in label_counts:
-                    label_counts[count_key] += 1
-                else:
-                    label_counts[count_key] = 1
-                unique_label = f"{label}_{label_counts[count_key]}"
+                # old_count_for_label = 0
+                # # print(f"        Label ({label}) --- Old count ({old_count_for_label})")
+                # if count_key in label_counts:
+                #     label_counts[count_key] += 1
+                #     old_count_for_label += 1
+                #     # print("     Count key is in Label counts")
+                #     # print(f"    Updated Label Counts: {label_counts}\n")
+                # else:
+                #     label_counts[count_key] = 1
+                #     old_count_for_label = 1
+                #     # print("     Count key is NOT in Label counts")
+                #     # print(f"    Updated Label Counts: {label_counts}\n")
+                
+                # new_count_for_label = label_counts[count_key]
+                new_count_for_label = self.update_futures_count(label, doc_i, label_counts)
+                # print(f"        Label ({label}) --- New count ({new_count_for_label})")
+                unique_label = f"{label}_{new_count_for_label}"
+                # print(f"    Word : Entity >>> {text} : {unique_label}\n")
 
                 doc_entities.append((text, unique_label))  # changed label to updated_label
                 all_ner_tags.add(unique_label)
-
             entities.append(doc_entities)
+            # print(f"    Doc NERs : {entities}")
+
+            # if doc_i == 7:
+            #     quit()
 
         return all_pos_tags, tags, all_ner_tags, entities
    
