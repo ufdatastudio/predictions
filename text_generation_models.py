@@ -42,8 +42,8 @@ class TextGenerationModelFactory(ABC):
 
         """
         platform_to_api_mappings = {
-            "GROQ_CLOUD" : os.getenv('GROQ_CLOUD_API_KEY'),
-            "NAVI_GATOR" : os.getenv('NAVI_GATOR_API_KEY')
+            "GROQ_CLOUD" : os.getenv('GROQ_CLOUD_API_KEY'), # https://console.groq.com/docs/models
+            "NAVI_GATOR" : os.getenv('NAVI_GATOR_API_KEY') # https://it.ufl.edu/ai/navigator-toolkit/
         }
 
         api_key = platform_to_api_mappings.get(platform_name)
