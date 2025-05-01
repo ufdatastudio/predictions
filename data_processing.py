@@ -270,7 +270,7 @@ class DataProcessing:
             df_to_update.insert(1, 'Sentence Label', sentence_and_label_df['Sentence Label'].values)
             return df_to_update
         else:
-            print("Error: The lengths of df_to_update and sentence_and_label_df do not match.")
+            print(f"Error: The lengths of df_to_update ({len(df_to_update)}) and sentence_and_label_df ({len(sentence_and_label_df)}) do not match.")
             return df_to_update
         
     def convert_to_df(data, mapping=None):
