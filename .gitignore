@@ -7,3 +7,4 @@
 *.DS_Store
 misc/open_data.ipynb
 *.png
+/web_app
