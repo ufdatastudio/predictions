@@ -5,18 +5,21 @@ UF Data Studio (https://ufdatastudio.com/) with advisor Christan E. Grant, Ph.D.
 Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-method/python/example#lang-features)
 """
 
-import os, openai, pathlib
+import os, openai, pathlib, torch
 
 import pandas as pd
 
 from groq import Groq
 from tqdm import tqdm
 from typing import Dict, List
-from log_files import LogData
+
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
-from data_processing import DataProcessing
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
+
+from log_files import LogData
+from data_processing import DataProcessing
 load_dotenv()  # Load environment variables from .env file
 
 class TextGenerationModelFactory(ABC):
@@ -43,7 +46,8 @@ class TextGenerationModelFactory(ABC):
         """
         platform_to_api_mappings = {
             "GROQ_CLOUD" : os.getenv('GROQ_CLOUD_API_KEY'), # https://console.groq.com/docs/models
-            "NAVI_GATOR" : os.getenv('NAVI_GATOR_API_KEY') # https://it.ufl.edu/ai/navigator-toolkit/
+            "NAVI_GATOR" : os.getenv('NAVI_GATOR_API_KEY'), # https://it.ufl.edu/ai/navigator-toolkit/
+            "HUGGING_FACE": os.getenv('HUGGING_FACE_API_KEY') # https://huggingface.co/models?pipeline_tag=text-generation&sort=trending
         }
 
         api_key = platform_to_api_mappings.get(platform_name)
@@ -70,6 +74,8 @@ class TextGenerationModelFactory(ABC):
             return Gpt4oTextGenerationModel()
         elif model_name == 'mixtral-8x7b-instruct':
             return Mixtral87BInstructTextGenerationModel()
+        elif model_name == 'DeepSeek-Prover-V2-7B':
+            return DeepSeekProverV2TextGenerationModel()
         else:
             raise ValueError(f"Unknown class name: {model_name}")
 
@@ -270,8 +276,6 @@ class TextGenerationModelFactory(ABC):
     def __name__(self):
         pass
 
-
-
 class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):    
     def __init__(self):
         super().__init__()
@@ -282,7 +286,6 @@ class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):
     
     def __name__(self):
         return "llama-3.3-70b-versatile"
-
 
 class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -359,3 +362,27 @@ class Mixtral87BInstructTextGenerationModel(TextGenerationModelFactory):
     def __name__(self):
         return "mixtral-8x7b-instruct"
 
+class DeepSeekProverV2TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "HUGGING_FACE"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.model_name = self.__name__()
+        # Load tokenizer and model
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_name,
+            token= self.api_key
+            )
+        self.client = AutoModelForCausalLM.from_pretrained(
+            self.model_name,
+            device_map=None,
+            torch_dtype=torch.bfloat16,
+            trust_remote_code=True,
+            token=self.api_key
+        )
+        torch.manual_seed(30)
+        
+        
+    
+    def __name__(self):
+        return "deepseek-ai/DeepSeek-Prover-V2-7B"
