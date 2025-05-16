@@ -7,3 +7,7 @@
 *.DS_Store
 misc/open_data.ipynb
 *.png
+.venv/
+venv/
+env/
+test_run.py
