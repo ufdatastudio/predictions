@@ -76,6 +76,12 @@ class TextGenerationModelFactory(ABC):
             return Mixtral87BInstructTextGenerationModel()
         elif model_name == 'DeepSeek-Prover-V2-7B':
             return DeepSeekProverV2TextGenerationModel()
+        elif model_name == 'kokoro':
+            return KokoroTextGenerationModel()
+        elif model_name == 'llama-3.1-8b-instruct':
+            return Llama318BInstructModel()
+        elif model_name == 'mistral-7b-instruct':
+            return Mistral7BInstructModel()
         else:
             raise ValueError(f"Unknown class name: {model_name}")
 
@@ -371,7 +377,7 @@ class DeepSeekProverV2TextGenerationModel(TextGenerationModelFactory):
         # Load tokenizer and model
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name,
-            token= self.api_key
+            token=self.api_key
             )
         self.client = AutoModelForCausalLM.from_pretrained(
             self.model_name,
@@ -386,3 +392,45 @@ class DeepSeekProverV2TextGenerationModel(TextGenerationModelFactory):
     
     def __name__(self):
         return "deepseek-ai/DeepSeek-Prover-V2-7B"
+
+class KokoroTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "kokoro"
+    
+class Llama318BInstructModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = "llama-3.1-8b-instruct"
+
+    def __name__(self):
+        return "llama-3.1-8b-instruct"
+
+class Mistral7BInstructModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = "mistral-7b-instruct"
+
+    def __name__(self):
+        return "mistral-7b-instruct"
