@@ -5,7 +5,7 @@ UF Data Studio (https://ufdatastudio.com/) with advisor Christan E. Grant, Ph.D.
 Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-method/python/example#lang-features)
 """
 
-import os, openai, pathlib, torch
+import os, openai, pathlib, torch, ipdb
 
 import pandas as pd
 
@@ -171,9 +171,11 @@ class TextGenerationModelFactory(ABC):
             The generated completion response formatted as a DataFrame.
         """
         # Generate the raw prediction text
-        # print(f"\nprompt_template: {prompt_template}\n\n")
+        # print(f"\n  prompt_template: \n{prompt_template}\n\n")
         raw_text = self.chat_completion([self.user(prompt_template)])
-        # print(f"{self.model_name} + {domain} generates: {raw_text}")
+        # print(f"    {self.model_name} + {domain} generates: {raw_text}")
+        print(f"generates:\n{raw_text}")
+        
         
         # Parse the raw text into structured data (assuming a consistent format)
         predictions = []
@@ -188,6 +190,10 @@ class TextGenerationModelFactory(ABC):
         df['Model Name'] = self.model_name
         df['API Name'] = self.api_name
         df['Batch ID'] = batch_id
+        # print()
+        # print(df)
+        # ipdb.set_trace()
+        # print()
         return df
 
     def log_batch_df(self, reformat_batch_predictions_df, sentence_label):
@@ -269,6 +275,9 @@ class TextGenerationModelFactory(ABC):
                     batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
                     reformat_batch_predictions_df = DataProcessing.reformat_df_with_template_number(batch_predictions_df, col_name="Base Sentence")
                 print()
+
+                # print(f"NEW DOMAIN: {domain}")
+            # ipdb.set_trace()
 
             self.log_batch_df(reformat_batch_predictions_df, sentence_label)
             # print(reformat_batch_predictions_df)
