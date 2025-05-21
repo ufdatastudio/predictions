@@ -72,16 +72,22 @@ class TextGenerationModelFactory(ABC):
             return Gpt35TurboTextGenerationModel()
         elif model_name == 'gpt-4o':
             return Gpt4oTextGenerationModel()
+        elif model_name == 'llama-3.1-70b-instruct':
+            return Llama3170BInstructTextGenerationModel()
+        elif model_name == 'llama-3.3-70b-instruct':
+            return Llama3370BInstructTextGenerationModel()
         elif model_name == 'mixtral-8x7b-instruct':
             return Mixtral87BInstructTextGenerationModel()
+        elif model_name == 'llama-3.1-8b-instruct':
+            return Llama318BInstructTextGenerationModel()
+        elif model_name == 'mistral-7b-instruct':
+            return Mistral7BInstructTextGenerationModel()     
+        elif model_name == 'mistral-small-3.1':
+            return MistralSmall31TextGenerationModel()
         elif model_name == 'DeepSeek-Prover-V2-7B':
             return DeepSeekProverV2TextGenerationModel()
-        elif model_name == 'kokoro':
-            return KokoroTextGenerationModel()
-        elif model_name == 'llama-3.1-8b-instruct':
-            return Llama318BInstructModel()
-        elif model_name == 'mistral-7b-instruct':
-            return Mistral7BInstructModel()
+
+
         else:
             raise ValueError(f"Unknown class name: {model_name}")
 
@@ -363,6 +369,34 @@ class Gpt4oTextGenerationModel(TextGenerationModelFactory):
     def __name__(self):
         return "gpt-4-turbo"
 
+class Llama3170BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "llama-3.1-70b-instruct"
+
+class Llama3370BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "llama-3.3-70b-instruct"
+
 class Mixtral87BInstructTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
@@ -372,10 +406,52 @@ class Mixtral87BInstructTextGenerationModel(TextGenerationModelFactory):
             api_key= self.api_key,
             base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
             )
-        self.model_name = "mixtral-8x7b-instruct"
+        self.model_name = self.__name__()
     
     def __name__(self):
-        return "mixtral-8x7b-instruct"
+        return "mixtral-8x7b-instruct"    
+
+class Llama318BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "llama-3.1-8b-instruct"
+
+class Mistral7BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "mistral-7b-instruct"
+    
+class MistralSmall31TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "mistral-small-3.1"
 
 class DeepSeekProverV2TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -397,49 +473,6 @@ class DeepSeekProverV2TextGenerationModel(TextGenerationModelFactory):
         )
         torch.manual_seed(30)
         
-        
     
     def __name__(self):
         return "deepseek-ai/DeepSeek-Prover-V2-7B"
-
-class KokoroTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "kokoro"
-    
-class Llama318BInstructModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
-        self.model_name = "llama-3.1-8b-instruct"
-
-    def __name__(self):
-        return "llama-3.1-8b-instruct"
-
-class Mistral7BInstructModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
-        self.model_name = "mistral-7b-instruct"
-
-    def __name__(self):
-        return "mistral-7b-instruct"
