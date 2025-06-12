@@ -239,9 +239,9 @@ class DataProcessing:
         """
         return pd.Series(data)
     
-    def convert_tags_entities_to_dataframe(keys_of_mappings: set, mappings: list[list]):
+    def convert_tags_entities_to_dataframe(keys_of_mappings: set, mappings: list[list]) -> pd.DataFrame:
         """
-        Convert extracted entities into a pandas DataFrame.
+        Convert extracted features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) into a pandas DataFrame.
         
         Parameters:
         -----------

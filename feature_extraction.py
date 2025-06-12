@@ -108,15 +108,12 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         label_counts[label] += 1 # Increment the count for this label in this document.
         return label_counts[label]
 
-    def extract_features(self, data: pd.Series, disable_components: list, batch_size: int = 50, visualize: bool = False):
+    def extract_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
         """
         Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
 
         Parameters:
         -----------
-        data : `pd.Series`
-            A Series containing textual data for entity extraction.
-
         disable_components : `list`
             A list of components to disable in the SpaCy pipeline.
         
@@ -137,12 +134,13 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         entities = []
         all_ner_tags = set()
 
+        data = self.extract_text_to_vectorize()
         for doc_i, doc in enumerate(self.nlp.pipe(data, disable=disable_components, batch_size=batch_size)):
             if doc_i <= 3:
                 print(f"Spacy Doc ({doc_i}): ", doc)
 
-            if visualize == True:
-                DataProcessing.visualize_spacy_doc(doc)
+                if visualize is True:
+                    DataProcessing.visualize_spacy_doc(doc)
 
             """Extract POSs"""    
             doc_tags = []
@@ -200,11 +198,15 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         """
         text_to_vectorize = self.extract_text_to_vectorize()
         sent_embeddings = []
-
+        count = 0
         for sentence in text_to_vectorize:
+            if count <= 2:
+                print(f"Sentence {count}: {sentence}")
+                count += 1
             doc = self.nlp(sentence)
             for sent in doc.sents:
                 sent_embeddings.append(sent.vector)
+            
         
         return sent_embeddings
     
