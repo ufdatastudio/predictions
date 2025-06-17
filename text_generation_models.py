@@ -5,7 +5,11 @@ UF Data Studio (https://ufdatastudio.com/) with advisor Christan E. Grant, Ph.D.
 Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-method/python/example#lang-features)
 """
 
-import os, openai, pathlib, torch, ipdb
+import os
+import openai
+import pathlib
+import torch
+import ipdb
 
 import pandas as pd
 
@@ -26,7 +30,9 @@ class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
     
     def __init__(self):
-        """Initialize the model with necessary parameters"""
+        """In the init method (also called constructor), initialize our class with variables or attributes."""
+        # Create instance variables or attributes
+        # Standardized model parameters
         self.temperature = 0.3
         self.top_p = 0.9
         self.model_name = None
@@ -60,6 +66,7 @@ class TextGenerationModelFactory(ABC):
     @classmethod        
     def create_instance(self, model_name):
 
+        # Groq models
         if model_name == 'llama-3.3-70b-versatile':
             return LlamaVersatileTextGenerationModel()
         elif model_name == 'llama-3.1-8b-instant':
@@ -68,6 +75,7 @@ class TextGenerationModelFactory(ABC):
             return Llama70B8192TextGenerationModel()
         elif model_name == 'llama3-8b-8192':
             return Llama8B8192TextGenerationModel()
+        # Navi Gator models (GPTs not available anymore)
         elif model_name == 'gpt-3.5-turbo':
             return Gpt35TurboTextGenerationModel()
         elif model_name == 'gpt-4o':
@@ -84,10 +92,9 @@ class TextGenerationModelFactory(ABC):
             return Mistral7BInstructTextGenerationModel()     
         elif model_name == 'mistral-small-3.1':
             return MistralSmall31TextGenerationModel()
+        # Hugging Face models
         elif model_name == 'DeepSeek-Prover-V2-7B':
             return DeepSeekProverV2TextGenerationModel()
-
-
         else:
             raise ValueError(f"Unknown class name: {model_name}")
 
