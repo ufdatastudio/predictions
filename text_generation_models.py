@@ -33,7 +33,7 @@ class TextGenerationModelFactory(ABC):
         """In the init method (also called constructor), initialize our class with variables or attributes."""
         # Create instance variables or attributes
         # Standardized model parameters
-        self.temperature = 0.3
+        self.temperature = 0.6
         self.top_p = 0.9
         self.model_name = None
    
@@ -66,16 +66,22 @@ class TextGenerationModelFactory(ABC):
     @classmethod        
     def create_instance(self, model_name):
 
-        # Groq models
-        if model_name == 'llama-3.3-70b-versatile':
-            return LlamaVersatileTextGenerationModel()
+        # Groq Cloud models
+        if model_name == 'distil-whisper-large-v3-en':
+            return DistilWhisperLarge3TextGenerationModel()
+        elif model_name == 'gemma2-9b-it':
+            return Gemma29bTextGenerationModel()
         elif model_name == 'llama-3.1-8b-instant':
             return LlamaInstantTextGenerationModel()
-        elif model_name == 'llama3-70b-8192':
-            return Llama70B8192TextGenerationModel()
-        elif model_name == 'llama3-8b-8192':
-            return Llama8B8192TextGenerationModel()
-        # Navi Gator models (GPTs not available anymore)
+        elif model_name == 'llama-3.3-70b-versatile':
+            return LlamaVersatileTextGenerationModel()
+        elif model_name == 'meta-llama/llama-guard-4-12b':
+            return LlamaGuard412bTextGenerationModel()
+        elif model_name == 'whisper-large-v3':
+            return WhisperLarge3TextGenerationModel()
+        elif model_name == 'whisper-large-v3-turbo':
+            return WhisperLarge3TurboTextGenerationModel()
+        # NaviGator models (GPTs not available anymore)
         elif model_name == 'gpt-3.5-turbo':
             return Gpt35TurboTextGenerationModel()
         elif model_name == 'gpt-4o':
@@ -93,8 +99,8 @@ class TextGenerationModelFactory(ABC):
         elif model_name == 'mistral-small-3.1':
             return MistralSmall31TextGenerationModel()
         # Hugging Face models
-        elif model_name == 'DeepSeek-Prover-V2-7B':
-            return DeepSeekProverV2TextGenerationModel()
+        # elif model_name == 'DeepSeek-Prover-V2-7B':
+        #     return DeepSeekProverV2TextGenerationModel()
         else:
             raise ValueError(f"Unknown class name: {model_name}")
 
@@ -304,6 +310,39 @@ class TextGenerationModelFactory(ABC):
     def __name__(self):
         pass
 
+class DistilWhisperLarge3TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "distil-whisper-large-v3-en"
+    
+class Gemma29bTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "gemma2-9b-it"
+    
+class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "llama-3.1-8b-instant"
+    
 class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):    
     def __init__(self):
         super().__init__()
@@ -315,38 +354,38 @@ class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):
     def __name__(self):
         return "llama-3.3-70b-versatile"
 
-class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
+class LlamaGuard412bTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_name = "GROQ_CLOUD"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
-        self.model_name = "llama-3.1-8b-instant"
+        self.model_name = self.__name__()
 
     def __name__(self):
-        return "llama-3.1-8b-instant"
+        return "meta-llama/llama-guard-4-12b"
 
-class Llama70B8192TextGenerationModel(TextGenerationModelFactory):
+class WhisperLarge3TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_name = "GROQ_CLOUD"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
-        self.model_name = "llama3-70b-8192"
-
-    def __name__(self):
-        return "llama3-70b-8192"
-
-class Llama8B8192TextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "GROQ_CLOUD"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = Groq(api_key=self.api_key)
-        self.model_name = "llama3-8b-8192"
+        self.model_name = self.__name__()
     
     def __name__(self):
-        return "llama3-8b-8192"
+        return "whisper-large-v3"
+
+class WhisperLarge3TurboTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = self.__name__()
+    
+    def __name__(self):
+        return "whisper-large-v3-turbo"
 
 class Gpt35TurboTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -357,7 +396,7 @@ class Gpt35TurboTextGenerationModel(TextGenerationModelFactory):
             api_key= self.api_key,
             base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
             )
-        self.model_name = "gpt-3.5-turbo"
+        self.model_name = self.__name__()
     
     def __name__(self):
         return "gpt-3.5-turbo"
@@ -371,7 +410,7 @@ class Gpt4oTextGenerationModel(TextGenerationModelFactory):
             api_key= self.api_key,
             base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
             )
-        self.model_name = "gpt-4o"
+        self.model_name = self.__name__()
     
     def __name__(self):
         return "gpt-4-turbo"
@@ -459,27 +498,3 @@ class MistralSmall31TextGenerationModel(TextGenerationModelFactory):
 
     def __name__(self):
         return "mistral-small-3.1"
-
-class DeepSeekProverV2TextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "HUGGING_FACE"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.model_name = self.__name__()
-        # Load tokenizer and model
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_name,
-            token=self.api_key
-            )
-        self.client = AutoModelForCausalLM.from_pretrained(
-            self.model_name,
-            device_map=None,
-            torch_dtype=torch.bfloat16,
-            trust_remote_code=True,
-            token=self.api_key
-        )
-        torch.manual_seed(30)
-        
-    
-    def __name__(self):
-        return "deepseek-ai/DeepSeek-Prover-V2-7B"
