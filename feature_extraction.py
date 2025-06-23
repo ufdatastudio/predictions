@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from spacy import displacy
+from collections import defaultdict
 from abc import ABC, abstractmethod
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -82,35 +83,37 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         super().__init__(df_to_vectorize, col_name_to_vectorize)
         self.nlp = spacy.load("en_core_web_lg")  # Load a SpaCy model with word vectors
     
-    def update_futures_count(self, label, doc_i, label_counts):
-        count_key = f"{label}_{doc_i}"
-        # print(f"      Count Key: {count_key}")
-        
-        old_count_for_label = 0
-        # print(f"        Label ({label}) --- Old count ({old_count_for_label})")
-        if count_key in label_counts:
-            label_counts[count_key] += 1
-            old_count_for_label += 1
-            # print("     Count key is in Label counts")
-            # print(f"    Updated Label Counts: {label_counts}\n")
-        else:
-            label_counts[count_key] = 1
-            old_count_for_label = 1
-            # print("     Count key is NOT in Label counts")
-            # print(f"    Updated Label Counts: {label_counts}\n")
-        
-        new_count_for_label = label_counts[count_key]
-        return new_count_for_label
-    
-    def extract_entities(self, data: pd.Series, disable_components: list, batch_size: int = 50, visualize: bool = False):
+    def update_features_count(self, label, label_counts):
         """
-        Extract entities using the provided SpaCy NLP model.
+        Increment and return the count for a given label (NOUN, ORG) in this document. The purpose is so we can collect every feature,
+        especially those features with same type (NOUN, ORG) instead of only one of them. For ex, NOUN_n corresponds to 
+        n having that many number of NOUNs in at least one sentence. So, say sentence 7 has the maximum number of nouns (across 
+        all sentences) to be three), then you’ll get NOUN_1, NOUN_2, NOUN_3.
+
+        It's a helper function to extract_features().
 
         Parameters:
         -----------
-        data : `pd.Series`
-            A Series containing textual data for entity extraction.
+        label : `str`
+            The POS or NER tag
+        label_counts : `dict`
+            Dictionary mapping labels to their current count for this document
+        
+        Returns:
+        --------
+        int
+            The updated count of how many times the label has been seen so far in this document;
+            used as a positional suffix for column naming (e.g., 1 for NOUN_1, 2 for NOUN_2).
+        """
+        label_counts[label] += 1 # Increment the count for this label in this document.
+        return label_counts[label]
 
+    def extract_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
+        """
+        Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
+
+        Parameters:
+        -----------
         disable_components : `list`
             A list of components to disable in the SpaCy pipeline.
         
@@ -123,79 +126,57 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         Returns:
         --------
         tuple
-            A tuple containing the POS tags, POS to word mappings, NER tags, and NER to word mappings.
+            A tuple containing the POS tags, dict{POS : word}, NER tags, and dict{NER : word}.
         """
+        print(f"Pipeline: {self.nlp.pipe_names}")
         tags = []
         all_pos_tags = set()
 
         entities = []
         all_ner_tags = set()
 
-        pos_label_counts = {}
-        label_counts = {}
-
+        data = self.extract_text_to_vectorize()
         for doc_i, doc in enumerate(self.nlp.pipe(data, disable=disable_components, batch_size=batch_size)):
-            # print(f"Spacy Doc ({doc_i}): ", doc)
-            if doc_i <= 7:
+            if doc_i <= 3:
                 print(f"Spacy Doc ({doc_i}): ", doc)
-                
-            if visualize == True:
-                DataProcessing.visualize_spacy_doc(doc)
+
+                if visualize is True:
+                    DataProcessing.visualize_spacy_doc(doc)
 
             """Extract POSs"""    
             doc_tags = []
-            # print(doc.ents)
+            pos_label_counts = defaultdict(int) # RESET for this doc!
             for token in doc:
-                label = token.pos_
-                text = token.text
-                # print(f"    Word : Tag >>> {token.text} : {token.pos_}")
-                new_count_for_label = self.update_futures_count(label, doc_i, pos_label_counts)
-                # print(f"        Label ({label}) --- New count ({new_count_for_label})")
-                unique_label = f"{label}_{new_count_for_label}"
-
+                label = token.pos_ # The simple UPOS part-of-speech tag.
+                text = token.text # The original word text.
+                lemma = token.lemma_ # The base form of the word.
+                dependency = token.dep_ # Syntactic dependency, i.e. the relation between tokens
+                is_stop_word = token.is_stop
+                if doc_i <= 1:
+                    print(f" POS: {text}---{label}---{lemma}---{dependency}---{is_stop_word}")
+                new_count_for_label = self.update_features_count(label, pos_label_counts) # Update count
+                unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: noun_1, noun_2, etc)
                 doc_tags.append((text, unique_label))
                 all_pos_tags.add(unique_label)
             tags.append(doc_tags)
-            # print(f"    Doc POSs : {tags}")
+            if doc_i <= 1:
+                print()
             
             """Extract NERs"""
             doc_entities = []
-            # print(doc.ents)
+            ner_label_counts = defaultdict(int) # RESET for this doc!
             for ent in doc.ents:
                 label = ent.label_
                 text = ent.text
-                # print(f"    Entity : Word >>> {label} : {text}")
-                # updated_label = DataProcessing.update_ner(label, text)  # update the label
-                # print(f"\n      Label Counts: {label_counts}")
-                # count_key = f"{label}_{doc_i}"
-                # # print(f"      Count Key: {count_key}")
-                
-                # old_count_for_label = 0
-                # # print(f"        Label ({label}) --- Old count ({old_count_for_label})")
-                # if count_key in label_counts:
-                #     label_counts[count_key] += 1
-                #     old_count_for_label += 1
-                #     # print("     Count key is in Label counts")
-                #     # print(f"    Updated Label Counts: {label_counts}\n")
-                # else:
-                #     label_counts[count_key] = 1
-                #     old_count_for_label = 1
-                #     # print("     Count key is NOT in Label counts")
-                #     # print(f"    Updated Label Counts: {label_counts}\n")
-                
-                # new_count_for_label = label_counts[count_key]
-                new_count_for_label = self.update_futures_count(label, doc_i, label_counts)
-                # print(f"        Label ({label}) --- New count ({new_count_for_label})")
-                unique_label = f"{label}_{new_count_for_label}"
-                # print(f"    Word : Entity >>> {text} : {unique_label}\n")
-
-                doc_entities.append((text, unique_label))  # changed label to updated_label
+                if doc_i <= 1:
+                    print(f" NER: {text}---{label}---{ent.start_char}---{ent.end_char}")
+                new_count_for_label = self.update_features_count(label, ner_label_counts) # Update count
+                unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: person_1, person_2, etc)
+                doc_entities.append((text, unique_label))
                 all_ner_tags.add(unique_label)
             entities.append(doc_entities)
-            # print(f"    Doc NERs : {entities}")
-
-            # if doc_i == 7:
-            #     quit()
+            if doc_i <= 1:
+                print()
 
         return all_pos_tags, tags, all_ner_tags, entities
    
@@ -229,11 +210,15 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         """
         text_to_vectorize = self.extract_text_to_vectorize()
         sent_embeddings = []
-
+        count = 0
         for sentence in text_to_vectorize:
+            if count <= 2:
+                print(f"Sentence {count}: {sentence}")
+                count += 1
             doc = self.nlp(sentence)
             for sent in doc.sents:
                 sent_embeddings.append(sent.vector)
+            
         
         return sent_embeddings
     

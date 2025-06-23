@@ -239,9 +239,9 @@ class DataProcessing:
         """
         return pd.Series(data)
     
-    def convert_tags_entities_to_dataframe(keys_of_mappings: set, mappings: list[list]):
+    def convert_tags_entities_to_dataframe(keys_of_mappings: set, mappings: list[list]) -> pd.DataFrame:
         """
-        Convert extracted entities into a pandas DataFrame.
+        Convert extracted features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) into a pandas DataFrame.
         
         Parameters:
         -----------
@@ -270,7 +270,7 @@ class DataProcessing:
             df_to_update.insert(1, 'Sentence Label', sentence_and_label_df['Sentence Label'].values)
             return df_to_update
         else:
-            print("Error: The lengths of df_to_update and sentence_and_label_df do not match.")
+            print(f"Error: The lengths of df_to_update ({len(df_to_update)}) and sentence_and_label_df ({len(sentence_and_label_df)}) do not match.")
             return df_to_update
         
     def convert_to_df(data, mapping=None):
@@ -295,7 +295,7 @@ class DataProcessing:
             return DataProcessing.convert_tags_entities_to_dataframe(data, mapping)
         else:
             raise ValueError("Invalid input: data must be a numpy array, dictionary, list, or set with a mapping.")
-        
+    
 # Functions to disregard
     def patterns(nlp):
         # ruler = nlp.add_pipe("entity_ruler", before="ner")
@@ -409,7 +409,7 @@ class DataProcessing:
         
         return pd.DataFrame(extracted_data)
     
-    def visualize_spacy_doc(doc):
+    def visualize_spacy_doc(doc, save_dir: str = "../paper/exSentence.png"):
 
         from PIL import Image
         import io
@@ -423,4 +423,4 @@ class DataProcessing:
             # Convert SVG to PNG
         png_data = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
         img = Image.open(io.BytesIO(png_data))
-        img.save("../paper/exSentence.png")
+        img.save(save_dir)

@@ -5,26 +5,35 @@ UF Data Studio (https://ufdatastudio.com/) with advisor Christan E. Grant, Ph.D.
 Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-method/python/example#lang-features)
 """
 
-import os, openai, pathlib
+import os
+import openai
+import pathlib
+import torch
+import ipdb
 
 import pandas as pd
 
 from groq import Groq
 from tqdm import tqdm
 from typing import Dict, List
-from log_files import LogData
+
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
-from data_processing import DataProcessing
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
+
+from log_files import LogData
+from data_processing import DataProcessing
 load_dotenv()  # Load environment variables from .env file
 
 class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
     
     def __init__(self):
-        """Initialize the model with necessary parameters"""
-        self.temperature = 0.3
+        """In the init method (also called constructor), initialize our class with variables or attributes."""
+        # Create instance variables or attributes
+        # Standardized model parameters
+        self.temperature = 0.6
         self.top_p = 0.9
         self.model_name = None
    
@@ -42,8 +51,9 @@ class TextGenerationModelFactory(ABC):
 
         """
         platform_to_api_mappings = {
-            "GROQ_CLOUD" : os.getenv('GROQ_CLOUD_API_KEY'),
-            "NAVI_GATOR" : os.getenv('NAVI_GATOR_API_KEY')
+            "GROQ_CLOUD" : os.getenv('GROQ_CLOUD_API_KEY'), # https://console.groq.com/docs/models
+            "NAVI_GATOR" : os.getenv('NAVI_GATOR_API_KEY'), # https://it.ufl.edu/ai/navigator-toolkit/
+            "HUGGING_FACE": os.getenv('HUGGING_FACE_API_KEY') # https://huggingface.co/models?pipeline_tag=text-generation&sort=trending
         }
 
         api_key = platform_to_api_mappings.get(platform_name)
@@ -56,20 +66,41 @@ class TextGenerationModelFactory(ABC):
     @classmethod        
     def create_instance(self, model_name):
 
-        if model_name == 'llama-3.3-70b-versatile':
-            return LlamaVersatileTextGenerationModel()
+        # Groq Cloud models
+        if model_name == 'distil-whisper-large-v3-en':
+            return DistilWhisperLarge3TextGenerationModel()
+        elif model_name == 'gemma2-9b-it':
+            return Gemma29bTextGenerationModel()
         elif model_name == 'llama-3.1-8b-instant':
             return LlamaInstantTextGenerationModel()
-        elif model_name == 'llama3-70b-8192':
-            return Llama70B8192TextGenerationModel()
-        elif model_name == 'llama3-8b-8192':
-            return Llama8B8192TextGenerationModel()
+        elif model_name == 'llama-3.3-70b-versatile':
+            return LlamaVersatileTextGenerationModel()
+        elif model_name == 'meta-llama/llama-guard-4-12b':
+            return LlamaGuard412bTextGenerationModel()
+        elif model_name == 'whisper-large-v3':
+            return WhisperLarge3TextGenerationModel()
+        elif model_name == 'whisper-large-v3-turbo':
+            return WhisperLarge3TurboTextGenerationModel()
+        # NaviGator models (GPTs not available anymore)
         elif model_name == 'gpt-3.5-turbo':
             return Gpt35TurboTextGenerationModel()
         elif model_name == 'gpt-4o':
             return Gpt4oTextGenerationModel()
+        elif model_name == 'llama-3.1-70b-instruct':
+            return Llama3170BInstructTextGenerationModel()
+        elif model_name == 'llama-3.3-70b-instruct':
+            return Llama3370BInstructTextGenerationModel()
         elif model_name == 'mixtral-8x7b-instruct':
             return Mixtral87BInstructTextGenerationModel()
+        elif model_name == 'llama-3.1-8b-instruct':
+            return Llama318BInstructTextGenerationModel()
+        elif model_name == 'mistral-7b-instruct':
+            return Mistral7BInstructTextGenerationModel()     
+        elif model_name == 'mistral-small-3.1':
+            return MistralSmall31TextGenerationModel()
+        # Hugging Face models
+        # elif model_name == 'DeepSeek-Prover-V2-7B':
+        #     return DeepSeekProverV2TextGenerationModel()
         else:
             raise ValueError(f"Unknown class name: {model_name}")
 
@@ -159,9 +190,11 @@ class TextGenerationModelFactory(ABC):
             The generated completion response formatted as a DataFrame.
         """
         # Generate the raw prediction text
-        # print(f"\nprompt_template: {prompt_template}\n\n")
+        # print(f"\n  prompt_template: \n{prompt_template}\n\n")
         raw_text = self.chat_completion([self.user(prompt_template)])
-        # print(f"{self.model_name} + {domain} generates: {raw_text}")
+        # print(f"    {self.model_name} + {domain} generates: {raw_text}")
+        print(f"generates:\n{raw_text}")
+        
         
         # Parse the raw text into structured data (assuming a consistent format)
         predictions = []
@@ -176,6 +209,10 @@ class TextGenerationModelFactory(ABC):
         df['Model Name'] = self.model_name
         df['API Name'] = self.api_name
         df['Batch ID'] = batch_id
+        # print()
+        # print(df)
+        # ipdb.set_trace()
+        # print()
         return df
 
     def log_batch_df(self, reformat_batch_predictions_df, sentence_label):
@@ -197,11 +234,11 @@ class TextGenerationModelFactory(ABC):
         print(f"log_directory: {log_directory}")
         
         n = 1
-        save_batch_directory = os.path.join(log_directory, f"batch_{n}-{prediction_files}s")
+        save_batch_directory = os.path.join(log_directory, f"batch_{n}-{prediction_files}")
     
         while os.path.exists(save_batch_directory):
             n += 1
-            save_batch_directory = os.path.join(log_directory, f"batch_{n}-{prediction_files}s")
+            save_batch_directory = os.path.join(log_directory, f"batch_{n}-{prediction_files}")
 
         os.makedirs(save_batch_directory)
         save_batch_name = f"batch_{n}-info.log"
@@ -258,6 +295,9 @@ class TextGenerationModelFactory(ABC):
                     reformat_batch_predictions_df = DataProcessing.reformat_df_with_template_number(batch_predictions_df, col_name="Base Sentence")
                 print()
 
+                # print(f"NEW DOMAIN: {domain}")
+            # ipdb.set_trace()
+
             self.log_batch_df(reformat_batch_predictions_df, sentence_label)
             # print(reformat_batch_predictions_df)
 
@@ -270,8 +310,39 @@ class TextGenerationModelFactory(ABC):
     def __name__(self):
         pass
 
+class DistilWhisperLarge3TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = self.__name__()
 
+    def __name__(self):
+        return "distil-whisper-large-v3-en"
+    
+class Gemma29bTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = self.__name__()
 
+    def __name__(self):
+        return "gemma2-9b-it"
+    
+class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "llama-3.1-8b-instant"
+    
 class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):    
     def __init__(self):
         super().__init__()
@@ -283,39 +354,38 @@ class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):
     def __name__(self):
         return "llama-3.3-70b-versatile"
 
-
-class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
+class LlamaGuard412bTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_name = "GROQ_CLOUD"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
-        self.model_name = "llama-3.1-8b-instant"
+        self.model_name = self.__name__()
 
     def __name__(self):
-        return "llama-3.1-8b-instant"
+        return "meta-llama/llama-guard-4-12b"
 
-class Llama70B8192TextGenerationModel(TextGenerationModelFactory):
+class WhisperLarge3TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_name = "GROQ_CLOUD"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
-        self.model_name = "llama3-70b-8192"
-
-    def __name__(self):
-        return "llama3-70b-8192"
-
-class Llama8B8192TextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "GROQ_CLOUD"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = Groq(api_key=self.api_key)
-        self.model_name = "llama3-8b-8192"
+        self.model_name = self.__name__()
     
     def __name__(self):
-        return "llama3-8b-8192"
+        return "whisper-large-v3"
+
+class WhisperLarge3TurboTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = self.__name__()
+    
+    def __name__(self):
+        return "whisper-large-v3-turbo"
 
 class Gpt35TurboTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -326,7 +396,7 @@ class Gpt35TurboTextGenerationModel(TextGenerationModelFactory):
             api_key= self.api_key,
             base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
             )
-        self.model_name = "gpt-3.5-turbo"
+        self.model_name = self.__name__()
     
     def __name__(self):
         return "gpt-3.5-turbo"
@@ -340,10 +410,38 @@ class Gpt4oTextGenerationModel(TextGenerationModelFactory):
             api_key= self.api_key,
             base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
             )
-        self.model_name = "gpt-4o"
+        self.model_name = self.__name__()
     
     def __name__(self):
         return "gpt-4-turbo"
+
+class Llama3170BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "llama-3.1-70b-instruct"
+
+class Llama3370BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "llama-3.3-70b-instruct"
 
 class Mixtral87BInstructTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -354,8 +452,49 @@ class Mixtral87BInstructTextGenerationModel(TextGenerationModelFactory):
             api_key= self.api_key,
             base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
             )
-        self.model_name = "mixtral-8x7b-instruct"
+        self.model_name = self.__name__()
     
     def __name__(self):
-        return "mixtral-8x7b-instruct"
+        return "mixtral-8x7b-instruct"    
 
+class Llama318BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "llama-3.1-8b-instruct"
+
+class Mistral7BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "mistral-7b-instruct"
+    
+class MistralSmall31TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "mistral-small-3.1"

@@ -149,9 +149,9 @@ def read_data(notebook_dir, log_file_path, predictions):
 
         batch_i = f"batch_{i}"
         if predictions == True:
-            save_batch_directory = os.path.join(log_directory, f"{batch_i}-predictions")
+            save_batch_directory = os.path.join(log_directory, f"{batch_i}-prediction")
         elif predictions == False:
-            save_batch_directory = os.path.join(log_directory, f"{batch_i}-observations")
+            save_batch_directory = os.path.join(log_directory, f"{batch_i}-observation")
         else:
             print("Invalid path")
             quit()
