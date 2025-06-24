@@ -3,6 +3,7 @@ import spacy
 import numpy as np
 import pandas as pd
 
+from tqdm import tqdm
 from spacy import displacy
 from collections import defaultdict
 from abc import ABC, abstractmethod
@@ -108,6 +109,109 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         label_counts[label] += 1 # Increment the count for this label in this document.
         return label_counts[label]
 
+    def extract_pos_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
+        """
+        Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
+
+        Parameters:
+        -----------
+        disable_components : `list`
+            A list of components to disable in the SpaCy pipeline.
+        
+        batch_size : `int`
+            The batch size for processing the data.
+          
+        visualize : `bool`
+            Show the entities using Spacy visualizations.
+
+        Returns:
+        --------
+        tuple
+            A tuple containing the POS tags, dict{POS : word}, NER tags, and dict{NER : word}.
+        """
+        # print(f"Pipeline: {self.nlp.pipe_names}")
+        
+        word_tag_mappings = []
+        
+        data = self.extract_text_to_vectorize()
+        
+        for doc_i, doc in tqdm(enumerate(self.nlp.pipe(data, disable=disable_components, batch_size=batch_size))):
+            if doc_i <= 3:
+                print(f"Spacy Doc ({doc_i}): ", doc)
+
+                if visualize is True:
+                    DataProcessing.visualize_spacy_doc(doc)
+
+            """Extract POSs"""    
+            doc_tags = []
+            pos_label_counts = defaultdict(int) # RESET for this doc!
+            for token in doc:
+                text = token.text # The original word text.
+                label = token.pos_ # The simple UPOS part-of-speech tag.
+                lemma = token.lemma_ # The base form of the word.
+                dependency = token.dep_ # Syntactic dependency, i.e. the relation between tokens
+                is_stop_word = token.is_stop
+                new_count_for_label = self.update_features_count(label, pos_label_counts) # Update count
+                unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: noun_1, noun_2, etc)
+                doc_tags.append((text, label, unique_label, lemma, dependency, is_stop_word))
+            word_tag_mappings.append(doc_tags)
+            # if doc_i <= 2:
+            #     print(word_tag_mappings)
+            
+        return word_tag_mappings
+    
+    
+    def extract_ner_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
+        """
+        Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
+
+        Parameters:
+        -----------
+        disable_components : `list`
+            A list of components to disable in the SpaCy pipeline.
+        
+        batch_size : `int`
+            The batch size for processing the data.
+          
+        visualize : `bool`
+            Show the entities using Spacy visualizations.
+
+        Returns:
+        --------
+        tuple
+            A tuple containing the POS tags, dict{POS : word}, NER tags, and dict{NER : word}.
+        """
+        # print(f"Pipeline: {self.nlp.pipe_names}")
+        
+        word_entities_mappings = []
+        
+        data = self.extract_text_to_vectorize()
+        
+        for doc_i, doc in tqdm(enumerate(self.nlp.pipe(data, disable=disable_components, batch_size=batch_size))):
+            if doc_i <= 3:
+                print(f"Spacy Doc ({doc_i}): ", doc)
+
+                if visualize is True:
+                    DataProcessing.visualize_spacy_doc(doc)
+
+            """Extract POSs"""    
+            doc_entities = []
+            ner_label_counts = defaultdict(int) # RESET for this doc!
+            for ent in doc.ents:
+                label = ent.label_
+                text = ent.text
+                start_char = ent.start_char
+                end_char = ent.end_char
+                new_count_for_label = self.update_features_count(label, ner_label_counts) # Update count
+                unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: person_1, person_2, etc)
+                doc_entities.append((text, label, unique_label, start_char, end_char))
+            word_entities_mappings.append(doc_entities)
+            # if doc_i <= 2:
+            #     print(word_tag_mappings)
+            
+        return word_entities_mappings
+    
+    
     def extract_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
         """
         Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
@@ -136,7 +240,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         all_ner_tags = set()
 
         data = self.extract_text_to_vectorize()
-        for doc_i, doc in enumerate(self.nlp.pipe(data, disable=disable_components, batch_size=batch_size)):
+        for doc_i, doc in tqdm(enumerate(self.nlp.pipe(data, disable=disable_components, batch_size=batch_size))):
             if doc_i <= 3:
                 print(f"Spacy Doc ({doc_i}): ", doc)
 
@@ -151,16 +255,16 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 text = token.text # The original word text.
                 lemma = token.lemma_ # The base form of the word.
                 dependency = token.dep_ # Syntactic dependency, i.e. the relation between tokens
-                is_stop_word = token.is_stop
-                if doc_i <= 1:
-                    print(f" POS: {text}---{label}---{lemma}---{dependency}---{is_stop_word}")
+                # is_stop_word = token.is_stop
+                # if doc_i <= 1:
+                    # print(f" POS: {text}---{label}---{lemma}---{dependency}---{is_stop_word}")
                 new_count_for_label = self.update_features_count(label, pos_label_counts) # Update count
                 unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: noun_1, noun_2, etc)
                 doc_tags.append((text, unique_label))
                 all_pos_tags.add(unique_label)
             tags.append(doc_tags)
-            if doc_i <= 1:
-                print()
+            # if doc_i <= 1:
+            #     print()
             
             """Extract NERs"""
             doc_entities = []
@@ -168,15 +272,15 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             for ent in doc.ents:
                 label = ent.label_
                 text = ent.text
-                if doc_i <= 1:
-                    print(f" NER: {text}---{label}---{ent.start_char}---{ent.end_char}")
+                # if doc_i <= 1:
+                    # print(f" NER: {text}---{label}---{ent.start_char}---{ent.end_char}")
                 new_count_for_label = self.update_features_count(label, ner_label_counts) # Update count
                 unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: person_1, person_2, etc)
                 doc_entities.append((text, unique_label))
                 all_ner_tags.add(unique_label)
             entities.append(doc_entities)
-            if doc_i <= 1:
-                print()
+            # if doc_i <= 1:
+            #     print()
 
         return all_pos_tags, tags, all_ner_tags, entities
    
@@ -227,3 +331,43 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
 
         sentence_embeddings = self.word_feature_extraction()
         return sentence_embeddings
+    
+    def sentence_to_word_via_spacy(self):
+        """Convert sentences to words"""
+        
+        words = []
+        sentences = self.extract_text_to_vectorize()
+
+        for sentence in tqdm(sentences):
+
+            doc = self.nlp(sentence)
+            for token in doc:
+                # print(token.text)
+                words.append(token.text)
+            words.append(" ")
+        return words
+             
+    def pre_sequence_labeling_coversion(self):
+        
+        words = self.sentence_to_word_via_spacy()
+        
+        words_df = pd.DataFrame(words, columns=['Word'])
+        words_df['Word Label'] = np.where(words_df['Word'] == ' ', ' ', 'O')
+        
+        return words_df
+    
+    def split_words_in_sentence(self):
+        """Convert sentences to split as words"""
+        
+        word_split_sentences = []
+        sentences = self.extract_text_to_vectorize()
+
+        for sentence in tqdm(sentences):
+            words = []
+
+            doc = self.nlp(sentence)
+            for token in doc:
+                # print(token.text)
+                words.append(token.text)
+            word_split_sentences.append(words)
+        return word_split_sentences
