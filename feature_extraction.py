@@ -143,7 +143,12 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                     DataProcessing.visualize_spacy_doc(doc)
 
             """Extract POSs"""    
-            doc_tags = []
+            words = []
+            labels = []
+            unique_labels = []
+            lemmas = []
+            dependencies = []
+            is_stop_words = []
             pos_label_counts = defaultdict(int) # RESET for this doc!
             for token in doc:
                 text = token.text # The original word text.
@@ -153,8 +158,19 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 is_stop_word = token.is_stop
                 new_count_for_label = self.update_features_count(label, pos_label_counts) # Update count
                 unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: noun_1, noun_2, etc)
-                doc_tags.append((text, label, unique_label, lemma, dependency, is_stop_word))
-            word_tag_mappings.append(doc_tags)
+                # doc_tags.append((text, label, unique_label, lemma, dependency, is_stop_word))
+                words.append(text)
+                labels.append(label)
+                unique_labels.append(unique_label)
+                lemmas.append(lemma)
+                dependencies.append(dependency)
+                is_stop_words.append(is_stop_word)                
+            word_tag_mappings.append(words)
+            word_tag_mappings.append(labels)
+            word_tag_mappings.append(unique_labels)
+            word_tag_mappings.append(lemmas)
+            word_tag_mappings.append(dependencies)
+            word_tag_mappings.append(is_stop_words)
             # if doc_i <= 2:
             #     print(word_tag_mappings)
             
@@ -183,7 +199,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         """
         # print(f"Pipeline: {self.nlp.pipe_names}")
         
-        word_entities_mappings = []
+        word_entity_mappings = []
         
         data = self.extract_text_to_vectorize()
         
@@ -195,7 +211,11 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                     DataProcessing.visualize_spacy_doc(doc)
 
             """Extract POSs"""    
-            doc_entities = []
+            words = []
+            labels = []
+            unique_labels = []
+            start_chars = []
+            end_chars = []
             ner_label_counts = defaultdict(int) # RESET for this doc!
             for ent in doc.ents:
                 label = ent.label_
@@ -204,12 +224,21 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 end_char = ent.end_char
                 new_count_for_label = self.update_features_count(label, ner_label_counts) # Update count
                 unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: person_1, person_2, etc)
-                doc_entities.append((text, label, unique_label, start_char, end_char))
-            word_entities_mappings.append(doc_entities)
+                # doc_entities.append((text, label, unique_label, start_char, end_char))
+                words.append(text)
+                labels.append(label)
+                unique_labels.append(unique_label)
+                start_chars.append(start_char)
+                end_chars.append(end_char)
+            word_entity_mappings.append(words)
+            word_entity_mappings.append(labels)
+            word_entity_mappings.append(unique_labels)
+            word_entity_mappings.append(start_chars)
+            word_entity_mappings.append(end_chars)
             # if doc_i <= 2:
             #     print(word_tag_mappings)
             
-        return word_entities_mappings
+        return word_entity_mappings
     
     
     def extract_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:

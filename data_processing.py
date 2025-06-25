@@ -2,9 +2,12 @@ import re
 import numpy as np
 import pandas as pd
 
+from tqdm import tqdm
 from pathlib import Path
 from spacy import displacy
 from sklearn.model_selection import train_test_split
+
+# from feature_extraction import SpacyFeatureExtraction
 
 class DataProcessing:
     """A class to preprocess data"""
@@ -257,7 +260,7 @@ class DataProcessing:
             A DataFrame containing entities organized by NER tags.
         """
         df_ner = pd.DataFrame(columns=list(keys_of_mappings))
-        for i, document_mapping in enumerate(mappings):
+        for i, document_mapping in tqdm(enumerate(mappings)):
             for text, label in document_mapping:
                 df_ner.at[i, label] = text
         return df_ner
@@ -295,6 +298,8 @@ class DataProcessing:
             return DataProcessing.convert_tags_entities_to_dataframe(data, mapping)
         else:
             raise ValueError("Invalid input: data must be a numpy array, dictionary, list, or set with a mapping.")
+
+    
     
 # Functions to disregard
     def patterns(nlp):
