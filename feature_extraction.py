@@ -177,7 +177,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         return word_tag_mappings
     
     
-    def extract_ner_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
+    def extract_ner_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> pd.DataFrame:
         """
         Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
 
@@ -194,15 +194,22 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
 
         Returns:
         --------
-        tuple
-            A tuple containing the POS tags, dict{POS : word}, NER tags, and dict{NER : word}.
+        pd.DataFrame
+            A dataframe containing the NER features: term, NER label, unique NER label, start character, and end character
         """
         # print(f"Pipeline: {self.nlp.pipe_names}")
         
-        word_entity_mappings = []
-        
+        sentences = []
+        words = []
+        labels = []
+        unique_labels = []
+        start_chars = []
+        end_chars = []
+
+        ner_features_df = pd.DataFrame()
         data = self.extract_text_to_vectorize()
-        
+        ner_label_counts = defaultdict(int)
+
         for doc_i, doc in tqdm(enumerate(self.nlp.pipe(data, disable=disable_components, batch_size=batch_size))):
             if doc_i <= 3:
                 print(f"Spacy Doc ({doc_i}): ", doc)
@@ -210,13 +217,6 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 if visualize is True:
                     DataProcessing.visualize_spacy_doc(doc)
 
-            """Extract POSs"""    
-            words = []
-            labels = []
-            unique_labels = []
-            start_chars = []
-            end_chars = []
-            ner_label_counts = defaultdict(int) # RESET for this doc!
             for ent in doc.ents:
                 label = ent.label_
                 text = ent.text
@@ -224,21 +224,30 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 end_char = ent.end_char
                 new_count_for_label = self.update_features_count(label, ner_label_counts) # Update count
                 unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: person_1, person_2, etc)
-                # doc_entities.append((text, label, unique_label, start_char, end_char))
+
+                sentences.append(data[doc_i])
                 words.append(text)
                 labels.append(label)
                 unique_labels.append(unique_label)
                 start_chars.append(start_char)
                 end_chars.append(end_char)
-            word_entity_mappings.append(words)
-            word_entity_mappings.append(labels)
-            word_entity_mappings.append(unique_labels)
-            word_entity_mappings.append(start_chars)
-            word_entity_mappings.append(end_chars)
-            # if doc_i <= 2:
-            #     print(word_tag_mappings)
-            
-        return word_entity_mappings
+
+            # Add a free row with no entry for every new sentence
+            sentences.append("")
+            words.append("")
+            labels.append("")
+            unique_labels.append("")
+            start_chars.append("")
+            end_chars.append("")
+        
+        ner_features_df["Sentence"] = sentences
+        ner_features_df["Term"] = words
+        ner_features_df["NER Label"] = labels
+        ner_features_df["Unique NER Label"] = unique_labels
+        ner_features_df["Start Char"] = start_chars
+        ner_features_df["End Char"] = end_chars
+                
+        return ner_features_df
     
     
     def extract_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
