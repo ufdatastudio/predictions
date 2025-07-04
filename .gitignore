@@ -16,3 +16,7 @@ misc/open_data.ipynb
 misc/(dev)_Dep_Con_SRL_Demos.ipynb
 /misc_experiments/others_original_works
 *.swp
+data/tagging/which_style_to_tag
+data/tagging/ryan3_train_tags-v3.txt
+data/tagging/ryan4_train_tags_v4.txt
+data/tagging/ryan5_train_tags_v1.txt
