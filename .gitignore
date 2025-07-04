@@ -3,7 +3,10 @@
 .env
 *.log
 *.csv
-/data
+/data/misc
+/data/observation_logs
+/data/others
+/data/predictions_logs
 *.DS_Store
 misc/open_data.ipynb
 *.png
