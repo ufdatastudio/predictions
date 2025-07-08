@@ -1,0 +1,3 @@
+[submodule "scratch-predictions"]
+	path = scratch-predictions
+	url = https://github.com/Brinkley97/scratch-predictions.git
