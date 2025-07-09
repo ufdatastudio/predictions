@@ -21,3 +21,4 @@ data/tagging/ryan3_train_tags-v3.txt
 data/tagging/ryan4_train_tags_v4.txt
 data/tagging/ryan5_train_tags_v1.txt
 data/tagging/issue34-2505-2717
+.env
