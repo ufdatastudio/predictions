@@ -344,22 +344,22 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         return np.array(word_features)  # Ensuring it returns a 2D array with consistent dimensions
 
     def sentence_feature_extraction(self):
-        """Extract sentence vector embeddings using Spacy
+        """Extract sentence (Doc) vector embeddings (sentence to numbers) using Spacy
         
         Returns:
-        list
-            A list containing the sentence vector embeddings
+        np.array(n_sentences, vector_dim=300)
+            A np.array(n_sentences, vector_dim=300) containing the sentence vector embeddings
         """
         text_to_vectorize = self.extract_text_to_vectorize()
         sent_embeddings = []
-        count = 0
-        for sentence in text_to_vectorize:
-            if count <= 2:
-                print(f"Sentence {count}: {sentence}")
-                count += 1
+        # count = 0
+        for sentence in tqdm(text_to_vectorize[:3]):
             doc = self.nlp(sentence)
-            for sent in doc.sents:
-                sent_embeddings.append(sent.vector)
+            # if count <= 2:
+            #     print(f"Doc {count}: Tokens: {len(doc)}\n   Sentence: {doc}")
+            #     count += 1
+            sent_embeddings.append(doc.vector)            
+        return np.array(sent_embeddings)
             
         
         return sent_embeddings
