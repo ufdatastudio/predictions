@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 class DataProcessing:
     """A class to preprocess data"""
 
-    def concat_dfs(dfs: list[pd.DataFrame], axis: int = 0, ignore_index=True) -> pd.DataFrame:
+    def concat_dfs(dfs: list[pd.DataFrame], axis: int = 0, ignore_index: bool = True) -> pd.DataFrame:
         """Concatenate multiple DataFrames"""
         df = pd.concat(dfs, axis=axis, ignore_index=ignore_index)
         return df
@@ -168,7 +168,7 @@ class DataProcessing:
         new_df['Template Number'] = template_numbers
         return new_df
     
-    def df_to_list(df: pd.DataFrame, col: str) -> list:
+    def df_to_list(df: pd.DataFrame, col: str = None, type_of_df: str = "Standard") -> list:
         """Convert a DataFrame to a list
         
         Parameters:
@@ -179,12 +179,20 @@ class DataProcessing:
         col: `str`
             The column to convert to a list
 
+        type_of_df: `str`
+            The type of DataFrame either Standard or Pivot Table
+
         Returns:
         --------
         list
-            A list containing the data
+            A list containing the data from the DataFrame
         """
-        return df[col].values.tolist()
+        if type_of_df == "Standard":
+            return df[col].values.tolist()
+        elif type_of_df == "Pivot Table":
+            return df.index.values.tolist()
+        else:
+            return "Options: Standard or Pivot Table"
 
     def drop_df_columns(df: pd.DataFrame, columns: list):
         """Drop columns
@@ -298,8 +306,6 @@ class DataProcessing:
             return DataProcessing.convert_tags_entities_to_dataframe(data, mapping)
         else:
             raise ValueError("Invalid input: data must be a numpy array, dictionary, list, or set with a mapping.")
-
-    
     
 # Functions to disregard
     def patterns(nlp):

@@ -215,7 +215,7 @@ class TextGenerationModelFactory(ABC):
         # print()
         return df
 
-    def log_batch_df(self, reformat_batch_predictions_df, sentence_label):
+    def log_batch_df(self, reformat_batch_predictions_df, sentence_label, save_path: str):
         print("Start logging batch")
 
         base_path = pathlib.Path(__file__).parent.resolve()
@@ -229,7 +229,8 @@ class TextGenerationModelFactory(ABC):
             print("Invalid sentence label. It should be 0 (non-prediction) or 1 (prediction).")
             quit()
 
-        log_file_path = f"data/{prediction_files}_logs"
+
+        log_file_path = f"{save_path}/{prediction_files}_logs"
         log_directory = os.path.join(base_path, log_file_path)
         print(f"log_directory: {log_directory}")
         
@@ -249,7 +250,7 @@ class TextGenerationModelFactory(ABC):
         logger.dataframe_to_csv(reformat_batch_predictions_df, save_from_df_name)
         logger.csv_to_log(save_from_df_name, save_from_csv_name)
 
-    def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label):
+    def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label, save_path: str):
         """Generate a completion response and return as a DataFrame.
 
         Parameters:
@@ -298,7 +299,7 @@ class TextGenerationModelFactory(ABC):
                 # print(f"NEW DOMAIN: {domain}")
             # ipdb.set_trace()
 
-            self.log_batch_df(reformat_batch_predictions_df, sentence_label)
+            self.log_batch_df(reformat_batch_predictions_df, sentence_label, save_path)
             # print(reformat_batch_predictions_df)
 
             # Extend the main DataFrame list with the batch DataFrames

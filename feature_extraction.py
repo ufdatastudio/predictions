@@ -1,4 +1,5 @@
 import spacy
+import torch
 
 import numpy as np
 import pandas as pd
@@ -7,7 +8,10 @@ from tqdm import tqdm
 from spacy import displacy
 from collections import defaultdict
 from abc import ABC, abstractmethod
+
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+from transformers import RobertaTokenizer, RobertaForSequenceClassification
 
 from data_processing import DataProcessing
 
@@ -15,16 +19,17 @@ from data_processing import DataProcessing
 class FeatureExtractionFactory(ABC):
     """An abstract base class to create feature extraction classes."""
 
-    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str):
+    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str = None, type_of_df: str = "Standard"):
         self.df_to_vectorize = df_to_vectorize
         self.col_name_to_vectorize = col_name_to_vectorize
+        self.type_of_df = type_of_df
         self.vectorizer = None
     
     def __name__(self):
         return self.__class__.__name__
     
     def extract_text_to_vectorize(self):
-        text_to_vectorize = DataProcessing.df_to_list(self.df_to_vectorize, self.col_name_to_vectorize)
+        text_to_vectorize = DataProcessing.df_to_list(self.df_to_vectorize, self.col_name_to_vectorize, self.type_of_df)
         return text_to_vectorize
 
     def word_feature_extraction(self):
@@ -80,8 +85,8 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
     def __name__(self):
         return "Spacy Feature Extraction"
     
-    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str):
-        super().__init__(df_to_vectorize, col_name_to_vectorize)
+    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str = None, type_of_df: str = "Standard"):
+        super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
         self.nlp = spacy.load("en_core_web_lg")  # Load a SpaCy model with word vectors
     
     def update_features_count(self, label, label_counts):
@@ -176,7 +181,6 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             
         return word_tag_mappings
     
-    
     def extract_ner_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> pd.DataFrame:
         """
         Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
@@ -248,7 +252,6 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         ner_features_df["End Char"] = end_chars
                 
         return ner_features_df
-    
     
     def extract_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
         """
@@ -344,26 +347,23 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         return np.array(word_features)  # Ensuring it returns a 2D array with consistent dimensions
 
     def sentence_feature_extraction(self):
-        """Extract sentence vector embeddings using Spacy
+        """Extract sentence (Doc) vector embeddings (sentence to numbers) using Spacy
         
         Returns:
-        list
-            A list containing the sentence vector embeddings
+        np.array(n_sentences, vector_dim=300)
+            A np.array(n_sentences, vector_dim=300) containing the sentence vector embeddings
         """
         text_to_vectorize = self.extract_text_to_vectorize()
         sent_embeddings = []
-        count = 0
-        for sentence in text_to_vectorize:
-            if count <= 2:
-                print(f"Sentence {count}: {sentence}")
-                count += 1
+        # count = 0
+        for sentence in tqdm(text_to_vectorize[:3]):
             doc = self.nlp(sentence)
-            for sent in doc.sents:
-                sent_embeddings.append(sent.vector)
-            
-        
-        return sent_embeddings
-    
+            # if count <= 2:
+            #     print(f"Doc {count}: Tokens: {len(doc)}\n   Sentence: {doc}")
+            #     count += 1
+            sent_embeddings.append(doc.vector)            
+        return np.array(sent_embeddings)
+                
     def word_feature_scores(self):
         """Get the word vector embeddings for the predictions"""
 
@@ -409,3 +409,49 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 words.append(token.text)
             word_split_sentences.append(words)
         return word_split_sentences
+    
+class RobertaFeatureExtraction(FeatureExtractionFactory):
+    """An extension of the abstract base class called FeatureExtractionFactory"""
+
+    def __name__(self):
+        return "Roberta Feature Extraction"
+    
+    def __init__(self):
+        # super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
+        self.tokenizer = RobertaTokenizer.from_pretrained('roberta-large-mnli')
+        self.model = RobertaForSequenceClassification.from_pretrained('roberta-large-mnli')
+    
+    def extract_entailment_features(self, predictions: list, observations: list) -> pd.DataFrame:
+        entailment_outcome = {}
+        entailment_predictions = []
+        entailment_observations = []
+        entailment_labels = []
+
+        self.model.eval()
+
+        for prediction in tqdm(predictions[:3]):
+            for observation in observations[:33]:
+
+                # Tokenize the input pair and get the model's prediction
+                with torch.no_grad():
+                    inputs = self.tokenizer(prediction, observation, return_tensors='pt')
+                    outputs = self.model(**inputs)
+                    logits = outputs.logits
+                    
+                    # The model outputs logits for three classes. We take the one with the highest score.
+                    predicted_class_id = torch.argmax(logits).item()
+
+                # The model's config has a mapping from class ID to label
+                # For roberta-large-mnli: 0 -> contradiction, 1 -> neutral, 2 -> entailment
+                entailment_label = self.model.config.id2label[predicted_class_id]
+                entailment_predictions.append(prediction)
+                entailment_observations.append(observation)
+                entailment_labels.append(entailment_label)
+        
+        # print(len(predictions), len(observations), len(entailment_labels))
+        entailment_outcome["Prediction"] = entailment_predictions
+        entailment_outcome["Observation"] = entailment_observations
+        entailment_outcome["Entailment Label"] = entailment_labels
+        entailment_df = pd.DataFrame(entailment_outcome)
+
+        return entailment_df
