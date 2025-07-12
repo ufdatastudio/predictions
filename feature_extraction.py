@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from sentence_transformers import SentenceTransformer
-from transformers import RobertaTokenizer, RobertaForSequenceClassification
+from transformers import RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer, BertModel
 
 from data_processing import DataProcessing
 
@@ -461,14 +461,14 @@ class SentenceTransformerFeatureExtraction(FeatureExtractionFactory):
     """An extension of the abstract base class called FeatureExtractionFactory"""
 
     def __name__(self):
-        return "Roberta Feature Extraction"
+        return "SentenceTransformer Feature Extraction"
     
     def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str = None, type_of_df: str = "Standard"):
         super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
 
     def sentence_feature_extraction(self):
-        """Extract sentence (Doc) vector embeddings (sentence to numbers) using SentenceTransformer
+        """Extract sentence vector embeddings (sentence to numbers) using SentenceTransformer
         
         Returns:
         np.array(n_sentences, vector_dim=300)
@@ -482,5 +482,37 @@ class SentenceTransformerFeatureExtraction(FeatureExtractionFactory):
             # if count <= 2:
             #     print(f"Doc {count}: Tokens: {len(doc)}\n   Sentence: {doc}")
             #     count += 1
+            sentence_embeddings.append(sentence_embedding)            
+        return np.array(sentence_embeddings)
+    
+class BertFeatureExtraction(FeatureExtractionFactory):
+    """An extension of the abstract base class called FeatureExtractionFactory"""
+
+    def __name__(self):
+        return "BERT Feature Extraction"
+    
+    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str = None, type_of_df: str = "Standard"):
+        super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.model = BertModel.from_pretrained("bert-base-uncased")
+
+    def sentence_feature_extraction(self):
+        """Extract sentence vector embeddings (sentence to numbers) using BERT
+        
+        Returns:
+        np.array(n_sentences, vector_dim=300)
+            A np.array(n_sentences, vector_dim=300) containing the sentence vector embeddings
+        """
+        text_to_vectorize = self.extract_text_to_vectorize()
+        sentence_embeddings = []
+        # count = 0
+        for sentence in tqdm(text_to_vectorize):
+            encoded_input = self.tokenizer(sentence, return_tensors='pt')
+            # Get hidden states from BERT
+            with torch.no_grad():
+                output = self.model(**encoded_input)
+                
+                # Extract embeddings for [CLS] token
+                sentence_embedding = output.last_hidden_state[:, 0, :].squeeze()
             sentence_embeddings.append(sentence_embedding)            
         return np.array(sentence_embeddings)
