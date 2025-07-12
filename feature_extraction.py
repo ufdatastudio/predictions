@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from sentence_transformers import SentenceTransformer
 from transformers import RobertaTokenizer, RobertaForSequenceClassification
 
 from data_processing import DataProcessing
@@ -354,15 +355,15 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             A np.array(n_sentences, vector_dim=300) containing the sentence vector embeddings
         """
         text_to_vectorize = self.extract_text_to_vectorize()
-        sent_embeddings = []
+        sentence_embeddings = []
         # count = 0
-        for sentence in tqdm(text_to_vectorize[:3]):
+        for sentence in tqdm(text_to_vectorize):
             doc = self.nlp(sentence)
             # if count <= 2:
             #     print(f"Doc {count}: Tokens: {len(doc)}\n   Sentence: {doc}")
             #     count += 1
-            sent_embeddings.append(doc.vector)            
-        return np.array(sent_embeddings)
+            sentence_embeddings.append(doc.vector)            
+        return np.array(sentence_embeddings)
                 
     def word_feature_scores(self):
         """Get the word vector embeddings for the predictions"""
@@ -455,3 +456,31 @@ class RobertaFeatureExtraction(FeatureExtractionFactory):
         entailment_df = pd.DataFrame(entailment_outcome)
 
         return entailment_df
+
+class SentenceTransformerFeatureExtraction(FeatureExtractionFactory):
+    """An extension of the abstract base class called FeatureExtractionFactory"""
+
+    def __name__(self):
+        return "Roberta Feature Extraction"
+    
+    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str = None, type_of_df: str = "Standard"):
+        super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+
+    def sentence_feature_extraction(self):
+        """Extract sentence (Doc) vector embeddings (sentence to numbers) using SentenceTransformer
+        
+        Returns:
+        np.array(n_sentences, vector_dim=300)
+            A np.array(n_sentences, vector_dim=300) containing the sentence vector embeddings
+        """
+        text_to_vectorize = self.extract_text_to_vectorize()
+        sentence_embeddings = []
+        # count = 0
+        for sentence in tqdm(text_to_vectorize):
+            sentence_embedding = self.model.encode(sentence)
+            # if count <= 2:
+            #     print(f"Doc {count}: Tokens: {len(doc)}\n   Sentence: {doc}")
+            #     count += 1
+            sentence_embeddings.append(sentence_embedding)            
+        return np.array(sentence_embeddings)
