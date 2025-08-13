@@ -3077,6 +3077,7 @@ dependencies = [
     { name = "torchvision" },
     { name = "tqdm" },
     { name = "transformers" },
+    { name = "youtube-transcript-api" },
 ]
 
 [package.metadata]
@@ -3115,6 +3116,7 @@ requires-dist = [
     { name = "torchvision", specifier = ">=0.21.0" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "transformers", specifier = ">=4.51.3" },
+    { name = "youtube-transcript-api", specifier = ">=1.2.2" },
 ]
 
 [[package]]
@@ -4836,6 +4838,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ed/f7/f0f2500cf0c469beb2050b522c7815c575811627e6d3eb9ec7550ddd0bfe/yarl-1.20.0-cp313-cp313t-win32.whl", hash = "sha256:65a4053580fe88a63e8e4056b427224cd01edfb5f951498bfefca4052f0ce0ac", size = 93816, upload_time = "2025-04-17T00:44:25.491Z" },
     { url = "https://files.pythonhosted.org/packages/3f/93/f73b61353b2a699d489e782c3f5998b59f974ec3156a2050a52dfd7e8946/yarl-1.20.0-cp313-cp313t-win_amd64.whl", hash = "sha256:53b2da3a6ca0a541c1ae799c349788d480e5144cac47dba0266c7cb6c76151fe", size = 101093, upload_time = "2025-04-17T00:44:27.418Z" },
     { url = "https://files.pythonhosted.org/packages/ea/1f/70c57b3d7278e94ed22d85e09685d3f0a38ebdd8c5c73b65ba4c0d0fe002/yarl-1.20.0-py3-none-any.whl", hash = "sha256:5d0fe6af927a47a230f31e6004621fd0959eaa915fc62acfafa67ff7229a3124", size = 46124, upload_time = "2025-04-17T00:45:12.199Z" },
+]
+
+[[package]]
+name = "youtube-transcript-api"
+version = "1.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "defusedxml" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8f/f8/5e12d3d0c7001c3b3078697b9918241022bdb1ae12715e9debb00a83e16e/youtube_transcript_api-1.2.2.tar.gz", hash = "sha256:5f67cfaff3621d969778817a3d7b2172c16784855f45fcaed4f0529632e2fef4", size = 469634, upload_time = "2025-08-04T12:22:52.158Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/41/92/3d1a580f0efcad926f45876cf6cb92b2c260e84ae75dae5463bbf38f92e7/youtube_transcript_api-1.2.2-py3-none-any.whl", hash = "sha256:feca8c7f7c9d65188ef6377fc0e01cf466e6b68f1b3e648019646ab342f994d2", size = 485047, upload_time = "2025-08-04T12:22:50.836Z" },
 ]
 
 [[package]]
