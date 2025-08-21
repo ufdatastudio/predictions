@@ -292,8 +292,9 @@ class DataProcessing:
         data: `np.array`, `list`, `dict`, or `set`
             An array, list, dictionary, or set containing the data to convert to a DataFrame or Series.
         
-        mapping: `dict`, `optional`
-            A dictionary containing mappings for tags/entities.
+        mapping: `any`, `optional`
+            convert_tags_entities_to_dataframe() --- A dictionary containing mappings for tags/entities
+
 
         Returns:
         --------
@@ -304,6 +305,11 @@ class DataProcessing:
             return DataProcessing.array_to_df(data)
         elif isinstance(data, set) and isinstance(mapping, list):
             return DataProcessing.convert_tags_entities_to_dataframe(data, mapping)
+        elif isinstance(data, list) and mapping == 'Open Measures':
+            sources = []
+            for hit in data:
+                sources.append(hit['_source'])
+            return pd.DataFrame(sources)
         else:
             raise ValueError("Invalid input: data must be a numpy array, dictionary, list, or set with a mapping.")
     

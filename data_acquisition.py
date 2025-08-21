@@ -8,6 +8,8 @@ import requests
 
 from abc import abstractmethod
 
+from data_processing import DataProcessing
+
 class OpenMeasuresBuilder:
     """A class to execute the building process. Each function is like a section (0341s, 0311s) that have a specific focus in the process.
     
@@ -59,19 +61,27 @@ class OpenMeasuresBuilder:
         r = requests.get(self.url)
         r.status_code
         data = r.json()
-        hits = data['hits']['hits']
-        # all_hits = hits[0]['_source']
+        self.hits = data['hits']['hits']
 
-        return hits
+        return  self.hits
+    
+    def convert_raw_hits_to_df(self):
+        df = DataProcessing.convert_to_df(data=self.hits, mapping='Open Measures')
+        return df
 
 class OpenMeasuresDirector:
     """A class to orchestrate the building process. Think at large/overview/blue print or this is like the CO laying the plan to the entire company. The execution (Builder) has functions and these functions are different sections (0341s, 0311s, etc) acting."""
-    def construct_from_dataset(builder: OpenMeasuresBuilder, terms, limit: int, site: str, start_date: str, end_date: str, querytype: bool):
-        """Construct all datasets"""
 
+    def construct_from_dataset(terms, limit: int, site: str, start_date: str, end_date: str, querytype: bool):
+        """Construct all datasets"""
+        
+        builder = OpenMeasuresBuilder()
         builder.reset()
         builder.set_terms(terms)
         builder.set_query(limit, site, start_date, end_date, querytype)
-        return builder.get_raw_hits()
+        builder.get_raw_hits()
+        df = builder.convert_raw_hits_to_df()
+        df['Site'] = site
+        return df
 
 
