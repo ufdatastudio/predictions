@@ -93,11 +93,21 @@
 
 import pdb
 import requests
+
+import pandas as pd 
+
 from abc import ABC, abstractmethod
+
 from data_processing import DataProcessing
 from text_generation_models import TextGenerationModelFactory
 
 class OpenMeasuresBuilder(ABC):
+    """
+    OpenMeasures (https://openmeasures.io/open-source/) is an open-source platform that stores (social media) data and allows API access to work with data.
+    Using the Design Pattern | Creational Pattern | Builder (https://refactoring.guru/design-patterns/builder) = a step by step (assembly line like) to construct objects. 
+    A class to execute the building process. Each function is a step in the process and has a specific focus.
+    Process follows notebook: https://colab.research.google.com/drive/1kDyRIC0NBOj4Egn_VdK837QBNqDERRi_?usp=sharing
+    """
     def __init__(self):
         self.terms_for_query = []
         self.params = {}
@@ -109,7 +119,7 @@ class OpenMeasuresBuilder(ABC):
     def reset(self):
         pass
 
-    def user_specify_query_string(self, query_string):
+    def user_specify_query_string(self, query_string) -> None:
         """
         User specify terms boolean logic.
 
@@ -117,6 +127,10 @@ class OpenMeasuresBuilder(ABC):
         ----------
         query_string : str
             The input prompt to generate terms from.
+
+        Returns
+        -------
+        None as we set/assign the initialized variables with self.
         """
         self.prompt = query_string
         self.model_name = 'user'
@@ -125,8 +139,7 @@ class OpenMeasuresBuilder(ABC):
 
         print(f"\tQuery String: {type(self.params['term']), self.params['term']}\n")
 
-
-    def llm_generate_query_string(self, query_string, model_name='gemma2-9b-it'):
+    def llm_generate_query_string(self, query_string, model_name='gemma2-9b-it') -> None:
         """
         Generate terms with boolean logic using an LLM based on the provided prompt and model name.
 
@@ -139,7 +152,7 @@ class OpenMeasuresBuilder(ABC):
 
         Returns
         -------
-        None
+        None as we set/assign the initialized variables with self.
 
         Notes
         -----
@@ -178,8 +191,33 @@ class OpenMeasuresBuilder(ABC):
             print(f"\tUpdated Query String: {self.params['term']}\n")
         # print(f"\tAll terms for query: {self.terms_for_query}\n")
 
-    def set_query(self, limit: int, site: str, start_date: str, end_date: str, querytype: str):
-        """Set query parameters including terms, prompt, and model"""
+    def set_query(self, limit: int, site: str, start_date: str, end_date: str, querytype: str = 'query_string') -> None:
+        """
+        Set query parameters including terms, prompt, and model
+        
+        Parameters
+        ----------
+        limit : int
+            The max # of data to return.
+        site : str
+            Source of the data ('tiktok', 'bluesky', 'truth social', 'llm generated', etc).
+        start_date : str
+            The earliest date to collect data from.
+        end_date : str
+            The latest date to collect data from.
+        querytype : str, optional
+            The method to apply boolean logic.  
+            Can use default 'query_string'. Or use content or boolean_content. 
+            For default, Elasticsearch across all fields. See meaning of other two in link in Notes.
+
+        Returns
+        -------
+        None as we set/assign the initialized variables with self.
+
+        Notes
+        -----
+        https://docs.openmeasures.io/docs/guides/public-api
+        """
         self.params.update({
             'limit': limit,
             'site': site,
@@ -194,8 +232,17 @@ class OpenMeasuresBuilder(ABC):
         )
         print(f"\tQuery's URL: {self.url}\n")
 
-
-    def get_raw_hits(self):
+    def get_raw_hits(self) -> dict:
+        """
+        Use the url from set_query() to get hits = data related to query via searching method (querytype)
+        
+        Returns
+        -------
+        dict, None, or []
+            dict: The related posts.
+            None: No hits
+            []: Failed to retrieve data
+        """
         r = requests.get(self.url)
         if r.status_code == 200:
             data = r.json()
@@ -212,14 +259,39 @@ class OpenMeasuresBuilder(ABC):
             return []
 
     def convert_raw_hits_to_df(self):
+        """
+        Convert from dict -> df.
+        
+        Returns
+        -------
+        df
+            The hits + meta data (query params).
+            This df differs per site.
+
+        Notes
+        -----
+        Performing the conversion from dict -> df using DataProcessing class in data_processing.
+        """
         # print(f"hits: {type(self.hits)}")
         self.params['query_string'] = self.prompt
         self.params['model'] = self.model_name
         df = DataProcessing.convert_to_df(data=self.hits, mapping='Open Measures')
-        df['Query Params'] = [self.params] * len(df)
+        df['Query Params'] = [self.params] * len(df) # include query string, limit, ..., model to know what produced the hits
         return df
 
     def refine_query_based_on_hits(self, feedback):
+        """
+        Human-in-the-loop process as user can provide feedback to generate a better query string.
+        
+        Parameters
+        ----------
+        quefeedbackry_string : str
+            The input prompt to generate a better query string.
+
+        Returns
+        -------
+        None
+        """
         if feedback.lower() != "accept":
             # Append the feedback to the original prompt
             self.prompt += f" {feedback}"
@@ -233,7 +305,51 @@ class ConcreteOpenMeasuresBuilder(OpenMeasuresBuilder):
 
 class OpenMeasuresDirector:
     @staticmethod
-    def construct_from_dataset(query_string, query_string_by: str, limit: int, site: str, start_date: str, end_date: str, querytype: str, model_name='gemma2-9b-it'):
+    def construct_from_dataset(
+        query_string: str,
+        query_string_by: str,
+        limit: int,
+        site: str, 
+        start_date: str,
+        end_date: str,
+        querytype: str = 'query_string',
+        model_name='gemma2-9b-it'
+        ) -> pd.DataFrame:
+        """
+        Construct the hits given the params
+        
+        Parameters
+        ----------
+        query_string : str, optional
+            The string with boolean logic to pass as params that'll query the data of the site.
+            Should either be a user defined string (skip LLM, use this string directly) or a full prompt (LLM route).
+        query_string_by : str, optinal
+            The method that matches the query_string param
+            Should either be 'user' or 'llm'
+        limit : int
+            The max # of data to return.
+        site : str
+            Source of the data ('tiktok', 'bluesky', 'truth social', 'llm generated', etc).
+        start_date : str
+            The earliest date to collect data from.
+        end_date : str
+            The latest date to collect data from.
+        querytype : str, optional
+            The method to apply boolean logic.  
+            Can use default 'query_string'. Or use content or boolean_content. 
+            For default, Elasticsearch across all fields. See meaning of other two in link in Notes.
+        model_name : str, optional
+            The name of the LLM model to use (default is 'gemma2-9b-it').
+
+        Returns
+        -------
+        pd.DataFrame
+            The hits with meta data and more. 
+
+        Notes
+        -----
+        https://docs.openmeasures.io/docs/guides/public-api
+        """
         print(f"=============================== Site: {site} ===============================")
 
         builder = ConcreteOpenMeasuresBuilder()
@@ -262,6 +378,25 @@ class OpenMeasuresDirector:
 
     @staticmethod
     def refine_query_loop(builder, site):
+        """
+        Human-in-loop to verify quality query prompts dynamically.
+        
+        Parameters
+        ----------
+        builder : OpenMeasuresDirector
+            The class.
+        site : str
+            Source of the data ('tiktok', 'bluesky', 'truth social', 'llm generated', etc).
+
+        Returns
+        -------
+        pd.DataFrame
+            The hits with meta data and more. 
+
+        Notes
+        -----
+        https://docs.openmeasures.io/docs/guides/public-api
+        """
         hits_per_site_dfs = []
         regenerations_idx = 0
         while True:
@@ -285,31 +420,3 @@ class OpenMeasuresDirector:
             regenerations_idx += 1
         
         return hits_per_site_dfs
-
-        # print()
-
-        # builder.get_raw_hits()
-
-        # hits_per_site_dfs = []
-
-        # for regenerations_idx in range(regenerations):
-        #     print(f"   Regenerations: {regenerations_idx}")
-        #     hits = builder.get_raw_hits()
-            
-        #     if hits:
-        #         df = builder.convert_raw_hits_to_df()
-        #         df['Site'] = site
-        #         hits_per_site_dfs.append(df)
-                
-        #         print("Hits retrieved:")
-        #         print(df)  # Display the hits to the user
-                
-        #     feedback = input("Do you want to refine the query? If no, type 'accept' and if yes, please provide your feedback: ")
-        #     builder.refine_query_based_on_hits(feedback.lower())
-            
-        #     if feedback.lower() == "accept":
-        #         break
-
-        # print("==============================================================")
-
-        # return hits_per_site_dfs

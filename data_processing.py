@@ -445,7 +445,7 @@ class DataProcessing:
         img = Image.open(io.BytesIO(png_data))
         img.save(save_dir)
 
-    def get_next_file_number(directory: str, prefix: str, extensions: str =('.json', '.log', '.csv')):
+    def get_next_file_number(directory: str, prefix: str, extensions: str = ('.json', '.log', '.csv')):
         """
         Scans the directory for files starting with the given prefix and ending with one of the specified extensions.
         Extracts the numeric suffix and returns the next available number.
