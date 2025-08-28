@@ -109,13 +109,30 @@ class OpenMeasuresBuilder(ABC):
     def reset(self):
         pass
 
-    def generate_terms(self, prompt, model_name='gemma2-9b-it'):
+    def user_specify_query_string(self, query_string):
+        """
+        User specify terms boolean logic.
+
+        Parameters
+        ----------
+        query_string : str
+            The input prompt to generate terms from.
+        """
+        self.prompt = query_string
+        self.model_name = 'user'
+        self.terms_for_query.append(query_string)
+        self.params['term'] = ' '.join(self.terms_for_query)
+
+        print(f"\tQuery String: {type(self.params['term']), self.params['term']}\n")
+
+
+    def llm_generate_query_string(self, query_string, model_name='gemma2-9b-it'):
         """
         Generate terms with boolean logic using an LLM based on the provided prompt and model name.
 
         Parameters
         ----------
-        prompt : str
+        query_string : str
             The input prompt to generate terms from.
         model_name : str, optional
             The name of the LLM model to use (default is 'gemma2-9b-it').
@@ -131,7 +148,7 @@ class OpenMeasuresBuilder(ABC):
         parameter accordingly. If there is only one term, it is converted to a string; otherwise,
         the list of terms is used directly.
         """
-        self.prompt = prompt
+        self.prompt = query_string
         self.model_name = model_name
         self.terms_by_prompt = {}  # Store terms per prompt
 
@@ -145,10 +162,10 @@ class OpenMeasuresBuilder(ABC):
 
         for line in raw_text_llm_generation.split("\n"):
             if line.strip():
-                print(f"\tTerm for query: {line.strip()}\n")
+                print(f"\tQuery String: {line.strip()}\n")
                 self.terms_for_query.append(line.strip())
 
-        # Update self.params['term'] based on the number of generated terms as self.params['term'] only takes string
+        # Update self.params['term'] based on the number of generated terms as self.params['term']The only takes string
         if len(self.terms_for_query) == 1: 
             # single, so turn into string so we can pass directly into self.params['term'] as it takes a string
             self.params['term'] = ' '.join(self.terms_for_query)
@@ -158,7 +175,7 @@ class OpenMeasuresBuilder(ABC):
             
             # multiple, so turn into string so we can pass directly into self.params['term'] as it takes a string --- get last string
             self.params['term'] = self.terms_for_query[-1]
-            print(f"\tUpdated terms: {self.params['term']}\n")
+            print(f"\tUpdated Query String: {self.params['term']}\n")
         # print(f"\tAll terms for query: {self.terms_for_query}\n")
 
     def set_query(self, limit: int, site: str, start_date: str, end_date: str, querytype: str):
@@ -170,9 +187,10 @@ class OpenMeasuresBuilder(ABC):
             'until': end_date,
             'querytype': querytype
         })
-
         self.url = 'http://api.smat-app.com/content?{}'.format(
-            '&amp;'.join([f"{k}={v}" for k, v in self.params.items()])
+            '&'.join(
+                [f"{k}={v}" for k,v in self.params.items()]
+            )
         )
         print(f"\tQuery's URL: {self.url}\n")
 
@@ -183,17 +201,19 @@ class OpenMeasuresBuilder(ABC):
             data = r.json()
             self.hits = data['hits']['hits']
             if not self.hits:
-                print(f"\tNo hits (404): {self.hits}")
+                print(f"\tNo hits: {r.status_code}")
+                return None
             else:
+                print(f"\tHits: {r.status_code}")
                 # print(f"    Hits: {self.hits[0]['text']}")
                 return self.hits
         else:
-            print(f"\tNo hits (404): Failed to retrieve data: {r.status_code}")
+            print(f"\tNo hits/Failed to retrieve data: {r.status_code}")
             return []
 
     def convert_raw_hits_to_df(self):
         # print(f"hits: {type(self.hits)}")
-        self.params['prompt'] = self.prompt
+        self.params['query_string'] = self.prompt
         self.params['model'] = self.model_name
         df = DataProcessing.convert_to_df(data=self.hits, mapping='Open Measures')
         df['Query Params'] = [self.params] * len(df)
@@ -205,7 +225,7 @@ class OpenMeasuresBuilder(ABC):
             self.prompt += f" {feedback}"
             print(f"\t\t--->Updated prompt: {self.prompt}\n\tNew terms with updated prompt")
             # Generate terms using the updated prompt
-            self.generate_terms(self.prompt)
+            self.llm_generate_query_string(self.prompt)
 
 class ConcreteOpenMeasuresBuilder(OpenMeasuresBuilder):
     def reset(self):
@@ -213,7 +233,7 @@ class ConcreteOpenMeasuresBuilder(OpenMeasuresBuilder):
 
 class OpenMeasuresDirector:
     @staticmethod
-    def construct_from_dataset(prompt, limit: int, site: str, start_date: str, end_date: str, querytype: str, model_name='gemma2-9b-it'):
+    def construct_from_dataset(query_string, query_string_by: str, limit: int, site: str, start_date: str, end_date: str, querytype: str, model_name='gemma2-9b-it'):
         print(f"=============================== Site: {site} ===============================")
 
         builder = ConcreteOpenMeasuresBuilder()
@@ -221,8 +241,16 @@ class OpenMeasuresDirector:
         print("### RESET ###")
         builder.reset()
 
-        print("### GENERATE TERMS ###")
-        builder.generate_terms(prompt, model_name)
+        if query_string_by.lower() == "user":
+            print("### USER SPECIFY QUERY STRINGS ###")
+            builder.user_specify_query_string(query_string)
+
+        elif query_string_by.lower() == "llm":
+            print("### LLM GENERATE QUERY STRINGS ###")
+            builder.llm_generate_query_string(query_string, model_name)
+            
+        else:
+            return f"404: query_string_by is {query_string_by} and must be either: user or llm"
 
         print("### SET QUERY ###")
         builder.set_query(limit, site, start_date, end_date, querytype)
@@ -248,7 +276,7 @@ class OpenMeasuresDirector:
                 print("Hits retrieved:")
                 print(df)  # Display the hits to the user
             
-            feedback = input("Do you want to refine the query? If yes, please provide your feedback: ")
+            feedback = input("Do you want to refine the query? If no, type 'accept' and if yes, please provide your feedback: ")
             builder.refine_query_based_on_hits(feedback.lower())
             
             if feedback.lower() == "accept":
