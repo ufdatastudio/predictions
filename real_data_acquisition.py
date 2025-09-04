@@ -191,7 +191,12 @@ class OpenMeasuresBuilder(ABC):
             print(f"\tUpdated Query String: {self.params['term']}\n")
         # print(f"\tAll terms for query: {self.terms_for_query}\n")
 
-    def set_query(self, limit: int, site: str, start_date: str, end_date: str, querytype: str = 'query_string') -> None:
+    def set_query(self, 
+                  limit: int, 
+                  site: str, 
+                  start_date: str = '2024-08-26', 
+                  end_date: str = '2025-02-26', 
+                  querytype: str = 'query_string') -> None:
         """
         Set query parameters including terms, prompt, and model
         
@@ -217,6 +222,8 @@ class OpenMeasuresBuilder(ABC):
         Notes
         -----
         https://docs.openmeasures.io/docs/guides/public-api
+        Use default since and until: https://api.smat-app.com/docs#/default/content_content_get
+
         """
         self.params.update({
             'limit': limit,
@@ -273,7 +280,7 @@ class OpenMeasuresBuilder(ABC):
         Performing the conversion from dict -> df using DataProcessing class in data_processing.
         """
         # print(f"hits: {type(self.hits)}")
-        self.params['query_string'] = self.prompt
+        # self.params['query_string'] = self.prompt
         self.params['model'] = self.model_name
         df = DataProcessing.convert_to_df(data=self.hits, mapping='Open Measures')
         df['Query Params'] = [self.params] * len(df) # include query string, limit, ..., model to know what produced the hits
@@ -358,21 +365,45 @@ class OpenMeasuresDirector:
         builder.reset()
 
         if query_string_by.lower() == "user":
+            hits_per_site_dfs = []
             print("### USER SPECIFY QUERY STRINGS ###")
             builder.user_specify_query_string(query_string)
+
+            print("### SET QUERY ###")
+            builder.set_query(limit, site, start_date, end_date, querytype)
+
+            print("### GET RAW HITS ###")
+            hits = builder.get_raw_hits()
+
+            if hits:
+                df = builder.convert_raw_hits_to_df()
+                df['Site'] = site
+                hits_per_site_dfs.append(df)
+                
+                print("Hits retrieved:")
+                print(df)  # Display the hits to the user
 
         elif query_string_by.lower() == "llm":
             print("### LLM GENERATE QUERY STRINGS ###")
             builder.llm_generate_query_string(query_string, model_name)
+
+            print("### SET QUERY ###")
+            builder.set_query(limit, site, start_date, end_date, querytype)
+
+            print("### REGENERATE QUERY ###")
+            hits_per_site_dfs = OpenMeasuresDirector.refine_query_loop(builder, site)
+
+            # print("### REGENERATE QUERY ###")
+            # hits_per_site_dfs = OpenMeasuresDirector.refine_query_loop(builder, site)
             
         else:
             return f"404: query_string_by is {query_string_by} and must be either: user or llm"
 
-        print("### SET QUERY ###")
-        builder.set_query(limit, site, start_date, end_date, querytype)
+        # print("### SET QUERY ###")
+        # builder.set_query(limit, site, start_date, end_date, querytype)
 
-        print("### REGENERATE QUERY ###")
-        hits_per_site_dfs = OpenMeasuresDirector.refine_query_loop(builder, site)
+        # print("### REGENERATE QUERY ###")
+        # hits_per_site_dfs = OpenMeasuresDirector.refine_query_loop(builder, site)
     
         return hits_per_site_dfs
 
