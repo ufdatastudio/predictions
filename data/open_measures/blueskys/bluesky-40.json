@@ -1,0 +1,1781 @@
+[
+    {
+        "sentence": "Column: is this the year Josh Allen and the Bills slay the dragon in KC and advance to the Super Bowl? My picks for the AFC-NFC conference championship games  \n\nwww.scoopswithdannymac.com/bernies-nfl-...",
+        "model": "gemma2-9b-it",
+        "label": "prediction-sports ",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:zialmxrbi3qx7fpogrov6qwf",
+            "authorProfile": {
+                "did": "did:plc:zialmxrbi3qx7fpogrov6qwf",
+                "handle": "bmiklasz.bsky.social"
+            },
+            "cid": "bafyreihigyfstdjmhurzc2qwblypbuff6rnwc5vlnuvrqggx7qfcmhyf6m",
+            "createdAt": "2025-01-25T00:45:29.712Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Hello, again. I am looking forward to Sunday. I’ll have some chili on the stove, cold beverages in the fridge, and the TV set will be ready to go when it’s time to snap the football. It’s AFC-NFC Cham...",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif2qqdwqpprxyzca24tu4vpurbmord76rlqbzulklbrkb3346hl5i",
+                        "size": 627377
+                    },
+                    "title": "Bernie's NFL Conference Championship Picks: Is This The Year Josh Allen Beats Patrick Mahomes In The Playoffs? - Scoops Sports Network",
+                    "uri": "https://www.scoopswithdannymac.com/bernies-nfl-conference-championship-picks-is-this-the-year-josh-allen-beats-patrick-mahomes-in-the-playoffs/"
+                }
+            },
+            "entities": null,
+            "facets": [
+                {
+                    "$type": "app.bsky.richtext.facet",
+                    "features": [
+                        {
+                            "$type": "app.bsky.richtext.facet#link",
+                            "uri": "https://www.scoopswithdannymac.com/bernies-nfl-conference-championship-picks-is-this-the-year-josh-allen-beats-patrick-mahomes-in-the-playoffs/"
+                        }
+                    ],
+                    "index": {
+                        "$type": "app.bsky.richtext.facet#byteSlice",
+                        "byte_end": 203,
+                        "byte_start": 161
+                    }
+                }
+            ],
+            "labels": null,
+            "langs": [
+                "en"
+            ],
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:zialmxrbi3qx7fpogrov6qwf/app.bsky.feed.post/3lgjooj5aa224",
+            "lastseents": "2025-01-25T16:52:05.138258",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Column: is this the year Josh Allen and the Bills slay the dragon in KC and advance to the Super Bowl? My picks for the AFC-NFC conference championship games  \n\nwww.scoopswithdannymac.com/bernies-nfl-...",
+        "model": "llama-3.1-8b-instant",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:zialmxrbi3qx7fpogrov6qwf",
+            "authorProfile": {
+                "did": "did:plc:zialmxrbi3qx7fpogrov6qwf",
+                "handle": "bmiklasz.bsky.social"
+            },
+            "cid": "bafyreihigyfstdjmhurzc2qwblypbuff6rnwc5vlnuvrqggx7qfcmhyf6m",
+            "createdAt": "2025-01-25T00:45:29.712Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Hello, again. I am looking forward to Sunday. I’ll have some chili on the stove, cold beverages in the fridge, and the TV set will be ready to go when it’s time to snap the football. It’s AFC-NFC Cham...",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif2qqdwqpprxyzca24tu4vpurbmord76rlqbzulklbrkb3346hl5i",
+                        "size": 627377
+                    },
+                    "title": "Bernie's NFL Conference Championship Picks: Is This The Year Josh Allen Beats Patrick Mahomes In The Playoffs? - Scoops Sports Network",
+                    "uri": "https://www.scoopswithdannymac.com/bernies-nfl-conference-championship-picks-is-this-the-year-josh-allen-beats-patrick-mahomes-in-the-playoffs/"
+                }
+            },
+            "entities": null,
+            "facets": [
+                {
+                    "$type": "app.bsky.richtext.facet",
+                    "features": [
+                        {
+                            "$type": "app.bsky.richtext.facet#link",
+                            "uri": "https://www.scoopswithdannymac.com/bernies-nfl-conference-championship-picks-is-this-the-year-josh-allen-beats-patrick-mahomes-in-the-playoffs/"
+                        }
+                    ],
+                    "index": {
+                        "$type": "app.bsky.richtext.facet#byteSlice",
+                        "byte_end": 203,
+                        "byte_start": 161
+                    }
+                }
+            ],
+            "labels": null,
+            "langs": [
+                "en"
+            ],
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:zialmxrbi3qx7fpogrov6qwf/app.bsky.feed.post/3lgjooj5aa224",
+            "lastseents": "2025-01-25T16:52:05.138258",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Column: is this the year Josh Allen and the Bills slay the dragon in KC and advance to the Super Bowl? My picks for the AFC-NFC conference championship games  \n\nwww.scoopswithdannymac.com/bernies-nfl-...",
+        "model": "llama-3.3-70b-versatile",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:zialmxrbi3qx7fpogrov6qwf",
+            "authorProfile": {
+                "did": "did:plc:zialmxrbi3qx7fpogrov6qwf",
+                "handle": "bmiklasz.bsky.social"
+            },
+            "cid": "bafyreihigyfstdjmhurzc2qwblypbuff6rnwc5vlnuvrqggx7qfcmhyf6m",
+            "createdAt": "2025-01-25T00:45:29.712Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Hello, again. I am looking forward to Sunday. I’ll have some chili on the stove, cold beverages in the fridge, and the TV set will be ready to go when it’s time to snap the football. It’s AFC-NFC Cham...",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif2qqdwqpprxyzca24tu4vpurbmord76rlqbzulklbrkb3346hl5i",
+                        "size": 627377
+                    },
+                    "title": "Bernie's NFL Conference Championship Picks: Is This The Year Josh Allen Beats Patrick Mahomes In The Playoffs? - Scoops Sports Network",
+                    "uri": "https://www.scoopswithdannymac.com/bernies-nfl-conference-championship-picks-is-this-the-year-josh-allen-beats-patrick-mahomes-in-the-playoffs/"
+                }
+            },
+            "entities": null,
+            "facets": [
+                {
+                    "$type": "app.bsky.richtext.facet",
+                    "features": [
+                        {
+                            "$type": "app.bsky.richtext.facet#link",
+                            "uri": "https://www.scoopswithdannymac.com/bernies-nfl-conference-championship-picks-is-this-the-year-josh-allen-beats-patrick-mahomes-in-the-playoffs/"
+                        }
+                    ],
+                    "index": {
+                        "$type": "app.bsky.richtext.facet#byteSlice",
+                        "byte_end": 203,
+                        "byte_start": 161
+                    }
+                }
+            ],
+            "labels": null,
+            "langs": [
+                "en"
+            ],
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:zialmxrbi3qx7fpogrov6qwf/app.bsky.feed.post/3lgjooj5aa224",
+            "lastseents": "2025-01-25T16:52:05.138258",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Eagles vs. Commanders odds, line, spread: 2025 NFC Championship Game predictions by model on 31-15 roll​on January 24, 2025 at 10:31 pm\n\nSportsLine's model simulated Sunday's Washington vs. Philadelphia NFC Championship Game 10,000 times and revealed its NFL best bets for the 2025 NFL playoffs…",
+        "model": "gemma2-9b-it",
+        "label": "prediction-sports ",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:4hj6eobdxzxn3d3u63rlxjwe",
+            "authorProfile": {
+                "did": "did:plc:4hj6eobdxzxn3d3u63rlxjwe",
+                "handle": "worldbytenews.bsky.social"
+            },
+            "cid": "bafyreifslrpmxsdqgor7gxftlzteamvweyoq43iw6m7y6zotuoyfthvreq",
+            "createdAt": "2025-01-25T01:32:57Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "SportsLine's model simulated Sunday's Washington vs. Philadelphia NFC Championship Game 10,000 times and revealed its NFL best bets for the 2025 NFL playoffs ​SportsLine's model simulated Sunday's Washington vs. Philadelphia NFC Championship Game 10,000 times and revealed its NFL best bets for the 2025 NFL playoffs    USATSI The Philadelphia Eagles will try to earn a trip to their third Super Bowl in eight years when they battle the&hellip;",
+                    "thumb": null,
+                    "title": "Eagles vs. Commanders odds, line, spread: 2025 NFC Championship Game predictions by model on 31-15 roll​on January 24, 2025 at 10:31 pm",
+                    "uri": "https://worldbytenews.com/eagles-vs-commanders-odds-line-spread-2025-nfc-championship-game-predictions-by-model-on-31-15-rollon-january-24-2025-at-1031-pm/?utm_source=bluesky&utm_medium=jetpack_social"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:4hj6eobdxzxn3d3u63rlxjwe/app.bsky.feed.post/3lgjrdfn6pc2i",
+            "lastseents": "2025-01-25T17:00:48.547084",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Eagles vs. Commanders odds, line, spread: 2025 NFC Championship Game predictions by model on 31-15 roll​on January 24, 2025 at 10:31 pm\n\nSportsLine's model simulated Sunday's Washington vs. Philadelphia NFC Championship Game 10,000 times and revealed its NFL best bets for the 2025 NFL playoffs…",
+        "model": "llama-3.1-8b-instant",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:4hj6eobdxzxn3d3u63rlxjwe",
+            "authorProfile": {
+                "did": "did:plc:4hj6eobdxzxn3d3u63rlxjwe",
+                "handle": "worldbytenews.bsky.social"
+            },
+            "cid": "bafyreifslrpmxsdqgor7gxftlzteamvweyoq43iw6m7y6zotuoyfthvreq",
+            "createdAt": "2025-01-25T01:32:57Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "SportsLine's model simulated Sunday's Washington vs. Philadelphia NFC Championship Game 10,000 times and revealed its NFL best bets for the 2025 NFL playoffs ​SportsLine's model simulated Sunday's Washington vs. Philadelphia NFC Championship Game 10,000 times and revealed its NFL best bets for the 2025 NFL playoffs    USATSI The Philadelphia Eagles will try to earn a trip to their third Super Bowl in eight years when they battle the&hellip;",
+                    "thumb": null,
+                    "title": "Eagles vs. Commanders odds, line, spread: 2025 NFC Championship Game predictions by model on 31-15 roll​on January 24, 2025 at 10:31 pm",
+                    "uri": "https://worldbytenews.com/eagles-vs-commanders-odds-line-spread-2025-nfc-championship-game-predictions-by-model-on-31-15-rollon-january-24-2025-at-1031-pm/?utm_source=bluesky&utm_medium=jetpack_social"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:4hj6eobdxzxn3d3u63rlxjwe/app.bsky.feed.post/3lgjrdfn6pc2i",
+            "lastseents": "2025-01-25T17:00:48.547084",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Eagles vs. Commanders odds, line, spread: 2025 NFC Championship Game predictions by model on 31-15 roll​on January 24, 2025 at 10:31 pm\n\nSportsLine's model simulated Sunday's Washington vs. Philadelphia NFC Championship Game 10,000 times and revealed its NFL best bets for the 2025 NFL playoffs…",
+        "model": "llama-3.3-70b-versatile",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:4hj6eobdxzxn3d3u63rlxjwe",
+            "authorProfile": {
+                "did": "did:plc:4hj6eobdxzxn3d3u63rlxjwe",
+                "handle": "worldbytenews.bsky.social"
+            },
+            "cid": "bafyreifslrpmxsdqgor7gxftlzteamvweyoq43iw6m7y6zotuoyfthvreq",
+            "createdAt": "2025-01-25T01:32:57Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "SportsLine's model simulated Sunday's Washington vs. Philadelphia NFC Championship Game 10,000 times and revealed its NFL best bets for the 2025 NFL playoffs ​SportsLine's model simulated Sunday's Washington vs. Philadelphia NFC Championship Game 10,000 times and revealed its NFL best bets for the 2025 NFL playoffs    USATSI The Philadelphia Eagles will try to earn a trip to their third Super Bowl in eight years when they battle the&hellip;",
+                    "thumb": null,
+                    "title": "Eagles vs. Commanders odds, line, spread: 2025 NFC Championship Game predictions by model on 31-15 roll​on January 24, 2025 at 10:31 pm",
+                    "uri": "https://worldbytenews.com/eagles-vs-commanders-odds-line-spread-2025-nfc-championship-game-predictions-by-model-on-31-15-rollon-january-24-2025-at-1031-pm/?utm_source=bluesky&utm_medium=jetpack_social"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:4hj6eobdxzxn3d3u63rlxjwe/app.bsky.feed.post/3lgjrdfn6pc2i",
+            "lastseents": "2025-01-25T17:00:48.547084",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Alex Marlow: Follow the Money—NFL Rigging Playoffs for the Chiefs So Taylor Swift Will Attend Super Bowl",
+        "model": "gemma2-9b-it",
+        "label": "prediction-sports ",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:bgt62gzl3y5ke7b45xi5vkvu",
+            "authorProfile": {
+                "_id": "did:plc:bgt62gzl3y5ke7b45xi5vkvu",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:bgt62gzl3y5ke7b45xi5vkvu/bafkreig6mzzwyxmg5gh44gysvpqjsx7jmacgvthn4hxnoqwff2wksjrrp4@jpeg",
+                "banner": "https://cdn.bsky.app/img/banner/plain/did:plc:bgt62gzl3y5ke7b45xi5vkvu/bafkreiah5snbdvlij6axj3ln5ybrbgsbkeq6n5374dqyz4w3h6mat3pie4@jpeg",
+                "description": "Following news and events.",
+                "did": "did:plc:bgt62gzl3y5ke7b45xi5vkvu",
+                "display_name": "Ian Hansen",
+                "followers": 2,
+                "following": 1,
+                "handle": "ianhansen.bsky.social",
+                "indexed_at": "2024-12-03T21:34:09.708Z",
+                "lastseents": "2024-12-04T12:01:15.161239",
+                "posts": 182
+            },
+            "cid": "bafyreicwodhwa275anm5apztbpecbdedz6au4tbjtwz6zlj75vmv5mzhee",
+            "createdAt": "2025-01-25T05:15:10Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "On Friday’s “Alex Marlow Show,” host and Breitbart Editor-in-Chief Alex Marlow talked about the NFL playoffs. Marlow said, “You guys know the NFL just rigs it for the Chiefs, right? Because they need to have Taylor Swift at the Super\n\n\nThe post Alex…",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreibulzuq2m3j3ewbuu5ncikgrzfd36styo7fcs3l5pddsjafo7ytjy",
+                        "size": 39774
+                    },
+                    "title": "Alex Marlow: Follow the Money—NFL Rigging Playoffs for the Chiefs So Taylor Swift Will Attend Super Bowl",
+                    "uri": "http://dlvr.it/THZ7sk"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:bgt62gzl3y5ke7b45xi5vkvu/app.bsky.feed.post/3lgk5qqjll325",
+            "lastseents": "2025-01-25T17:37:59.264386",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Alex Marlow: Follow the Money—NFL Rigging Playoffs for the Chiefs So Taylor Swift Will Attend Super Bowl",
+        "model": "llama-3.1-8b-instant",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:bgt62gzl3y5ke7b45xi5vkvu",
+            "authorProfile": {
+                "_id": "did:plc:bgt62gzl3y5ke7b45xi5vkvu",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:bgt62gzl3y5ke7b45xi5vkvu/bafkreig6mzzwyxmg5gh44gysvpqjsx7jmacgvthn4hxnoqwff2wksjrrp4@jpeg",
+                "banner": "https://cdn.bsky.app/img/banner/plain/did:plc:bgt62gzl3y5ke7b45xi5vkvu/bafkreiah5snbdvlij6axj3ln5ybrbgsbkeq6n5374dqyz4w3h6mat3pie4@jpeg",
+                "description": "Following news and events.",
+                "did": "did:plc:bgt62gzl3y5ke7b45xi5vkvu",
+                "display_name": "Ian Hansen",
+                "followers": 2,
+                "following": 1,
+                "handle": "ianhansen.bsky.social",
+                "indexed_at": "2024-12-03T21:34:09.708Z",
+                "lastseents": "2024-12-04T12:01:15.161239",
+                "posts": 182
+            },
+            "cid": "bafyreicwodhwa275anm5apztbpecbdedz6au4tbjtwz6zlj75vmv5mzhee",
+            "createdAt": "2025-01-25T05:15:10Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "On Friday’s “Alex Marlow Show,” host and Breitbart Editor-in-Chief Alex Marlow talked about the NFL playoffs. Marlow said, “You guys know the NFL just rigs it for the Chiefs, right? Because they need to have Taylor Swift at the Super\n\n\nThe post Alex…",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreibulzuq2m3j3ewbuu5ncikgrzfd36styo7fcs3l5pddsjafo7ytjy",
+                        "size": 39774
+                    },
+                    "title": "Alex Marlow: Follow the Money—NFL Rigging Playoffs for the Chiefs So Taylor Swift Will Attend Super Bowl",
+                    "uri": "http://dlvr.it/THZ7sk"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:bgt62gzl3y5ke7b45xi5vkvu/app.bsky.feed.post/3lgk5qqjll325",
+            "lastseents": "2025-01-25T17:37:59.264386",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Alex Marlow: Follow the Money—NFL Rigging Playoffs for the Chiefs So Taylor Swift Will Attend Super Bowl",
+        "model": "llama-3.3-70b-versatile",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:bgt62gzl3y5ke7b45xi5vkvu",
+            "authorProfile": {
+                "_id": "did:plc:bgt62gzl3y5ke7b45xi5vkvu",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:bgt62gzl3y5ke7b45xi5vkvu/bafkreig6mzzwyxmg5gh44gysvpqjsx7jmacgvthn4hxnoqwff2wksjrrp4@jpeg",
+                "banner": "https://cdn.bsky.app/img/banner/plain/did:plc:bgt62gzl3y5ke7b45xi5vkvu/bafkreiah5snbdvlij6axj3ln5ybrbgsbkeq6n5374dqyz4w3h6mat3pie4@jpeg",
+                "description": "Following news and events.",
+                "did": "did:plc:bgt62gzl3y5ke7b45xi5vkvu",
+                "display_name": "Ian Hansen",
+                "followers": 2,
+                "following": 1,
+                "handle": "ianhansen.bsky.social",
+                "indexed_at": "2024-12-03T21:34:09.708Z",
+                "lastseents": "2024-12-04T12:01:15.161239",
+                "posts": 182
+            },
+            "cid": "bafyreicwodhwa275anm5apztbpecbdedz6au4tbjtwz6zlj75vmv5mzhee",
+            "createdAt": "2025-01-25T05:15:10Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "On Friday’s “Alex Marlow Show,” host and Breitbart Editor-in-Chief Alex Marlow talked about the NFL playoffs. Marlow said, “You guys know the NFL just rigs it for the Chiefs, right? Because they need to have Taylor Swift at the Super\n\n\nThe post Alex…",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreibulzuq2m3j3ewbuu5ncikgrzfd36styo7fcs3l5pddsjafo7ytjy",
+                        "size": 39774
+                    },
+                    "title": "Alex Marlow: Follow the Money—NFL Rigging Playoffs for the Chiefs So Taylor Swift Will Attend Super Bowl",
+                    "uri": "http://dlvr.it/THZ7sk"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:bgt62gzl3y5ke7b45xi5vkvu/app.bsky.feed.post/3lgk5qqjll325",
+            "lastseents": "2025-01-25T17:37:59.264386",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl .",
+        "model": "gemma2-9b-it",
+        "label": "prediction-sports ",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:iddtdjw5gujvbxbzjm45wlgb",
+            "authorProfile": {
+                "_id": "did:plc:iddtdjw5gujvbxbzjm45wlgb",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:iddtdjw5gujvbxbzjm45wlgb/bafkreiheizfirvrx2z574boxuhrx4f34lkwpaiu2eslaqblwkoe3j5vdwm@jpeg",
+                "banner": "https://cdn.bsky.app/img/banner/plain/did:plc:iddtdjw5gujvbxbzjm45wlgb/bafkreihfozwlk35d5dfptpo3gcrnudwjybeikqp3fd4o4zkj5vriu5cmhm@jpeg",
+                "description": "Página oficial do jornal O GLOBO. Acompanhe notícias e análises exclusivas.\n\nAcesse: oglobo.globo.com\nAssine nossas newsletters: http://glo.bo/3zCXJkb\nInstagram: http://bit.ly/3rcYVHq\nTikTok:  http://tiktok.com/@jornaloglobo\nFacebook: http://bit.ly/3dRZKmz",
+                "did": "did:plc:iddtdjw5gujvbxbzjm45wlgb",
+                "display_name": "Jornal O Globo",
+                "followers": 17890,
+                "following": 2,
+                "handle": "oglobo.globo.com",
+                "indexed_at": "2024-09-03T20:13:26.737Z",
+                "lastseents": "2024-09-20T08:29:36.715086",
+                "posts": 2444
+            },
+            "cid": "bafyreicvfyts7ypeakhczbsthsap5dr7iwqruiakrpscv3tvsgzg6dxjbm",
+            "createdAt": "2025-01-25T08:20:07Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Enquanto Buffalo busca quebrar freguesia nos playoffs e primeiro título da história, Kansas City sonha com o primeiro tricampeonato da era moderna da liga O cenário não será novidade para quem acompanha a NFL nesta década quando Kansas City Chiefs e…",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreia7zg56crry6z27lzn4gztd3qjwnjtot3szdoyizlscermjxikaqa",
+                        "size": 159695
+                    },
+                    "title": "'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl",
+                    "uri": "http://dlvr.it/THZDYf"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:iddtdjw5gujvbxbzjm45wlgb/app.bsky.feed.post/3lgki3hq6kc2t",
+            "lastseents": "2025-01-25T17:58:00.303544",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl .",
+        "model": "llama-3.1-8b-instant",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:iddtdjw5gujvbxbzjm45wlgb",
+            "authorProfile": {
+                "_id": "did:plc:iddtdjw5gujvbxbzjm45wlgb",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:iddtdjw5gujvbxbzjm45wlgb/bafkreiheizfirvrx2z574boxuhrx4f34lkwpaiu2eslaqblwkoe3j5vdwm@jpeg",
+                "banner": "https://cdn.bsky.app/img/banner/plain/did:plc:iddtdjw5gujvbxbzjm45wlgb/bafkreihfozwlk35d5dfptpo3gcrnudwjybeikqp3fd4o4zkj5vriu5cmhm@jpeg",
+                "description": "Página oficial do jornal O GLOBO. Acompanhe notícias e análises exclusivas.\n\nAcesse: oglobo.globo.com\nAssine nossas newsletters: http://glo.bo/3zCXJkb\nInstagram: http://bit.ly/3rcYVHq\nTikTok:  http://tiktok.com/@jornaloglobo\nFacebook: http://bit.ly/3dRZKmz",
+                "did": "did:plc:iddtdjw5gujvbxbzjm45wlgb",
+                "display_name": "Jornal O Globo",
+                "followers": 17890,
+                "following": 2,
+                "handle": "oglobo.globo.com",
+                "indexed_at": "2024-09-03T20:13:26.737Z",
+                "lastseents": "2024-09-20T08:29:36.715086",
+                "posts": 2444
+            },
+            "cid": "bafyreicvfyts7ypeakhczbsthsap5dr7iwqruiakrpscv3tvsgzg6dxjbm",
+            "createdAt": "2025-01-25T08:20:07Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Enquanto Buffalo busca quebrar freguesia nos playoffs e primeiro título da história, Kansas City sonha com o primeiro tricampeonato da era moderna da liga O cenário não será novidade para quem acompanha a NFL nesta década quando Kansas City Chiefs e…",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreia7zg56crry6z27lzn4gztd3qjwnjtot3szdoyizlscermjxikaqa",
+                        "size": 159695
+                    },
+                    "title": "'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl",
+                    "uri": "http://dlvr.it/THZDYf"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:iddtdjw5gujvbxbzjm45wlgb/app.bsky.feed.post/3lgki3hq6kc2t",
+            "lastseents": "2025-01-25T17:58:00.303544",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl .",
+        "model": "llama-3.3-70b-versatile",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:iddtdjw5gujvbxbzjm45wlgb",
+            "authorProfile": {
+                "_id": "did:plc:iddtdjw5gujvbxbzjm45wlgb",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:iddtdjw5gujvbxbzjm45wlgb/bafkreiheizfirvrx2z574boxuhrx4f34lkwpaiu2eslaqblwkoe3j5vdwm@jpeg",
+                "banner": "https://cdn.bsky.app/img/banner/plain/did:plc:iddtdjw5gujvbxbzjm45wlgb/bafkreihfozwlk35d5dfptpo3gcrnudwjybeikqp3fd4o4zkj5vriu5cmhm@jpeg",
+                "description": "Página oficial do jornal O GLOBO. Acompanhe notícias e análises exclusivas.\n\nAcesse: oglobo.globo.com\nAssine nossas newsletters: http://glo.bo/3zCXJkb\nInstagram: http://bit.ly/3rcYVHq\nTikTok:  http://tiktok.com/@jornaloglobo\nFacebook: http://bit.ly/3dRZKmz",
+                "did": "did:plc:iddtdjw5gujvbxbzjm45wlgb",
+                "display_name": "Jornal O Globo",
+                "followers": 17890,
+                "following": 2,
+                "handle": "oglobo.globo.com",
+                "indexed_at": "2024-09-03T20:13:26.737Z",
+                "lastseents": "2024-09-20T08:29:36.715086",
+                "posts": 2444
+            },
+            "cid": "bafyreicvfyts7ypeakhczbsthsap5dr7iwqruiakrpscv3tvsgzg6dxjbm",
+            "createdAt": "2025-01-25T08:20:07Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Enquanto Buffalo busca quebrar freguesia nos playoffs e primeiro título da história, Kansas City sonha com o primeiro tricampeonato da era moderna da liga O cenário não será novidade para quem acompanha a NFL nesta década quando Kansas City Chiefs e…",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreia7zg56crry6z27lzn4gztd3qjwnjtot3szdoyizlscermjxikaqa",
+                        "size": 159695
+                    },
+                    "title": "'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl",
+                    "uri": "http://dlvr.it/THZDYf"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:iddtdjw5gujvbxbzjm45wlgb/app.bsky.feed.post/3lgki3hq6kc2t",
+            "lastseents": "2025-01-25T17:58:00.303544",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Notícia da @oglobo.globo.com\n\n\"'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl\"\n\nLink sem paywall ⬇️\n",
+        "model": "gemma2-9b-it",
+        "label": "prediction-sports ",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:y545canthvu4hk5bg4jdwh2t",
+            "authorProfile": {
+                "_id": "did:plc:y545canthvu4hk5bg4jdwh2t",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:y545canthvu4hk5bg4jdwh2t/bafkreigr5wgykuv7umqjhnnqmfwfxmi5bwbbgth6asqzht3ehzdisxpr7y@jpeg",
+                "banner": null,
+                "description": "As notícias não ficam melhores sem paywall? 🤔\n\nSiga pra receber notícias completas limpas de paywall com o https://12ft.io/  📰🗞️♥️\n\nUm oferecimento #bolhatech #bolhasec ",
+                "did": "did:plc:y545canthvu4hk5bg4jdwh2t",
+                "display_name": "Notícias Sem Paywall",
+                "followers": 114,
+                "following": 64,
+                "handle": "nopaywall.bsky.social",
+                "indexed_at": "2024-09-15T20:50:57.849Z",
+                "lastseents": "2024-09-24T15:39:11.969263",
+                "posts": 2038
+            },
+            "cid": "bafyreigpf6dmhtmbnlzb6gx6ou2ttbymzdju3qz4yrx5mvs7sotbi2lp5q",
+            "createdAt": "2025-01-25T08:20:07Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Enquanto Buffalo busca quebrar freguesia nos playoffs e primeiro título da história, Kansas City sonha com o primeiro tricampeonato da era moderna da liga O cenário não será novidade para quem acompanha a NFL nesta década quando Kansas City Chiefs e…",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreihjrqzknax6dayc4senuk3cweigkeuuf7ryapjrviyecxebzcd6sy",
+                        "size": 90504
+                    },
+                    "title": "'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl",
+                    "uri": "https://sem-paywall.com/http%3A%2F%2Fdlvr.it%2FTHZDYf"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:y545canthvu4hk5bg4jdwh2t/app.bsky.feed.post/3lgkin7gfv425",
+            "lastseents": "2025-01-25T17:59:00.346323",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Notícia da @oglobo.globo.com\n\n\"'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl\"\n\nLink sem paywall ⬇️\n",
+        "model": "llama-3.1-8b-instant",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:y545canthvu4hk5bg4jdwh2t",
+            "authorProfile": {
+                "_id": "did:plc:y545canthvu4hk5bg4jdwh2t",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:y545canthvu4hk5bg4jdwh2t/bafkreigr5wgykuv7umqjhnnqmfwfxmi5bwbbgth6asqzht3ehzdisxpr7y@jpeg",
+                "banner": null,
+                "description": "As notícias não ficam melhores sem paywall? 🤔\n\nSiga pra receber notícias completas limpas de paywall com o https://12ft.io/  📰🗞️♥️\n\nUm oferecimento #bolhatech #bolhasec ",
+                "did": "did:plc:y545canthvu4hk5bg4jdwh2t",
+                "display_name": "Notícias Sem Paywall",
+                "followers": 114,
+                "following": 64,
+                "handle": "nopaywall.bsky.social",
+                "indexed_at": "2024-09-15T20:50:57.849Z",
+                "lastseents": "2024-09-24T15:39:11.969263",
+                "posts": 2038
+            },
+            "cid": "bafyreigpf6dmhtmbnlzb6gx6ou2ttbymzdju3qz4yrx5mvs7sotbi2lp5q",
+            "createdAt": "2025-01-25T08:20:07Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Enquanto Buffalo busca quebrar freguesia nos playoffs e primeiro título da história, Kansas City sonha com o primeiro tricampeonato da era moderna da liga O cenário não será novidade para quem acompanha a NFL nesta década quando Kansas City Chiefs e…",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreihjrqzknax6dayc4senuk3cweigkeuuf7ryapjrviyecxebzcd6sy",
+                        "size": 90504
+                    },
+                    "title": "'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl",
+                    "uri": "https://sem-paywall.com/http%3A%2F%2Fdlvr.it%2FTHZDYf"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:y545canthvu4hk5bg4jdwh2t/app.bsky.feed.post/3lgkin7gfv425",
+            "lastseents": "2025-01-25T17:59:00.346323",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Notícia da @oglobo.globo.com\n\n\"'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl\"\n\nLink sem paywall ⬇️\n",
+        "model": "llama-3.3-70b-versatile",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:y545canthvu4hk5bg4jdwh2t",
+            "authorProfile": {
+                "_id": "did:plc:y545canthvu4hk5bg4jdwh2t",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:y545canthvu4hk5bg4jdwh2t/bafkreigr5wgykuv7umqjhnnqmfwfxmi5bwbbgth6asqzht3ehzdisxpr7y@jpeg",
+                "banner": null,
+                "description": "As notícias não ficam melhores sem paywall? 🤔\n\nSiga pra receber notícias completas limpas de paywall com o https://12ft.io/  📰🗞️♥️\n\nUm oferecimento #bolhatech #bolhasec ",
+                "did": "did:plc:y545canthvu4hk5bg4jdwh2t",
+                "display_name": "Notícias Sem Paywall",
+                "followers": 114,
+                "following": 64,
+                "handle": "nopaywall.bsky.social",
+                "indexed_at": "2024-09-15T20:50:57.849Z",
+                "lastseents": "2024-09-24T15:39:11.969263",
+                "posts": 2038
+            },
+            "cid": "bafyreigpf6dmhtmbnlzb6gx6ou2ttbymzdju3qz4yrx5mvs7sotbi2lp5q",
+            "createdAt": "2025-01-25T08:20:07Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Enquanto Buffalo busca quebrar freguesia nos playoffs e primeiro título da história, Kansas City sonha com o primeiro tricampeonato da era moderna da liga O cenário não será novidade para quem acompanha a NFL nesta década quando Kansas City Chiefs e…",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreihjrqzknax6dayc4senuk3cweigkeuuf7ryapjrviyecxebzcd6sy",
+                        "size": 90504
+                    },
+                    "title": "'Mahomes x Allen nº4': em busca de ineditismos na NFL, Chiefs e Bills duelam novamente por lugar no Super Bowl",
+                    "uri": "https://sem-paywall.com/http%3A%2F%2Fdlvr.it%2FTHZDYf"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:y545canthvu4hk5bg4jdwh2t/app.bsky.feed.post/3lgkin7gfv425",
+            "lastseents": "2025-01-25T17:59:00.346323",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Conspiracy theories are flying ahead of Championship Sunday, when the remaining NFC and AFC teams decide their representatives in Super Bowl LIX, being played at New Orleans.",
+        "model": "gemma2-9b-it",
+        "label": "prediction-sports ",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:pggdgcq644d5lppxzjyiledn",
+            "authorProfile": {
+                "_id": "did:plc:pggdgcq644d5lppxzjyiledn",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:pggdgcq644d5lppxzjyiledn/bafkreic6nr6iu3752tqy5bh5oamxn7s4utk4esespv2bozzvkx5c2o3qtu@jpeg",
+                "banner": "https://cdn.bsky.app/img/banner/plain/did:plc:pggdgcq644d5lppxzjyiledn/bafkreifh5u2pqvwto2jxs5bgd3sdxlvcn6keihr6vt3nz7vybxzudmakju@jpeg",
+                "description": "\"The charge to restore American journalism is being led by the Sun.\"\n\nGet unlimited access for only 1¢ a day: http://go.nysun.com/join\n\n☀️☀️☀️",
+                "did": "did:plc:pggdgcq644d5lppxzjyiledn",
+                "display_name": "The New York Sun",
+                "followers": 68,
+                "following": 1,
+                "handle": "newyorksun.bsky.social",
+                "indexed_at": "2024-11-14T13:40:56.482Z",
+                "lastseents": "2024-12-02T02:51:43.414997",
+                "posts": 768
+            },
+            "cid": "bafyreig6knuhpo4mgkc3d72mdbeyyqmbxrce5yzuyqiuutvjemsbltynge",
+            "createdAt": "2025-01-25T09:01:00.519Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Conspiracy theories abound as teams get set to meet to decide the Super Bowl LIX matchup.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreie5i4cgodgofrgtmnf2hfjxru5ghgllnaepuxj3rkp3qesfayspeu",
+                        "size": 449994
+                    },
+                    "title": "Flags, Calls, and Taylor Swift: Is the NFL Rigging the Playoffs for the Chiefs?",
+                    "uri": "https://buff.ly/40Nw7ZB"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:pggdgcq644d5lppxzjyiledn/app.bsky.feed.post/3lgkkemc5ct2i",
+            "lastseents": "2025-01-25T18:02:03.549504",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Conspiracy theories are flying ahead of Championship Sunday, when the remaining NFC and AFC teams decide their representatives in Super Bowl LIX, being played at New Orleans.",
+        "model": "llama-3.1-8b-instant",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:pggdgcq644d5lppxzjyiledn",
+            "authorProfile": {
+                "_id": "did:plc:pggdgcq644d5lppxzjyiledn",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:pggdgcq644d5lppxzjyiledn/bafkreic6nr6iu3752tqy5bh5oamxn7s4utk4esespv2bozzvkx5c2o3qtu@jpeg",
+                "banner": "https://cdn.bsky.app/img/banner/plain/did:plc:pggdgcq644d5lppxzjyiledn/bafkreifh5u2pqvwto2jxs5bgd3sdxlvcn6keihr6vt3nz7vybxzudmakju@jpeg",
+                "description": "\"The charge to restore American journalism is being led by the Sun.\"\n\nGet unlimited access for only 1¢ a day: http://go.nysun.com/join\n\n☀️☀️☀️",
+                "did": "did:plc:pggdgcq644d5lppxzjyiledn",
+                "display_name": "The New York Sun",
+                "followers": 68,
+                "following": 1,
+                "handle": "newyorksun.bsky.social",
+                "indexed_at": "2024-11-14T13:40:56.482Z",
+                "lastseents": "2024-12-02T02:51:43.414997",
+                "posts": 768
+            },
+            "cid": "bafyreig6knuhpo4mgkc3d72mdbeyyqmbxrce5yzuyqiuutvjemsbltynge",
+            "createdAt": "2025-01-25T09:01:00.519Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Conspiracy theories abound as teams get set to meet to decide the Super Bowl LIX matchup.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreie5i4cgodgofrgtmnf2hfjxru5ghgllnaepuxj3rkp3qesfayspeu",
+                        "size": 449994
+                    },
+                    "title": "Flags, Calls, and Taylor Swift: Is the NFL Rigging the Playoffs for the Chiefs?",
+                    "uri": "https://buff.ly/40Nw7ZB"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:pggdgcq644d5lppxzjyiledn/app.bsky.feed.post/3lgkkemc5ct2i",
+            "lastseents": "2025-01-25T18:02:03.549504",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "Conspiracy theories are flying ahead of Championship Sunday, when the remaining NFC and AFC teams decide their representatives in Super Bowl LIX, being played at New Orleans.",
+        "model": "llama-3.3-70b-versatile",
+        "label": "prediction-sports",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:pggdgcq644d5lppxzjyiledn",
+            "authorProfile": {
+                "_id": "did:plc:pggdgcq644d5lppxzjyiledn",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:pggdgcq644d5lppxzjyiledn/bafkreic6nr6iu3752tqy5bh5oamxn7s4utk4esespv2bozzvkx5c2o3qtu@jpeg",
+                "banner": "https://cdn.bsky.app/img/banner/plain/did:plc:pggdgcq644d5lppxzjyiledn/bafkreifh5u2pqvwto2jxs5bgd3sdxlvcn6keihr6vt3nz7vybxzudmakju@jpeg",
+                "description": "\"The charge to restore American journalism is being led by the Sun.\"\n\nGet unlimited access for only 1¢ a day: http://go.nysun.com/join\n\n☀️☀️☀️",
+                "did": "did:plc:pggdgcq644d5lppxzjyiledn",
+                "display_name": "The New York Sun",
+                "followers": 68,
+                "following": 1,
+                "handle": "newyorksun.bsky.social",
+                "indexed_at": "2024-11-14T13:40:56.482Z",
+                "lastseents": "2024-12-02T02:51:43.414997",
+                "posts": 768
+            },
+            "cid": "bafyreig6knuhpo4mgkc3d72mdbeyyqmbxrce5yzuyqiuutvjemsbltynge",
+            "createdAt": "2025-01-25T09:01:00.519Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "Conspiracy theories abound as teams get set to meet to decide the Super Bowl LIX matchup.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreie5i4cgodgofrgtmnf2hfjxru5ghgllnaepuxj3rkp3qesfayspeu",
+                        "size": 449994
+                    },
+                    "title": "Flags, Calls, and Taylor Swift: Is the NFL Rigging the Playoffs for the Chiefs?",
+                    "uri": "https://buff.ly/40Nw7ZB"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:pggdgcq644d5lppxzjyiledn/app.bsky.feed.post/3lgkkemc5ct2i",
+            "lastseents": "2025-01-25T18:02:03.549504",
+            "bridgyOriginalText": NaN,
+            "bridgyOriginalUrl": NaN,
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "gemma2-9b-it",
+        "label": "Please provide the sentence.  ",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:zuczfxtiepgm6jdy6d2g5uvk",
+            "authorProfile": {
+                "did": "did:plc:zuczfxtiepgm6jdy6d2g5uvk",
+                "handle": "king5.com.web.brid.gy"
+            },
+            "cid": "bafyreidfgtrcmqka3ylw4clodut7m4pscibzyyv3rievgymzfdntdn4d7a",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.king5.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:zuczfxtiepgm6jdy6d2g5uvk/app.bsky.feed.post/3lgkxhool4ek2",
+            "lastseents": "2025-01-25T18:27:36.270317",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.king5.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "llama-3.1-8b-instant",
+        "label": "However, you didn't provide the sentence. Please provide the sentence so I can classify it accordingly.",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:zuczfxtiepgm6jdy6d2g5uvk",
+            "authorProfile": {
+                "did": "did:plc:zuczfxtiepgm6jdy6d2g5uvk",
+                "handle": "king5.com.web.brid.gy"
+            },
+            "cid": "bafyreidfgtrcmqka3ylw4clodut7m4pscibzyyv3rievgymzfdntdn4d7a",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.king5.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:zuczfxtiepgm6jdy6d2g5uvk/app.bsky.feed.post/3lgkxhool4ek2",
+            "lastseents": "2025-01-25T18:27:36.270317",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.king5.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "llama-3.3-70b-versatile",
+        "label": "Not enough information",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:zuczfxtiepgm6jdy6d2g5uvk",
+            "authorProfile": {
+                "did": "did:plc:zuczfxtiepgm6jdy6d2g5uvk",
+                "handle": "king5.com.web.brid.gy"
+            },
+            "cid": "bafyreidfgtrcmqka3ylw4clodut7m4pscibzyyv3rievgymzfdntdn4d7a",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.king5.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:zuczfxtiepgm6jdy6d2g5uvk/app.bsky.feed.post/3lgkxhool4ek2",
+            "lastseents": "2025-01-25T18:27:36.270317",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.king5.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "gemma2-9b-it",
+        "label": "Please provide the sentence. ",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:z4547lu5ykj2ot3no6fwz5n4",
+            "authorProfile": {
+                "_id": "did:plc:z4547lu5ykj2ot3no6fwz5n4",
+                "_index": "smat-bluesky-users",
+                "avatar": null,
+                "banner": null,
+                "description": null,
+                "did": "did:plc:z4547lu5ykj2ot3no6fwz5n4",
+                "display_name": null,
+                "followers": 0,
+                "following": 0,
+                "handle": "wnep.com.web.brid.gy",
+                "indexed_at": "0001-01-01T00:00:00.000Z",
+                "lastseents": "2024-11-25T16:50:36.887726",
+                "posts": 420
+            },
+            "cid": "bafyreifo2xzvao75tvxsm5jk3atf2qeqrokkvykq6gpqdci2pknezh35km",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.wnep.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:z4547lu5ykj2ot3no6fwz5n4/app.bsky.feed.post/3lgkyamwbika2",
+            "lastseents": "2025-01-25T18:30:28.886977",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.wnep.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "llama-3.1-8b-instant",
+        "label": "I need the sentence to be provided to give a response.",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:z4547lu5ykj2ot3no6fwz5n4",
+            "authorProfile": {
+                "_id": "did:plc:z4547lu5ykj2ot3no6fwz5n4",
+                "_index": "smat-bluesky-users",
+                "avatar": null,
+                "banner": null,
+                "description": null,
+                "did": "did:plc:z4547lu5ykj2ot3no6fwz5n4",
+                "display_name": null,
+                "followers": 0,
+                "following": 0,
+                "handle": "wnep.com.web.brid.gy",
+                "indexed_at": "0001-01-01T00:00:00.000Z",
+                "lastseents": "2024-11-25T16:50:36.887726",
+                "posts": 420
+            },
+            "cid": "bafyreifo2xzvao75tvxsm5jk3atf2qeqrokkvykq6gpqdci2pknezh35km",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.wnep.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:z4547lu5ykj2ot3no6fwz5n4/app.bsky.feed.post/3lgkyamwbika2",
+            "lastseents": "2025-01-25T18:30:28.886977",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.wnep.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "llama-3.3-70b-versatile",
+        "label": "Not a prediction.",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:z4547lu5ykj2ot3no6fwz5n4",
+            "authorProfile": {
+                "_id": "did:plc:z4547lu5ykj2ot3no6fwz5n4",
+                "_index": "smat-bluesky-users",
+                "avatar": null,
+                "banner": null,
+                "description": null,
+                "did": "did:plc:z4547lu5ykj2ot3no6fwz5n4",
+                "display_name": null,
+                "followers": 0,
+                "following": 0,
+                "handle": "wnep.com.web.brid.gy",
+                "indexed_at": "0001-01-01T00:00:00.000Z",
+                "lastseents": "2024-11-25T16:50:36.887726",
+                "posts": 420
+            },
+            "cid": "bafyreifo2xzvao75tvxsm5jk3atf2qeqrokkvykq6gpqdci2pknezh35km",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.wnep.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:z4547lu5ykj2ot3no6fwz5n4/app.bsky.feed.post/3lgkyamwbika2",
+            "lastseents": "2025-01-25T18:30:28.886977",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.wnep.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "gemma2-9b-it",
+        "label": "Please provide the sentence.  ",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:j2wsd5dyynpwh3rrpsuhqfkv",
+            "authorProfile": {
+                "_id": "did:plc:j2wsd5dyynpwh3rrpsuhqfkv",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:j2wsd5dyynpwh3rrpsuhqfkv/bafkreic5slf3hy56dcuixuppywmxtymxbtknj6kl2fpjqx46vnvbo4lfjy@jpeg",
+                "banner": null,
+                "description": "[bridged from https://10tv.com/ on the web by https://fed.brid.gy/ ]",
+                "did": "did:plc:j2wsd5dyynpwh3rrpsuhqfkv",
+                "display_name": "Columbus' Leading Local News: Weather, Traffic, Sports and more…",
+                "followers": 3,
+                "following": 0,
+                "handle": "10tv.com.web.brid.gy",
+                "indexed_at": "2024-07-29T19:09:44.715Z",
+                "lastseents": "2024-08-21T06:10:20.711144",
+                "posts": 971,
+                "viewer_blocked_by": false,
+                "viewer_mute": false
+            },
+            "cid": "bafyreidugggrk5vwcilqtaim4yj5ce4jk2itgeym5ie75b6wi43ii46v2u",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.10tv.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:j2wsd5dyynpwh3rrpsuhqfkv/app.bsky.feed.post/3lgkymhbgnrt2",
+            "lastseents": "2025-01-25T18:30:32.800150",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.10tv.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "llama-3.1-8b-instant",
+        "label": "Not enough information",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:j2wsd5dyynpwh3rrpsuhqfkv",
+            "authorProfile": {
+                "_id": "did:plc:j2wsd5dyynpwh3rrpsuhqfkv",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:j2wsd5dyynpwh3rrpsuhqfkv/bafkreic5slf3hy56dcuixuppywmxtymxbtknj6kl2fpjqx46vnvbo4lfjy@jpeg",
+                "banner": null,
+                "description": "[bridged from https://10tv.com/ on the web by https://fed.brid.gy/ ]",
+                "did": "did:plc:j2wsd5dyynpwh3rrpsuhqfkv",
+                "display_name": "Columbus' Leading Local News: Weather, Traffic, Sports and more…",
+                "followers": 3,
+                "following": 0,
+                "handle": "10tv.com.web.brid.gy",
+                "indexed_at": "2024-07-29T19:09:44.715Z",
+                "lastseents": "2024-08-21T06:10:20.711144",
+                "posts": 971,
+                "viewer_blocked_by": false,
+                "viewer_mute": false
+            },
+            "cid": "bafyreidugggrk5vwcilqtaim4yj5ce4jk2itgeym5ie75b6wi43ii46v2u",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.10tv.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:j2wsd5dyynpwh3rrpsuhqfkv/app.bsky.feed.post/3lgkymhbgnrt2",
+            "lastseents": "2025-01-25T18:30:32.800150",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.10tv.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "llama-3.3-70b-versatile",
+        "label": "Not a prediction",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:j2wsd5dyynpwh3rrpsuhqfkv",
+            "authorProfile": {
+                "_id": "did:plc:j2wsd5dyynpwh3rrpsuhqfkv",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:j2wsd5dyynpwh3rrpsuhqfkv/bafkreic5slf3hy56dcuixuppywmxtymxbtknj6kl2fpjqx46vnvbo4lfjy@jpeg",
+                "banner": null,
+                "description": "[bridged from https://10tv.com/ on the web by https://fed.brid.gy/ ]",
+                "did": "did:plc:j2wsd5dyynpwh3rrpsuhqfkv",
+                "display_name": "Columbus' Leading Local News: Weather, Traffic, Sports and more…",
+                "followers": 3,
+                "following": 0,
+                "handle": "10tv.com.web.brid.gy",
+                "indexed_at": "2024-07-29T19:09:44.715Z",
+                "lastseents": "2024-08-21T06:10:20.711144",
+                "posts": 971,
+                "viewer_blocked_by": false,
+                "viewer_mute": false
+            },
+            "cid": "bafyreidugggrk5vwcilqtaim4yj5ce4jk2itgeym5ie75b6wi43ii46v2u",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.10tv.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:j2wsd5dyynpwh3rrpsuhqfkv/app.bsky.feed.post/3lgkymhbgnrt2",
+            "lastseents": "2025-01-25T18:30:32.800150",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.10tv.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "gemma2-9b-it",
+        "label": "Please provide the sentence. ",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:i3bbgjnal63ful2tjryi3onb",
+            "authorProfile": {
+                "_id": "did:plc:i3bbgjnal63ful2tjryi3onb",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:i3bbgjnal63ful2tjryi3onb/bafkreihl3lc6cf7pjggmsq2ppkv3mynd4lc4pqrwrl73cgfybs6hquho5a@jpeg",
+                "banner": null,
+                "description": "[bridged from https://wusa9.com/ on the web: https://fed.brid.gy/web/wusa9.com ]",
+                "did": "did:plc:i3bbgjnal63ful2tjryi3onb",
+                "display_name": "Washington, DC's Leading Local News: Weather, Traffic, Sports a…",
+                "followers": 6,
+                "following": 0,
+                "handle": "wusa9.com.web.brid.gy",
+                "indexed_at": "2024-07-26T19:39:12.009Z",
+                "lastseents": "2024-08-21T05:58:57.213745",
+                "posts": 959,
+                "viewer_blocked_by": false,
+                "viewer_mute": false
+            },
+            "cid": "bafyreicli2fkm3xawknr5cbgtknhmaxcyt7nl3zub6hcmp5jva6u66itsy",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.wusa9.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:i3bbgjnal63ful2tjryi3onb/app.bsky.feed.post/3lgkz5tsbgdw2",
+            "lastseents": "2025-01-25T18:32:49.270314",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.wusa9.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "llama-3.1-8b-instant",
+        "label": "Not enough information",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:i3bbgjnal63ful2tjryi3onb",
+            "authorProfile": {
+                "_id": "did:plc:i3bbgjnal63ful2tjryi3onb",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:i3bbgjnal63ful2tjryi3onb/bafkreihl3lc6cf7pjggmsq2ppkv3mynd4lc4pqrwrl73cgfybs6hquho5a@jpeg",
+                "banner": null,
+                "description": "[bridged from https://wusa9.com/ on the web: https://fed.brid.gy/web/wusa9.com ]",
+                "did": "did:plc:i3bbgjnal63ful2tjryi3onb",
+                "display_name": "Washington, DC's Leading Local News: Weather, Traffic, Sports a…",
+                "followers": 6,
+                "following": 0,
+                "handle": "wusa9.com.web.brid.gy",
+                "indexed_at": "2024-07-26T19:39:12.009Z",
+                "lastseents": "2024-08-21T05:58:57.213745",
+                "posts": 959,
+                "viewer_blocked_by": false,
+                "viewer_mute": false
+            },
+            "cid": "bafyreicli2fkm3xawknr5cbgtknhmaxcyt7nl3zub6hcmp5jva6u66itsy",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.wusa9.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:i3bbgjnal63ful2tjryi3onb/app.bsky.feed.post/3lgkz5tsbgdw2",
+            "lastseents": "2025-01-25T18:32:49.270314",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.wusa9.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    },
+    {
+        "sentence": "",
+        "model": "llama-3.3-70b-versatile",
+        "label": "Not enough information",
+        "meta_data": {
+            "$type": "app.bsky.feed.post",
+            "author": "did:plc:i3bbgjnal63ful2tjryi3onb",
+            "authorProfile": {
+                "_id": "did:plc:i3bbgjnal63ful2tjryi3onb",
+                "_index": "smat-bluesky-users",
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:i3bbgjnal63ful2tjryi3onb/bafkreihl3lc6cf7pjggmsq2ppkv3mynd4lc4pqrwrl73cgfybs6hquho5a@jpeg",
+                "banner": null,
+                "description": "[bridged from https://wusa9.com/ on the web: https://fed.brid.gy/web/wusa9.com ]",
+                "did": "did:plc:i3bbgjnal63ful2tjryi3onb",
+                "display_name": "Washington, DC's Leading Local News: Weather, Traffic, Sports a…",
+                "followers": 6,
+                "following": 0,
+                "handle": "wusa9.com.web.brid.gy",
+                "indexed_at": "2024-07-26T19:39:12.009Z",
+                "lastseents": "2024-08-21T05:58:57.213745",
+                "posts": 959,
+                "viewer_blocked_by": false,
+                "viewer_mute": false
+            },
+            "cid": "bafyreicli2fkm3xawknr5cbgtknhmaxcyt7nl3zub6hcmp5jva6u66itsy",
+            "createdAt": "2025-01-25T12:05:18.000Z",
+            "embed": {
+                "$type": "app.bsky.embed.external",
+                "external": {
+                    "$type": "app.bsky.embed.external#external",
+                    "description": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+                    "thumb": {
+                        "$type": "blob",
+                        "mime_type": "image/jpeg",
+                        "ref_str": "bafkreif6z3yc7colxhav5dpehnphuf67ni5glz6hxrot542jcezdvyhrzi",
+                        "size": 118896
+                    },
+                    "title": "The four teams left in the NFL playoffs have something unique in common",
+                    "uri": "https://www.wusa9.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b"
+                }
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": null,
+            "reply": null,
+            "tags": null,
+            "uri": "at://did:plc:i3bbgjnal63ful2tjryi3onb/app.bsky.feed.post/3lgkz5tsbgdw2",
+            "lastseents": "2025-01-25T18:32:49.270314",
+            "bridgyOriginalText": "While each of the four teams left with a chance to make the Super Bowl have varied histories, this year they have something unique in common.",
+            "bridgyOriginalUrl": "https://www.wusa9.com/article/sports/nfl/superbowl/super-bowl-appearances-chiefs-bills-eagles-commanders/507-9f49cf95-b7c1-4687-af8f-84be9331dd4b",
+            "Query Params": {
+                "term": "(NFL OR nfl) AND (playoffs) AND (Super Bowl LIX)",
+                "limit": 10,
+                "site": "bluesky",
+                "since": "2025-01-25",
+                "until": "2025-02-09",
+                "querytype": "query_string",
+                "model": "user"
+            },
+            "Site": "bluesky"
+        }
+    }
+]

@@ -1,4 +1,7 @@
 import re
+import os
+import json
+
 import numpy as np
 import pandas as pd
 
@@ -292,8 +295,9 @@ class DataProcessing:
         data: `np.array`, `list`, `dict`, or `set`
             An array, list, dictionary, or set containing the data to convert to a DataFrame or Series.
         
-        mapping: `dict`, `optional`
-            A dictionary containing mappings for tags/entities.
+        mapping: `any`, `optional`
+            convert_tags_entities_to_dataframe() --- A dictionary containing mappings for tags/entities
+
 
         Returns:
         --------
@@ -304,6 +308,11 @@ class DataProcessing:
             return DataProcessing.array_to_df(data)
         elif isinstance(data, set) and isinstance(mapping, list):
             return DataProcessing.convert_tags_entities_to_dataframe(data, mapping)
+        elif isinstance(data, list) and mapping == 'Open Measures':
+            sources = []
+            for hit in data:
+                sources.append(hit['_source'])
+            return pd.DataFrame(sources)
         else:
             raise ValueError("Invalid input: data must be a numpy array, dictionary, list, or set with a mapping.")
     
@@ -435,3 +444,67 @@ class DataProcessing:
         png_data = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
         img = Image.open(io.BytesIO(png_data))
         img.save(save_dir)
+
+    def get_next_file_number(directory: str, prefix: str, extensions: str = ('.json', '.log', '.csv')):
+        """
+        Scans the directory for files starting with the given prefix and ending with one of the specified extensions.
+        Extracts the numeric suffix and returns the next available number.
+        
+        Determine the next available file number based on existing files in a directory.
+
+        Parameters
+        ----------
+        directory : str
+            Path to the directory where files are stored.
+        prefix : str
+            The prefix used in filenames (e.g., 'siteA' for files like 'siteA-1.json').
+        extensions : tuple of str, optional
+            File extensions to consider when scanning for existing files. Default is ('.json', '.log', '.csv').
+
+        Returns
+        -------
+        int
+            The next available file number (e.g., returns 4 if files with numbers 1, 2, and 3 exist).
+
+        """
+        numbers = []
+        for name in os.listdir(directory):
+            if name.startswith(prefix) and name.endswith(extensions):
+                try:
+                    # Assumes format: prefix-N.ext (e.g., siteA-3.json)
+                    number_part = name[len(prefix)+1:].split('.')[0]  # +1 for the dash
+                    number = int(number_part)
+                    numbers.append(number)
+                except ValueError:
+                    continue
+                    # print(ValueError)
+        return max(numbers, default=0) + 1
+    
+    def save_to_json(data, path: str, prefix: str):
+        """ 
+        Save data to a JSON file with an incremented filename based on existing files.
+
+        Parameters
+        ----------
+        data : dict or list
+            The data to be saved in JSON format.
+        path : str
+            Directory path where the JSON file will be saved.
+        prefix : str
+            Prefix for the filename (e.g., 'siteA' results in 'siteA-1.json', 'siteA-2.json', etc.).
+
+        Returns
+        -------
+        None
+            Saves the file to disk and prints the file path.
+
+        """
+        next_number = DataProcessing.get_next_file_number(path, prefix)
+        file_name = f"{prefix}-{next_number}.json"
+        file_path = os.path.join(path, file_name)
+        # print(f"The json file is saving at: {file_path}")
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+        print(f"\tSaved to {file_path}")

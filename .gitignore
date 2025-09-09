@@ -22,3 +22,7 @@ data/tagging/ryan4_train_tags_v4.txt
 data/tagging/ryan5_train_tags_v1.txt
 data/tagging/issue34-2505-2717
 *.zip
+*.xml
+misc/predictionsFrameworkDiagram
+/data/open_measures
+/data/tiktok_comments
