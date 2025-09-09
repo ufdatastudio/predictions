@@ -24,3 +24,5 @@ data/tagging/issue34-2505-2717
 *.zip
 *.xml
 misc/predictionsFrameworkDiagram
+/data/open_measures
+/data/tiktok_comments
