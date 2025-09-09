@@ -2,6 +2,7 @@ import logging, os, csv, pathlib
 
 import pandas as pd
 
+from tqdm import tqdm
 from datetime import datetime
 
 from data_processing import DataProcessing
@@ -114,9 +115,9 @@ class LogData:
         
     def csv_to_dataframe(self, csv_file_name):
         """Reads a CSV file into a Pandas DataFrame."""
-        print("CSV to DF")
+        # print("CSV to DF")
         saved_csv = os.path.join(self.batch_path, csv_file_name)
-        print(f"Load saved csv: {saved_csv}")
+        # print(f"Load saved csv: {saved_csv}")
         
         try:
             df = pd.read_csv(saved_csv, delimiter=',')
@@ -138,14 +139,14 @@ def read_data(notebook_dir, log_file_path, predictions):
     base_path = os.path.join(notebook_dir, '../')
 
     log_directory = os.path.join(base_path, log_file_path)
-    print(f"log_directory: {log_directory}")
+    # print(f"log_directory: {log_directory}")
 
     N = len(os.listdir(log_directory))
     # print(f"{N}")
 
     dfs = []
-    for i in range(1, N):
-        # print(i)
+    for i in tqdm(range(1, N)):
+       
 
         batch_i = f"batch_{i}"
         if predictions == True:
@@ -155,8 +156,9 @@ def read_data(notebook_dir, log_file_path, predictions):
         else:
             print("Invalid path")
             quit()
-
-        print(f"save_batch_directory: {save_batch_directory}")
+        
+        if i < 3:
+            print(f"save_batch_directory: {save_batch_directory}")
         save_batch_name = f"{batch_i}-info.log"
         save_from_df_name = f"{batch_i}-from_df.csv"
         save_from_csv_name = f"{batch_i}-from_csv.log"

@@ -33,8 +33,8 @@ class TextGenerationModelFactory(ABC):
         """In the init method (also called constructor), initialize our class with variables or attributes."""
         # Create instance variables or attributes
         # Standardized model parameters
-        self.temperature = 0.6
-        self.top_p = 0.9
+        self.temperature = 0.8
+        self.top_p = 0.7
         self.model_name = None
    
     def map_platform_to_api(self, platform_name: str):
@@ -193,7 +193,7 @@ class TextGenerationModelFactory(ABC):
         # print(f"\n  prompt_template: \n{prompt_template}\n\n")
         raw_text = self.chat_completion([self.user(prompt_template)])
         # print(f"    {self.model_name} + {domain} generates: {raw_text}")
-        print(f"generates:\n{raw_text}")
+        # print(f"generates:\n{raw_text}")
         
         
         # Parse the raw text into structured data (assuming a consistent format)
