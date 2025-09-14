@@ -480,7 +480,7 @@ class DataProcessing:
                     # print(ValueError)
         return max(numbers, default=0) + 1
     
-    def save_to_json(data, path: str, prefix: str):
+    def save_to_file(data, path: str, prefix: str, save_file_type: str = 'json'):
         """ 
         Save data to a JSON file with an incremented filename based on existing files.
 
@@ -492,6 +492,8 @@ class DataProcessing:
             Directory path where the JSON file will be saved.
         prefix : str
             Prefix for the filename (e.g., 'siteA' results in 'siteA-1.json', 'siteA-2.json', etc.).
+        save_file_type : str
+            File types such as json, csv, etc
 
         Returns
         -------
@@ -499,12 +501,19 @@ class DataProcessing:
             Saves the file to disk and prints the file path.
 
         """
+        os.makedirs(path, exist_ok=True)
         next_number = DataProcessing.get_next_file_number(path, prefix)
-        file_name = f"{prefix}-{next_number}.json"
-        file_path = os.path.join(path, file_name)
-        # print(f"The json file is saving at: {file_path}")
+        if save_file_type == 'json':
+            file_name = f"{prefix}-{next_number}.json"
+            file_path = os.path.join(path, file_name)
+            os.makedirs(file_path, exist_ok=True)
+            # print(f"The json file is saving at: {file_path}")
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+        elif save_file_type == 'csv':
+            file_name = f"{prefix}-{next_number}.csv"
+            file_path = os.path.join(path, file_name)
+            data.to_csv(file_path)
 
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+        print(f"Saved to: \n\t{file_path}")
 
-        print(f"\tSaved to {file_path}")
