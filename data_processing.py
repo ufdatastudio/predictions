@@ -482,14 +482,14 @@ class DataProcessing:
     
     def save_to_file(data, path: str, prefix: str, save_file_type: str = 'json'):
         """ 
-        Save data to a JSON file with an incremented filename based on existing files.
+        Save data to any file with an incremented filename based on existing files.
 
         Parameters
         ----------
         data : dict or list
-            The data to be saved in JSON format.
+            The data to be saved in file type format.
         path : str
-            Directory path where the JSON file will be saved.
+            Directory path where the file type file will be saved.
         prefix : str
             Prefix for the filename (e.g., 'siteA' results in 'siteA-1.json', 'siteA-2.json', etc.).
         save_file_type : str
@@ -517,3 +517,23 @@ class DataProcessing:
 
         print(f"Saved to: \n\t{file_path}")
 
+    def load_from_file(path: str, save_file_type: str = 'json'):
+        """Load data from directory
+        
+        Parameters
+        ----------
+        path : str
+            Directory path where the file will be loaded from.
+        save_file_type : str
+            File types such as json, csv, etc
+
+        Returns
+        -------
+        None
+            Saves the file to disk and prints the file path.
+
+        """
+        
+        if save_file_type == 'csv': 
+            df = pd.read_csv(path)
+            return df
