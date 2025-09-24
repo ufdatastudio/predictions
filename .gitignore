@@ -16,3 +16,6 @@ misc/open_data.ipynb
 misc/(dev)_Dep_Con_SRL_Demos.ipynb
 /misc_experiments/others_original_works
 *.swp
+/pipelines/tag_predictions-checkpoint.ipynb
+/pipelines/tag_predictions.ipynb
+/pipelines/tag_predictions-v2.ipynb
