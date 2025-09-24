@@ -313,10 +313,11 @@ class DataProcessing:
             for hit in data:
                 sources.append(hit['_source'])
             return pd.DataFrame(sources)
+        # elif isinstance(data, tuple[int, json]):
+        #     return DataProcessing.json_to_pd(data)
         else:
             raise ValueError("Invalid input: data must be a numpy array, dictionary, list, or set with a mapping.")
     
-# Functions to disregard
     def patterns(nlp):
         # ruler = nlp.add_pipe("entity_ruler", before="ner")
         # patterns = [
@@ -504,14 +505,14 @@ class DataProcessing:
         os.makedirs(path, exist_ok=True)
         next_number = DataProcessing.get_next_file_number(path, prefix)
         if save_file_type == 'json':
-            file_name = f"{prefix}-{next_number}.json"
+            file_name = f"{prefix}-v{next_number}.json"
             file_path = os.path.join(path, file_name)
-            os.makedirs(file_path, exist_ok=True)
-            # print(f"The json file is saving at: {file_path}")
+            # os.makedirs(file_path, exist_ok=True)
+            print(f"The json file is saving at: {file_path}")
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
         elif save_file_type == 'csv':
-            file_name = f"{prefix}-{next_number}.csv"
+            file_name = f"{prefix}-v{next_number}.csv"
             file_path = os.path.join(path, file_name)
             data.to_csv(file_path)
 
@@ -537,3 +538,21 @@ class DataProcessing:
         if save_file_type == 'csv': 
             df = pd.read_csv(path)
             return df
+
+    def remove_duplicates(df):
+        filt_no_duplicates = (df.duplicated() == False)
+        no_duplicates_df = df[filt_no_duplicates]
+
+        return no_duplicates_df
+    
+    def json_to_df(data) -> pd.DataFrame:
+        """
+        Notes
+        -----
+        Modular to where we can use directly or call convert_to_df().
+        Need to update calling in convert_to_df().
+        """
+        row, value = data
+        print(row)
+        df = pd.DataFrame(value, index=row)
+        return df
