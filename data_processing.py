@@ -313,10 +313,11 @@ class DataProcessing:
             for hit in data:
                 sources.append(hit['_source'])
             return pd.DataFrame(sources)
+        # elif isinstance(data, tuple[int, json]):
+        #     return DataProcessing.json_to_pd(data)
         else:
             raise ValueError("Invalid input: data must be a numpy array, dictionary, list, or set with a mapping.")
     
-# Functions to disregard
     def patterns(nlp):
         # ruler = nlp.add_pipe("entity_ruler", before="ner")
         # patterns = [
@@ -480,18 +481,20 @@ class DataProcessing:
                     # print(ValueError)
         return max(numbers, default=0) + 1
     
-    def save_to_json(data, path: str, prefix: str):
+    def save_to_file(data, path: str, prefix: str, save_file_type: str = 'json'):
         """ 
-        Save data to a JSON file with an incremented filename based on existing files.
+        Save data to any file with an incremented filename based on existing files.
 
         Parameters
         ----------
         data : dict or list
-            The data to be saved in JSON format.
+            The data to be saved in file type format.
         path : str
-            Directory path where the JSON file will be saved.
+            Directory path where the file type file will be saved.
         prefix : str
             Prefix for the filename (e.g., 'siteA' results in 'siteA-1.json', 'siteA-2.json', etc.).
+        save_file_type : str
+            File types such as json, csv, etc
 
         Returns
         -------
@@ -499,12 +502,57 @@ class DataProcessing:
             Saves the file to disk and prints the file path.
 
         """
+        os.makedirs(path, exist_ok=True)
         next_number = DataProcessing.get_next_file_number(path, prefix)
-        file_name = f"{prefix}-{next_number}.json"
-        file_path = os.path.join(path, file_name)
-        # print(f"The json file is saving at: {file_path}")
+        if save_file_type == 'json':
+            file_name = f"{prefix}-v{next_number}.json"
+            file_path = os.path.join(path, file_name)
+            # os.makedirs(file_path, exist_ok=True)
+            print(f"The json file is saving at: {file_path}")
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+        elif save_file_type == 'csv':
+            file_name = f"{prefix}-v{next_number}.csv"
+            file_path = os.path.join(path, file_name)
+            data.to_csv(file_path)
 
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+        print(f"Saved to: \n\t{file_path}")
 
-        print(f"\tSaved to {file_path}")
+    def load_from_file(path: str, save_file_type: str = 'json'):
+        """Load data from directory
+        
+        Parameters
+        ----------
+        path : str
+            Directory path where the file will be loaded from.
+        save_file_type : str
+            File types such as json, csv, etc
+
+        Returns
+        -------
+        None
+            Saves the file to disk and prints the file path.
+
+        """
+        
+        if save_file_type == 'csv': 
+            df = pd.read_csv(path)
+            return df
+
+    def remove_duplicates(df):
+        filt_no_duplicates = (df.duplicated() == False)
+        no_duplicates_df = df[filt_no_duplicates]
+
+        return no_duplicates_df
+    
+    def json_to_df(data) -> pd.DataFrame:
+        """
+        Notes
+        -----
+        Modular to where we can use directly or call convert_to_df().
+        Need to update calling in convert_to_df().
+        """
+        row, value = data
+        print(row)
+        df = pd.DataFrame(value, index=row)
+        return df
