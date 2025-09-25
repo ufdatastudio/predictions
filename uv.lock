@@ -3078,6 +3078,7 @@ dependencies = [
     { name = "tqdm" },
     { name = "transformers" },
     { name = "youtube-transcript-api" },
+    { name = "zstandard" },
 ]
 
 [package.metadata]
@@ -3117,6 +3118,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "transformers", specifier = ">=4.51.3" },
     { name = "youtube-transcript-api", specifier = ">=1.2.2" },
+    { name = "zstandard", specifier = ">=0.23.0" },
 ]
 
 [[package]]
