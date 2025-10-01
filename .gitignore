@@ -31,3 +31,10 @@ misc/predictionsFrameworkDiagram
 /data/reddit_pushshift_archives
 /data/twitter
 /data/webz
+predictions_with_rag/.ipynb_checkpoints/store_data_in_vector_store-checkpoint.ipynb
+data/chroma/chroma_langchain_db/chroma.sqlite3
+data/chroma/chroma_langchain_df/a886d25f-608b-493d-9c6f-baa8f5f49e4e/
+data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/link_lists.bin
+data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/length.bin
+data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/header.bin
+data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/data_level0.bin
