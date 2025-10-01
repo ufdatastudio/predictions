@@ -31,6 +31,7 @@ from langchain_community.docstore.in_memory import InMemoryDocstore
 class BaseVectorStoreMixin(ABC):
     
     def set_embedding_model(self, embedding_model_name):
+        """A utility method used in both BaseVectorStoreBuilder and BaseVectorStoreLoader"""
         supported_models = {
             "Hugging Face": "sentence-transformers/all-mpnet-base-v2"
         }
@@ -191,6 +192,7 @@ class VectorStoreDirector:
             print(f"\t{self._loader}")
     
     def construct(self, embedding_model_name, data):
+        """Build the vector store using the builder class"""
 
         # print("### RESET ###")
         # self._builder.reset()
@@ -206,13 +208,14 @@ class VectorStoreDirector:
         print("### BUILD DOCUMENT ###""")
         self._builder.build_documents(data)
         print(f"\tDocuments (D) {len(self._builder.documents)}")
+        print(f"\tDocuments (D) {len(self._builder.vector_store.get()['documents'])}")
         
         print("### ADD DOCUMENTS TO VECTOR STORE ###")
         self._builder.add_documents_to_vector_store()
         print(f"\tDocuments added: {self._builder.vector_store}")
     
     def query(self, embedding_model_name, query_string, k):
-        """Retrieves the final vector store from the builder."""
+        """Retrieves the final vector store from the builder using the loader class."""
         
         print(f"### INITIALIZE CLIENT VECTOR STORE ###")
         self._loader.load_vector_store()
@@ -225,6 +228,7 @@ class VectorStoreDirector:
         print(f"### LOAD VECTOR STORE ###")
         self._loader.initialize_vector_store()
         print(f"\tVector Store (Prediction's Wrapper): {self._loader}")
+        print(f"\tDocuments (D) {len(self._loader.vector_store.get()['documents'])}")
         
         print(f"### TOP K ###")
         results = self._loader.query_vector_store(query_string, k)       
