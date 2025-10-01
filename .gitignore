@@ -38,3 +38,7 @@ data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/link_lists.
 data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/length.bin
 data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/header.bin
 data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/data_level0.bin
+*.bin
+*checkpoint.py
+*checkpoint.ipynb
+*.sqlite3
