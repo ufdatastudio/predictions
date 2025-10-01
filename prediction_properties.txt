@@ -51,7 +51,7 @@ A prediction <p> = (<p_s>, <p_t>, <p_d>, <p_o>), where it consists of the follow
             6. 21 August 2024
             7. 1 year from now
             
-    4. <p_o>,
+    4. <p_o>
         - Defined as:
             - Outcome
         - Characteristics:
