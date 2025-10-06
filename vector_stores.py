@@ -5,7 +5,6 @@ UF Data Studio (https://ufdatastudio.com/) with advisor Christan E. Grant, Ph.D.
 
 Design Pattern called Builder (https://refactoring.guru/design-patterns/builder/python/example#lang-features)
 
-Design Pattern called Builder
 
 """
 
@@ -27,6 +26,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 from langchain_community.docstore.in_memory import InMemoryDocstore
+
+from text_generation_models import TextGenerationModelFactory
 
 class BaseVectorStoreMixin(ABC):
     
@@ -157,26 +158,65 @@ class ChromaVectorStore(BaseVectorStoreBuilder, BaseVectorStoreLoader):
             print(f"\tVector Store (Original): {self.vector_store}")
     
     def query_vector_store(self, query_string, k):
+        query_results = {}
+        similarity_search_results = []
+        similarity_with_score_results = []
+        similarity_by_vector_results = []
+        retriever_results = []
+        
         print("\t1. Similarity")
         results = self.vector_store.similarity_search(query_string, k=k)
         for res in results:
-            print(f"\t\t* {res.page_content} [{res.metadata}]\n")
+            # print(f"\t\t* {res.page_content} [{res.metadata}]\n-------\n")
+            similarity_search_results.append(res.page_content)
+            query_results['similarity_search'] = similarity_search_results
 
         print("\t2. Similarity with score")
         results = self.vector_store.similarity_search_with_score(query_string, k=k)
         for res, score in results:
-            print(f"\t\t* [SIM={score:3f}] {res.page_content} [{res.metadata}]\n")
+            # print(f"\t\t* [SIM={score:3f}] {res.page_content} [{res.metadata}]\n-------\n")
+            results_with_score = (res.page_content, f"{score:3f}")
+            similarity_with_score_results.append(results_with_score)
+            query_results['similarity_with_score'] = similarity_with_score_results
         
         print("\t3. Similarity by vector")
         results = self.vector_store.similarity_search_by_vector(embedding=self.embedding_model.embed_query(query_string), k=k)
         for doc in results:
-            print(f"\t\t* {doc.page_content} [{doc.metadata}]\n")
+            # print(f"\t\t* {doc.page_content} [{doc.metadata}]\n-------\n")
+            similarity_by_vector_results.append(doc.page_content)
+            query_results['similarity_by_vector'] = similarity_by_vector_results
     
         print("\t4. Retriever")
         retriever = self.vector_store.as_retriever(search_type="mmr", search_kwargs={"k": k, "fetch_k": k})
         retriever.invoke(query_string)
-        print(f"\t\t* {retriever}\n")
+        # print(f"\t\t* {retriever}\n-------\n")
+        retriever_results.append(retriever)
+        query_results['retriever'] = retriever_results
         
+        return query_results
+    
+    
+    def rephraser_with_llm(self, prompt: str, llm_model_name: str = 'mistral-small-3.1'):
+        new_query_string = []  
+        tgmf = TextGenerationModelFactory()
+        llm_model = tgmf.create_instance(llm_model_name) 
+        models = [llm_model]
+        
+        for model in models:  
+            input_prompt = model.user(prompt)
+            # print(input_prompt)  
+
+            raw_text_llm_generation = model.chat_completion([input_prompt])
+            # print(raw_text_llm_generation)
+
+            for line in raw_text_llm_generation.split("\n"):
+                # print(line)
+                if line.strip():
+                    # model_output = (model, line)
+                    new_query_string.append(line)
+
+            new_query_string_as_list = sum([], new_query_string)
+        return new_query_string
 
 class VectorStoreDirector:
     def __init__(self, builder: BaseVectorStoreBuilder = None, loader: BaseVectorStoreLoader = None):
@@ -232,7 +272,24 @@ class VectorStoreDirector:
         
         print(f"### TOP K ###")
         results = self._loader.query_vector_store(query_string, k)       
-        print(f"\tQuery Results): {results}")
+        print(f"\tQuery Results: {results}")
+        return results
+    
+    def refine_query(self, 
+                     embedding_model_name: str,
+                     query_string: str,
+                     k: int = 3,
+                     llm_model_name: str = 'mistral-small-3.1'
+                    
+                    ):
+        print(f"### REPHRASER ###")
+        updated_query_string = self._loader.rephraser_with_llm(query_string, llm_model_name)
+        print(f"\tUpdated Query String: {type(updated_query_string)} {updated_query_string[0]}")
+        
+        print(f"### QUERY AGAIN ###\n")
+        updated_query_results = self.query(embedding_model_name, updated_query_string[0], k)
+        return updated_query_results
+        
 
         
 
