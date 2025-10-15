@@ -11,6 +11,7 @@ from spacy import displacy
 from sklearn.model_selection import train_test_split
 
 # from feature_extraction import SpacyFeatureExtraction
+from prediction_properties import PredictionProperties
 
 class DataProcessing:
     """A class to preprocess data"""
@@ -318,6 +319,9 @@ class DataProcessing:
         else:
             raise ValueError("Invalid input: data must be a numpy array, dictionary, list, or set with a mapping.")
     
+    def load_prediction_properties():
+        return PredictionProperties.get_prediction_properties()
+        
     def patterns(nlp):
         # ruler = nlp.add_pipe("entity_ruler", before="ner")
         # patterns = [
@@ -481,7 +485,7 @@ class DataProcessing:
                     # print(ValueError)
         return max(numbers, default=0) + 1
     
-    def save_to_file(data, path: str, prefix: str, save_file_type: str = 'json'):
+    def save_to_file(data, path: str, prefix: str, save_file_type: str):
         """ 
         Save data to any file with an incremented filename based on existing files.
 
