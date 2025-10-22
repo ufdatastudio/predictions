@@ -60,7 +60,7 @@ class PredictionProperties:
             - Defined as:
                 - Outcome
             - Characteristics:
-                - Releant or misc details such as a quantifiable metric, slope, attribute of interest
+                - Relevant or misc details such as a quantifiable metric, slope, attribute of interest
                 - From Pegah at USC: Value at an instant, statistical function minimum, changes over interval, second order effect comparison, recurrent pattern
                 - Named entity: ?
                 - Part of speech: ?
