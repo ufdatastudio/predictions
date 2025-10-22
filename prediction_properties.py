@@ -73,5 +73,26 @@ class PredictionProperties:
                 6. team win
                 7. number of steps
 
-    """
+        """
         return prediction_properties
+    
+    def get_requirements():
+        future_tense_verbs = [
+            "will",
+            "shall",
+            "would",
+            "going",
+            "might",
+            "should",
+            "could",
+            "may",
+            "must",
+            "can"
+        ]
+        prediction_requirements = """ requirements: 
+
+            1. Usage of the future verb tense, such as: {future_tense_verbs}.
+            2. Do NOT use past or present tense verbs.
+
+        """
+        return prediction_requirements
