@@ -82,8 +82,8 @@ class TextGenerationModelFactory(ABC):
         elif model_name == 'whisper-large-v3-turbo':
             return WhisperLarge3TurboTextGenerationModel()
         # NaviGator models (GPTs not available anymore)
-        elif model_name == 'gpt-3.5-turbo':
-            return Gpt35TurboTextGenerationModel()
+        elif model_name == 'gpt-oss-120b':
+            return GptOss120TextGenerationModel()
         elif model_name == 'gpt-4o':
             return Gpt4oTextGenerationModel()
         elif model_name == 'llama-3.1-70b-instruct':
@@ -388,7 +388,7 @@ class WhisperLarge3TurboTextGenerationModel(TextGenerationModelFactory):
     def __name__(self):
         return "whisper-large-v3-turbo"
 
-class Gpt35TurboTextGenerationModel(TextGenerationModelFactory):
+class GptOss120TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_name = "NAVI_GATOR"
@@ -400,7 +400,7 @@ class Gpt35TurboTextGenerationModel(TextGenerationModelFactory):
         self.model_name = self.__name__()
     
     def __name__(self):
-        return "gpt-3.5-turbo"
+        return "gpt-oss-120b"
 
 class Gpt4oTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
