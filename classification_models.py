@@ -129,7 +129,7 @@ class SkLearnLinearRegression(SkLearnModelFactory):
         super().__init__()  
 
     def __name__(self):
-        return "Ridge Classifier"
+        return "Linear Regression"
     
     def train_model(self, X, y):
 
@@ -142,7 +142,7 @@ class SkLearnElasticNet(SkLearnModelFactory):
         super().__init__()  
 
     def __name__(self):
-        return "Ridge Classifier"
+        return "Elastic Net"
     
     def train_model(self, X, y):
 
