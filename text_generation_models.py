@@ -67,42 +67,149 @@ class TextGenerationModelFactory(ABC):
     def create_instance(self, model_name):
 
         # Groq Cloud models
-        if model_name == 'distil-whisper-large-v3-en':
-            return DistilWhisperLarge3TextGenerationModel()
-        elif model_name == 'gemma2-9b-it':
-            return Gemma29bTextGenerationModel()
-        elif model_name == 'llama-3.1-8b-instant':
+        # if model_name == 'distil-whisper-large-v3-en':
+        #     return DistilWhisperLarge3TextGenerationModel()
+        # if model_name == 'gemma2-9b-it':
+        #     return Gemma29bTextGenerationModel()
+        if model_name == 'llama-3.1-8b-instant':
             return LlamaInstantTextGenerationModel()
         elif model_name == 'llama-3.3-70b-versatile':
             return LlamaVersatileTextGenerationModel()
-        elif model_name == 'meta-llama/llama-guard-4-12b':
-            return LlamaGuard412bTextGenerationModel()
-        elif model_name == 'whisper-large-v3':
-            return WhisperLarge3TextGenerationModel()
-        elif model_name == 'whisper-large-v3-turbo':
-            return WhisperLarge3TurboTextGenerationModel()
+        # elif model_name == 'meta-llama/llama-guard-4-12b':
+        #     return LlamaGuard412bTextGenerationModel()
+        # elif model_name == 'whisper-large-v3':
+        #     return WhisperLarge3TextGenerationModel()
+        # elif model_name == 'whisper-large-v3-turbo':
+        #       Doesn't support generation
+        #     return WhisperLarge3TurboTextGenerationModel()
         # NaviGator models (GPTs not available anymore)
-        elif model_name == 'gpt-oss-120b':
-            return GptOss120TextGenerationModel()
-        elif model_name == 'gpt-4o':
-            return Gpt4oTextGenerationModel()
+        #       Atuthentication error
+   
+        # elif model_name == 'gpt-4o':
+        #     return Gpt4oTextGenerationModel()
         elif model_name == 'llama-3.1-70b-instruct':
             return Llama3170BInstructTextGenerationModel()
-        elif model_name == 'llama-3.3-70b-instruct':
-            return Llama3370BInstructTextGenerationModel()
-        elif model_name == 'mixtral-8x7b-instruct':
-            return Mixtral87BInstructTextGenerationModel()
         elif model_name == 'llama-3.1-8b-instruct':
             return Llama318BInstructTextGenerationModel()
+        elif model_name == 'llama-3.1-nemotron-nano-8B-v1':
+            return Llama31NemotronNano8BTextGenerationModel()
+        elif model_name == 'llama-3.3-70b-instruct':
+            return Llama3370BInstructTextGenerationModel()
         elif model_name == 'mistral-7b-instruct':
             return Mistral7BInstructTextGenerationModel()     
         elif model_name == 'mistral-small-3.1':
             return MistralSmall31TextGenerationModel()
+        elif model_name == 'codestral-22b':
+            return Codestral22BTextGenerationModel()
+        elif model_name == 'gemma-3-37b-it':
+            return Gemma337bItTextGenerationModel()
+        elif model_name == 'gpt-oss-20b':
+            return GptOss20TextGenerationModel()
+        elif model_name == 'gpt-oss-120b':
+            return GptOss120TextGenerationModel()
+        elif model_name == 'granite-3.3-8b-instruct':
+            return Granite338BInstructTextGenerationModel()
+        elif model_name == 'sfr-embedding-mistral':
+            return SfrEmbeddingMistralTextGenerationModel()
+        elif model_name == 'nomic-embed-text-v1.5':
+            return NomicEmbedTextV15TextGenerationModel()
+        elif model_name == 'flux.1-dev':
+            return Flux1DevTextGenerationModel()
+        elif model_name == 'flux.1-schnell':
+            return Flux1SchnellTextGenerationModel()
+        elif model_name == 'whisper-large-v3':
+            return WhisperLargeV3TextGenerationModel()
+        elif model_name == 'kokoro':
+            return KokoroTextGenerationModel()
+
         # Hugging Face models
         # elif model_name == 'DeepSeek-Prover-V2-7B':
         #     return DeepSeekProverV2TextGenerationModel()
         else:
             raise ValueError(f"Unknown class name: {model_name}")
+    @classmethod
+    def create_instances(self, model_names=None):
+        """
+        Create multiple model instances.
+        
+        Args:
+            model_names: List of model names to create, or None for all models
+            
+        Returns:
+            List of model instances
+        """
+        if model_names is None:
+            # Return all available models
+            model_names = self.get_all_model_names()
+        
+        models = []
+        for model_name in model_names:
+            try:
+                models.append(self.create_instance(model_name))
+            except ValueError as e:
+                print(f"Warning: {e}")
+        
+        return models
+
+    @classmethod
+    def get_all_model_names(self):
+        """Return list of all available model names"""
+        return [
+            # Groq Cloud models
+            'distil-whisper-large-v3-en',
+            'gemma2-9b-it',
+            'llama-3.1-8b-instant',
+            'llama-3.3-70b-versatile',
+            'meta-llama/llama-guard-4-12b',
+            'whisper-large-v3',
+            'whisper-large-v3-turbo',
+            # NaviGator models
+            'gpt-oss-120b',
+            'gpt-4o',
+            'llama-3.1-70b-instruct',
+            'llama-3.3-70b-instruct',
+            'mixtral-8x7b-instruct',
+            'llama-3.1-8b-instruct',
+            'mistral-7b-instruct',
+            'mistral-small-3.1'
+        ]
+    
+    @classmethod
+    def get_groq_model_names(self):
+        """Return list of Groq Cloud model names"""
+        return [
+            'distil-whisper-large-v3-en',
+            'gemma2-9b-it',
+            'llama-3.1-8b-instant',
+            'llama-3.3-70b-versatile',
+            'meta-llama/llama-guard-4-12b',
+            'whisper-large-v3',
+            'whisper-large-v3-turbo'
+        ]
+    
+    @classmethod
+    def get_navigator_model_names(self):
+        """Return list of NaviGator model names"""
+        return [
+            'llama-3.1-70b-instruct',
+            'llama-3.1-8b-instruct',
+            # 'llama-3.1-nemotron-nano-8B-v1',
+            'llama-3.3-70b-instruct',
+            'mistral-7b-instruct',
+            'mistral-small-3.1',
+            'codestral-22b',
+            'gemma-3-27b-it',
+            'gpt-oss-20b',
+            'gpt-oss-120b',
+            'granite-3.3-8b-instruct',
+            # 'sfr-embedding-mistral', # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=sfr-embedding-mistral\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
+            # 'nomic-embed-text-v1.5', # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=nomic-embed-text-v1.5\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
+            # 'flux.1-dev', # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=flux.1-dev\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
+            # 'flux.1-schnell', # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=flux.1-schnell\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
+            # 'whisper-large-v3', # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=whisper-large-v3\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
+            # 'kokoro' # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=kokoro\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
+
+        ]
 
     def assistant(self, content: str) -> Dict:
         """Create an assistant message.
@@ -311,27 +418,27 @@ class TextGenerationModelFactory(ABC):
     def __name__(self):
         pass
 
-class DistilWhisperLarge3TextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "GROQ_CLOUD"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = Groq(api_key=self.api_key)
-        self.model_name = self.__name__()
+# class DistilWhisperLarge3TextGenerationModel(TextGenerationModelFactory):
+#     def __init__(self):
+#         super().__init__()
+#         self.api_name = "GROQ_CLOUD"
+#         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+#         self.client = Groq(api_key=self.api_key)
+#         self.model_name = self.__name__()
 
-    def __name__(self):
-        return "distil-whisper-large-v3-en"
+#     def __name__(self):
+#         return "distil-whisper-large-v3-en"
     
-class Gemma29bTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "GROQ_CLOUD"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = Groq(api_key=self.api_key)
-        self.model_name = self.__name__()
+# class Gemma29bTextGenerationModel(TextGenerationModelFactory):
+#     def __init__(self):
+#         super().__init__()
+#         self.api_name = "GROQ_CLOUD"
+#         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+#         self.client = Groq(api_key=self.api_key)
+#         self.model_name = self.__name__()
 
-    def __name__(self):
-        return "gemma2-9b-it"
+#     def __name__(self):
+#         return "gemma2-9b-it"
     
 class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -499,3 +606,176 @@ class MistralSmall31TextGenerationModel(TextGenerationModelFactory):
 
     def __name__(self):
         return "mistral-small-3.1"
+
+class Codestral22BTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" 
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "codestral-22b"
+
+class NomicEmbedTextV15TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" 
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "nomic-embed-text-v1.5"
+
+class SfrEmbeddingMistralTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu" 
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "sfr-embedding-mistral"
+    
+class GtelargeEnV15TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "gte-large-en-v1.5"
+
+class WhisperLargeV3TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "whisper-large-v3"
+    
+class Flux1SchnellTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "flux.1-schnell"
+    
+
+class Flux1DevTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "flux.1-dev"
+    
+
+class Granite338BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "granite-3.3-8b-instruct"
+
+class Llama31NemotronNano8BTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "llama-3.1-nemotron-nano-8B-v1"
+    
+
+class Gemma337bItTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "gemma-3-27b-it"
+    
+
+
+class GptOss20TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "gpt-oss-20b"
+    
+class KokoroTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key= self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+            )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "kokoro"

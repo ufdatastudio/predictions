@@ -46,7 +46,14 @@ X_test_df.head(7)
 # %%
 y_test_df = DataProcessing.load_from_file(y_test_set_path, 'csv')
 y_test_df.drop(columns=['Unnamed: 0'], inplace=True)
-print(f"\t{y_test_df.head(7)}")
+# print(f"\t{y_test_df.head(7)}")
+
+# %%
+print(f"\tShape: {X_test_df.shape}, \nSubset of Data:{X_test_df.head(7)}")
+# df.shape, df.head(3)
+
+print(f"\tShape: {y_test_df.shape}, \nSubset of Data:{y_test_df.head(7)}")
+# df.shape, df.head(3)
 
 # %% [markdown]
 # ## Load Prompt
@@ -86,10 +93,10 @@ You are a linguist expert. You are acting as a prediction detector. Your task is
 Background:
 A prediction is a statement about what someone thinks will happen in the future.
 Examples of predictions:
-- "It will rain tomorrow."
-- "The stock market is expected to rise next quarter."
-- "I am going to the store."
-- “Lakers will win the championship.”
+- "It will rain tomorrow." (Yes)
+- "The stock market is expected to rise next quarter." (Yes)
+- "I am going to the store." (No)
+- “Lakers will win the championship. ”(Yes)
 
 A prediction may contain: source, target, date, outcome.
 """
@@ -100,19 +107,22 @@ A prediction may contain: source, target, date, outcome.
 # %%
 tgmf = TextGenerationModelFactory()
 
+# Option 1: Specific models
+# models = tgmf.create_instances(['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'])
 
-# Groq Cloud (https://console.groq.com/docs/overview)
-llama_318b_instant_generation_model = tgmf.create_instance('llama-3.1-8b-instant') 
-llama_3370b_versatile_generation_model = tgmf.create_instance('llama-3.3-70b-versatile')  
+# Option 2: All Groq models
+# models = tgmf.create_instances(tgmf.get_groq_model_names())
 
-# models  = [llama_318b_instant_generation_model]
-models  = [llama_318b_instant_generation_model, llama_3370b_versatile_generation_model]
+# Option 3: All NaviGator models
+models = tgmf.create_instances(tgmf.get_navigator_model_names())
 
+# Option 4: All available models
+# models = tgmf.create_instances()
 
-# NaviGator
-# llama_31_70b_instruct = tgmf.create_instance('llama-3.1-70b-instruct') 
-# mistral_small_31 = tgmf.create_instance('mistral-small-3.1') 
-# models = [llama_31_70b_instruct, mistral_small_31]
+# Option 5: Mix and match
+# custom_models = ['llama-3.1-70b-instruct', 'mistral-small-3.1', 'llama-3.1-8b-instant']
+# models = tgmf.create_instances(custom_models)
+models
 
 # %%
 import json
@@ -158,14 +168,15 @@ def llm_certifier(data: str, base_prompt: str, model):
 print("======= PROMPT + MODEL -> LABEL and REASONING =======")
 
 # %%
-# content : meta :: text : meta_data
+    # content : meta :: text : meta_data
 results = []
 for idx, row in X_test_df.iterrows():
     text = row['Base Sentence']
-    print('\t', idx, text)
+    print(f"{idx}\n Sentence: {text}")
     for model in models:
+        # print(model.__name__())
         raw_response, llm_label, llm_reasoning = llm_certifier(text, prompt_1, model)
-        print('\t\t', model.__name__(), '--- Label:', llm_label, '--- Reasoning:', llm_reasoning)
+        print(f"\tModel: {model.__name__()}\n\t\tLabel:', {llm_label}\n\t\tReasoning:', {llm_reasoning}")
         result = (text, raw_response, llm_label, llm_reasoning, model.__name__())
         results.append(result)
 
@@ -174,8 +185,14 @@ for idx, row in X_test_df.iterrows():
 results
 
 # %%
+# groupby text
+
+# %%
 results_with_llm_label_df = pd.DataFrame(results, columns=['text', 'raw_response', 'llm_label', 'llm_reasoning', 'llm_name'])
 results_with_llm_label_df
+
+# %%
+y_test_df.rename(columns={'Sentence Label' : 'Actual Label'}, inplace=True)
 
 # %%
 def get_llm_labels(df, model_name):
@@ -183,19 +200,14 @@ def get_llm_labels(df, model_name):
     filt_df = df[filt_llama]
     return filt_df['llm_label']
 
-llama_instant_labels = get_llm_labels(results_with_llm_label_df, 'llama-3.1-8b-instant')
-llama_versatile_labels = get_llm_labels(results_with_llm_label_df, 'llama-3.3-70b-versatile')
-print(f"\tllama-3.1-8b-instant: {llama_instant_labels}")
-print(f"\tllama-3.3-70b-versatile: {llama_versatile_labels}")
 
-# %%
-model_predictions_df = pd.concat([X_test_df['Base Sentence'], y_test_df], axis=1)
-model_predictions_df.columns = ['Sentence', 'Actual Label']
-model_predictions_df['Instant'] = llama_instant_labels.to_numpy().ravel()
-model_predictions_df['Versatile Label'] = llama_versatile_labels.to_numpy().ravel()
-model_predictions_df
-
-# print(f"{model_predictions_df}")
+test_and_models_df = pd.concat([X_test_df.loc[:, :], y_test_df], axis=1)
+# test_and_models_df.columns = ['Sentence', 'Actual Label']
+for model in models:
+    print(model.__name__())
+    model_labels = get_llm_labels(results_with_llm_label_df, model.__name__())
+    test_and_models_df[model.__name__()] = model_labels.to_numpy().ravel()
+test_and_models_df
 
 # %% [markdown]
 # ## Evaluation
@@ -208,12 +220,13 @@ get_metrics = EvaluationMetric()
 get_metrics
 
 # %%
-metrics = get_metrics.eval_classification_report(y_test_df, llama_instant_labels)
-metrics
-
-# %%
-metrics = get_metrics.eval_classification_report(y_test_df, llama_versatile_labels)
-metrics
+actual_label = test_and_models_df['Actual Label'].values
+for ml_model in models:
+    ml_model_name = ml_model.__name__()
+    print(f"Actual Label:\t\t{actual_label}")
+    ml_model_predictions = test_and_models_df[ml_model_name].values
+    print(f"{ml_model_name}:\t\t{ml_model_predictions}")
+    get_metrics.eval_classification_report(y_test_df, ml_model_predictions)
 
 # %%
 
