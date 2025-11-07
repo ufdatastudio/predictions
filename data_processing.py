@@ -515,7 +515,7 @@ class DataProcessing:
             print(f"The json file is saving at: {file_path}")
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
-        elif save_file_type == 'csv':
+        elif save_file_type == 'csv' or save_file_type == '.csv':
             file_name = f"{prefix}-v{next_number}.csv"
             file_path = os.path.join(path, file_name)
             data.to_csv(file_path)
