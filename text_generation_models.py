@@ -195,7 +195,7 @@ class TextGenerationModelFactory(ABC):
         return [
             'llama-3.1-70b-instruct',
             'llama-3.1-8b-instruct',
-            # 'llama-3.1-nemotron-nano-8B-v1',
+            # 'llama-3.1-nemotron-nano-8B-v1', BadRequestError: Error code: 400 - {'error': {'message': "{'error': '/chat/completions: Invalid model name passed in model=llama-3.1-nemotron-nano-8B-v1. Call `/v1/models` to view available models for your key.'}", 'type': 'None', 'param': 'None', 'code': '400'}}
             'llama-3.3-70b-instruct',
             'mistral-7b-instruct',
             'mistral-small-3.1',
