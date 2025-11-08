@@ -44,3 +44,6 @@ data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/data_level0
 *.sqlite3
 /data/text_classification_tutorial
 /notebook_experiments/my_awesome_model
+data/dataset/train.json
+data/dataset/dev.json
+data/dataset/test.json
