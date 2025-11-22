@@ -560,3 +560,20 @@ class DataProcessing:
         print(row)
         df = pd.DataFrame(value, index=row)
         return df
+    
+    def load_single_synthetic_data(notebook_dir: str, predictions: bool = True, batch_idx: int = 7):
+        if predictions == True:
+            base_data_path = os.path.join(notebook_dir, "../data")
+            predictions_data = os.path.join(base_data_path, f"prediction_logs/batch_{batch_idx}-prediction")
+            prediction_file_path = os.path.join(predictions_data, f"batch_{batch_idx}-from_df.csv")
+            print(prediction_file_path)
+            df = DataProcessing.load_from_file(prediction_file_path, 'csv')
+            return df
+        else:
+            base_data_path = os.path.join(notebook_dir, "../data")
+            observations_data = os.path.join(base_data_path, f"observation_logs/batch_{batch_idx}-observation")
+            observation_file_path = os.path.join(observations_data, f"batch_{batch_idx}-from_df.csv")
+            print(observation_file_path)
+            df = DataProcessing.load_from_file(observation_file_path, 'csv')
+            return df
+            
