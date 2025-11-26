@@ -579,7 +579,6 @@ class DataProcessing:
         
     # def load_all_synthetic_data(notebook_dir: str, predictions: bool = True):
             
-    @staticmethod
     def _build_batch_path(notebook_dir: str, data_type: str, batch_idx: int) -> str:
         """
         Build the file path for a specific batch.
@@ -608,7 +607,6 @@ class DataProcessing:
         
         return os.path.join(base_data_path, data_folder, batch_folder, file_name)
 
-    @staticmethod
     def load_single_synthetic_data(notebook_dir: str, batch_idx: int, sep: str, data_type: str = 'prediction') -> pd.DataFrame:
         """
         Load a single batch of synthetic data.
@@ -633,7 +631,6 @@ class DataProcessing:
         df = DataProcessing.load_from_file(file_path, 'csv', sep)
         return df
 
-    @staticmethod
     def load_multiple_batches(notebook_dir: str, sep: str, data_type: str = 'prediction', 
                             batch_indices: list = None, start_idx: int = 1, 
                             end_idx: int = None) -> pd.DataFrame:
@@ -723,3 +720,46 @@ class DataProcessing:
         print(f"Total rows: {len(combined_df)}")
         
         return combined_df
+
+    def match_text_label_to_int(df: pd.DataFrame, text_label_col_name: str, 
+                            target_label: str = 'PREDICTION',
+                            int_label_col_name: str = 'Binary Label') -> pd.DataFrame:
+        """
+        Convert text labels to integer labels (binary classification).
+        
+        Parameters:
+        -----------
+        df : pd.DataFrame
+            DataFrame containing the text labels
+        text_label_col_name : str
+            Name of the column containing text labels (e.g., 'maya_label')
+        target_label : str
+            The label to encode as 1. Default is 'PREDICTION'.
+            Common values: 'PREDICTION', 'NON-PREDICTION', 'OBSERVATION', 'NON-OBSERVATION'
+        int_label_col_name : str
+            Name for the new integer label column. Default is 'Binary Label'.
+        
+        Returns:
+        --------
+        pd.DataFrame
+            DataFrame with added integer label column where:
+            - 1 = matches the target_label
+            - 0 = does not match the target_label
+        """
+        # Create a copy to avoid modifying the original
+        result_df = df.copy()
+        
+        # Create filter for matching labels
+        filt_match = (result_df[text_label_col_name] == target_label)
+        
+        # Create two dataframes: matches and non-matches
+        match_df = result_df[filt_match].copy()
+        match_df[int_label_col_name] = 1
+        
+        non_match_df = result_df[~filt_match].copy()
+        non_match_df[int_label_col_name] = 0
+        
+        # Concatenate and return
+        numerical_labels_df = DataProcessing.concat_dfs([match_df, non_match_df])
+        
+        return numerical_labels_df
