@@ -522,7 +522,7 @@ class DataProcessing:
 
         print(f"Saved to: \n\t{file_path}")
 
-    def load_from_file(path: str, save_file_type: str = 'json'):
+    def load_from_file(path: str, file_type: str = 'json', sep = "\t", encoding = 'utf-8'):
         """Load data from directory
         
         Parameters
@@ -539,8 +539,8 @@ class DataProcessing:
 
         """
         
-        if save_file_type == 'csv': 
-            df = pd.read_csv(path)
+        if file_type == 'csv': 
+            df = pd.read_csv(path, sep=sep, encoding=encoding)
             return df
 
     def remove_duplicates(df):
@@ -561,19 +561,165 @@ class DataProcessing:
         df = pd.DataFrame(value, index=row)
         return df
     
-    def load_single_synthetic_data(notebook_dir: str, predictions: bool = True, batch_idx: int = 7):
-        if predictions == True:
-            base_data_path = os.path.join(notebook_dir, "../data")
-            predictions_data = os.path.join(base_data_path, f"prediction_logs/batch_{batch_idx}-prediction")
-            prediction_file_path = os.path.join(predictions_data, f"batch_{batch_idx}-from_df.csv")
-            print(prediction_file_path)
-            df = DataProcessing.load_from_file(prediction_file_path, 'csv')
-            return df
-        else:
-            base_data_path = os.path.join(notebook_dir, "../data")
-            observations_data = os.path.join(base_data_path, f"observation_logs/batch_{batch_idx}-observation")
-            observation_file_path = os.path.join(observations_data, f"batch_{batch_idx}-from_df.csv")
-            print(observation_file_path)
-            df = DataProcessing.load_from_file(observation_file_path, 'csv')
-            return df
+    # def load_single_synthetic_data(notebook_dir: str, predictions: bool = True, batch_idx: int = 7):
+    #     if predictions == True:
+    #         base_data_path = os.path.join(notebook_dir, "../data")
+    #         predictions_data = os.path.join(base_data_path, f"prediction_logs/batch_{batch_idx}-prediction")
+    #         prediction_file_path = os.path.join(predictions_data, f"batch_{batch_idx}-from_df.csv")
+    #         print(prediction_file_path)
+    #         df = DataProcessing.load_from_file(prediction_file_path, 'csv')
+    #         return df
+    #     else:
+    #         base_data_path = os.path.join(notebook_dir, "../data")
+    #         observations_data = os.path.join(base_data_path, f"observation_logs/batch_{batch_idx}-observation")
+    #         observation_file_path = os.path.join(observations_data, f"batch_{batch_idx}-from_df.csv")
+    #         print(observation_file_path)
+    #         df = DataProcessing.load_from_file(observation_file_path, 'csv')
+    #         return df
+        
+    # def load_all_synthetic_data(notebook_dir: str, predictions: bool = True):
             
+    @staticmethod
+    def _build_batch_path(notebook_dir: str, data_type: str, batch_idx: int) -> str:
+        """
+        Build the file path for a specific batch.
+        
+        Parameters:
+        -----------
+        notebook_dir : str
+            Base notebook directory
+        data_type : str
+            Either 'prediction' or 'observation'
+        batch_idx : int
+            Batch index number
+        
+        Returns:
+        --------
+        str
+            Full path to the batch CSV file
+        """
+        if data_type not in ['prediction', 'observation']:
+            raise ValueError("data_type must be either 'prediction' or 'observation'")
+        
+        base_data_path = os.path.join(notebook_dir, "../data")
+        batch_folder = f"batch_{batch_idx}-{data_type}"
+        data_folder = f"{data_type}_logs"
+        file_name = f"batch_{batch_idx}-from_df.csv"
+        
+        return os.path.join(base_data_path, data_folder, batch_folder, file_name)
+
+    @staticmethod
+    def load_single_synthetic_data(notebook_dir: str, batch_idx: int, sep: str, data_type: str = 'prediction') -> pd.DataFrame:
+        """
+        Load a single batch of synthetic data.
+        
+        Parameters:
+        -----------
+        notebook_dir : str
+            Base notebook directory
+        data_type : str
+            Either 'prediction' or 'observation'. Default is 'prediction'.
+        batch_idx : int
+            Batch index number to load. Default is 7.
+        
+        Returns:
+        --------
+        pd.DataFrame
+            DataFrame containing the batch data
+        """
+        file_path = DataProcessing._build_batch_path(notebook_dir, data_type, batch_idx)
+        print(f"Loading: {file_path}")
+        
+        df = DataProcessing.load_from_file(file_path, 'csv', sep)
+        return df
+
+    @staticmethod
+    def load_multiple_batches(notebook_dir: str, sep: str, data_type: str = 'prediction', 
+                            batch_indices: list = None, start_idx: int = 1, 
+                            end_idx: int = None) -> pd.DataFrame:
+        """
+        Load multiple batches of synthetic data and concatenate them.
+        
+        Parameters:
+        -----------
+        notebook_dir : str
+            Base notebook directory
+        data_type : str
+            Either 'prediction' or 'observation'. Default is 'prediction'.
+        batch_indices : list, optional
+            Specific list of batch indices to load. If provided, start_idx and end_idx are ignored.
+        start_idx : int, optional
+            Starting batch index (inclusive). Default is 1.
+        end_idx : int, optional
+            Ending batch index (inclusive). If None, automatically detects the last available batch.
+        
+        Returns:
+        --------
+        pd.DataFrame
+            Concatenated DataFrame containing all batch data
+        """
+        if data_type not in ['prediction', 'observation']:
+            raise ValueError("data_type must be either 'prediction' or 'observation'")
+        
+        # Determine which batches to load
+        if batch_indices is not None:
+            indices = batch_indices
+        else:
+            # Auto-detect the number of available batches if end_idx is None
+            if end_idx is None:
+                base_data_path = os.path.join(notebook_dir, "../data")
+                log_directory = os.path.join(base_data_path, f"{data_type}_logs")
+                
+                if not os.path.exists(log_directory):
+                    raise FileNotFoundError(f"Directory not found: {log_directory}")
+                
+                # Count directories that match the pattern batch_N-{data_type}
+                batch_dirs = [d for d in os.listdir(log_directory) 
+                            if os.path.isdir(os.path.join(log_directory, d)) 
+                            and d.startswith('batch_') 
+                            and d.endswith(f'-{data_type}')]
+                
+                if not batch_dirs:
+                    raise ValueError(f"No batch directories found in {log_directory}")
+                
+                # Extract batch numbers and find the maximum
+                batch_numbers = []
+                for d in batch_dirs:
+                    try:
+                        num = int(d.split('_')[1].split('-')[0])
+                        batch_numbers.append(num)
+                    except (IndexError, ValueError):
+                        continue
+                
+                end_idx = max(batch_numbers) if batch_numbers else start_idx
+            
+            indices = range(start_idx, end_idx + 1)
+        
+        # Load all batches
+        dfs = []
+        for idx in indices:
+            try:
+                df = DataProcessing.load_single_synthetic_data(
+                    notebook_dir=notebook_dir, 
+                    batch_idx = idx,
+                    sep=sep,
+                    data_type=data_type, 
+                    )
+                dfs.append(df)
+                print(f"✓ Loaded batch {idx}")
+            except FileNotFoundError:
+                print(f"⚠ Warning: Batch {idx} not found, skipping...")
+                continue
+            except Exception as e:
+                print(f"⚠ Error loading batch {idx}: {e}")
+                continue
+        
+        if not dfs:
+            raise ValueError("No batches were successfully loaded")
+        
+        # Concatenate all dataframes
+        combined_df = DataProcessing.concat_dfs(dfs)
+        print(f"\nSuccessfully loaded and combined {len(dfs)} batches")
+        print(f"Total rows: {len(combined_df)}")
+        
+        return combined_df
