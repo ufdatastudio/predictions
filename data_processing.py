@@ -474,17 +474,38 @@ class DataProcessing:
         """
         numbers = []
         for name in os.listdir(directory):
+            # print(f"Found file: {name}")
+            
             if name.startswith(prefix) and name.endswith(extensions):
                 try:
-                    # Assumes format: prefix-N.ext (e.g., siteA-3.json)
-                    number_part = name[len(prefix)+1:].split('.')[0]  # +1 for the dash
+                    # Assumes format: prefix-vN.ext (e.g., siteA-v3.json)
+                    # Extract the part between prefix and extension
+                    after_prefix = name[len(prefix):]  # e.g., "-v3.json"
+                    
+                    # Remove the extension
+                    without_ext = after_prefix.rsplit('.', 1)[0]  # e.g., "-v3"
+                    
+                    # Extract just the number (handle both "-v3" and "-3" formats)
+                    if without_ext.startswith('-v'):
+                        number_part = without_ext[2:]  # Remove "-v"
+                    elif without_ext.startswith('-'):
+                        number_part = without_ext[1:]  # Remove "-"
+                    else:
+                        continue
+                    
+                    # print(f"Extracted number part: {number_part}")
                     number = int(number_part)
                     numbers.append(number)
-                except ValueError:
+                    # print(f"Added number: {number}")
+                    
+                except (ValueError, IndexError) as e:
+                    print(f"Skipping {name}: {e}")
                     continue
-                    # print(ValueError)
-        return max(numbers, default=0) + 1
-    
+        
+        next_num = max(numbers, default=0) + 1
+        # print(f"Next file number will be: {next_num}")
+        return next_num
+
     def save_to_file(data, path: str, prefix: str, save_file_type: str):
         """ 
         Save data to any file with an incremented filename based on existing files.
@@ -508,19 +529,22 @@ class DataProcessing:
         """
         os.makedirs(path, exist_ok=True)
         next_number = DataProcessing.get_next_file_number(path, prefix)
+        print(f"Using file number: {next_number}")
+        
         if save_file_type == 'json':
             file_name = f"{prefix}-v{next_number}.json"
             file_path = os.path.join(path, file_name)
-            # os.makedirs(file_path, exist_ok=True)
-            print(f"The json file is saving at: {file_path}")
+            print(f"Saving JSON file to: {file_path}")
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
         elif save_file_type == 'csv' or save_file_type == '.csv':
             file_name = f"{prefix}-v{next_number}.csv"
             file_path = os.path.join(path, file_name)
-            data.to_csv(file_path)
-
-        print(f"Saved to: \n\t{file_path}")
+            print(f"Saving CSV file to: {file_path}")
+            data.to_csv(file_path, index=False)
+        else:
+            raise ValueError(f"Unsupported file type: {save_file_type}")
+        # print(f"Saved to: \n\t{file_path}")
 
     def load_from_file(path: str, file_type: str = 'json', sep = "\t", encoding = 'utf-8'):
         """Load data from directory
