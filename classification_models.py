@@ -3,6 +3,9 @@ import sklearn
 from abc import ABC, abstractmethod
 
 from sklearn.linear_model import Perceptron, SGDClassifier, LogisticRegression, RidgeClassifier, LinearRegression, ElasticNet
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 
@@ -63,7 +66,11 @@ class SkLearnModelFactory(ABC):
             "logistic_regression": SkLearnLogisticRegression(),
             "ridge_classifier": SkLearnRidgeClassifier(),
             "linear_regression": SkLearnLinearRegression(),
-            "elastic_net": SkLearnElasticNet()
+            "elastic_net": SkLearnElasticNet(),
+            "decision_tree_classifier": SkLearnDecisionTreeClassifier(),
+            "random_forest_classifier": SkLearnRandomForestClassifier(),
+            "gradient_boosting_classifier": SkLearnGradientBoostingClassifier(),
+            "support_vector_machine_classifier": SkLearnSVC()
         }
 
         if model_name in models:
@@ -149,6 +156,59 @@ class SkLearnElasticNet(SkLearnModelFactory):
         self.classifer = ElasticNet() # instantiate the model
         self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
 
+class SkLearnDecisionTreeClassifier(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Decision Tree"
+    
+    def train_model(self, X, y):
+
+        self.classifer = DecisionTreeClassifier() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+
+class SkLearnRandomForestClassifier(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Random Forest"
+    
+    def train_model(self, X, y):
+
+        self.classifer = RandomForestClassifier() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+
+class SkLearnGradientBoostingClassifier(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Gradient Boosting Machine"
+    
+    def train_model(self, X, y):
+
+        self.classifer = GradientBoostingClassifier() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+
+class SkLearnSVC(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Support Vector Machine"
+    
+    def train_model(self, X, y):
+
+        self.classifer = SVC() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+
+
 class EvaluationMetric:
 
     def eval_accuracy(self, y_true, y_prediction):
@@ -181,7 +241,9 @@ class EvaluationMetric:
         return metrics_dict
 
     def eval_classification_report(self, y_true, y_prediction):
-        print(classification_report(y_true, y_prediction))
+        # print(classification_report(y_true, y_prediction))
+
+        return classification_report(y_true, y_prediction)
 
 def train_and_evaluate_model(model_name, X_train, y_train, X_test, y_test):
     """
