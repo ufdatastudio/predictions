@@ -4,9 +4,7 @@
 *.log
 *.csv
 /data/misc
-/data/observation_logs
 /data/others
-/data/predictions_logs
 *.DS_Store
 misc/open_data.ipynb
 *.png
@@ -27,7 +25,6 @@ misc/predictionsFrameworkDiagram
 /data/open_measures
 /data/tiktok_comments
 /data/bbc
-/data/financial_phrase_bank
 /data/reddit_pushshift_archives
 /data/twitter
 /data/webz
