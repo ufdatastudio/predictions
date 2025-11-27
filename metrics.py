@@ -51,6 +51,17 @@ class EvaluationMetric:
         frequency_table = pd.crosstab(df[rater_1_col_name], df[rater_2_col_name])
         return cohens_kappa(frequency_table)
     
+    def get_fleiss_kappa(self, df, col_names):
+        df = df.loc[:, col_names]
+        stacked = df.stack().reset_index()
+        # print(stacked)
+        stacked.columns = ['Subject to Rate', 'Rater', 'Value']
+
+        # Crosstab: rows = Subject, columns = Category, values = counts
+        freq_table = pd.crosstab(stacked['Subject to Rate'], stacked['Value'])
+        # print(freq_table)
+        return fleiss_kappa(freq_table)
+    
     def calculate_pairwise_cohens_kappa(self, df: pd.DataFrame, model_names: list, 
                                     model_type: str = 'Model', print_bool: bool = False) -> pd.DataFrame:
         """
