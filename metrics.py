@@ -50,6 +50,48 @@ class EvaluationMetric:
     def get_cohens_kappa(self, df, rater_1_col_name, rater_2_col_name):
         frequency_table = pd.crosstab(df[rater_1_col_name], df[rater_2_col_name])
         return cohens_kappa(frequency_table)
+    
+    def calculate_pairwise_cohens_kappa(self, df: pd.DataFrame, model_names: list, 
+                                    model_type: str = 'Model', print_bool: bool = False) -> pd.DataFrame:
+        """
+        Calculate Cohen's Kappa for all unique pairs of models.
+        
+        Parameters:
+        -----------
+        df : pd.DataFrame
+            DataFrame containing model predictions
+        model_names : list
+            List of column names for models to compare
+        model_type : str, optional
+            Description for printing (e.g., 'ML', 'LLM'). Default is 'Model'.
+        
+        Returns:
+        --------
+        pd.DataFrame
+            DataFrame with all pairwise Cohen's Kappa scores
+        """
+        from itertools import combinations
+        
+        cohens_kappa_scores = []
+        
+        if print_bool == True:
+            print(f"\n{'='*60}")
+            print(f"{model_type} Models - Cohen's Kappa Scores")
+            print(f"{'='*60}")
+        
+        for model_1, model_2 in combinations(model_names, 2):
+            scores = self.get_cohens_kappa(df, model_1, model_2)
+            kappa_value = round(scores.kappa, 2)
+            
+            cohens_kappa_scores.append({
+                'Model 1': model_1,
+                'Model 2': model_2,
+                "Cohen's Kappa": kappa_value
+            })
+            if print_bool == True:
+                print(f"Cohen's Kappa ({model_1} x {model_2}): {kappa_value}")
+    
+        return pd.DataFrame(cohens_kappa_scores)
 
     def train_and_evaluate_model(model_name, X_train, y_train, X_test, y_test):
         """
