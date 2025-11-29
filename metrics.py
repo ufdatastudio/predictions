@@ -43,9 +43,9 @@ class EvaluationMetric:
         return metrics_dict
 
     def eval_classification_report(self, y_true, y_prediction):
-        # print(classification_report(y_true, y_prediction))
+        print(classification_report(y_true, y_prediction))
 
-        return classification_report(y_true, y_prediction)
+        return classification_report(y_true, y_prediction,  output_dict=True)
     
     def get_cohens_kappa(self, df, rater_1_col_name, rater_2_col_name):
         frequency_table = pd.crosstab(df[rater_1_col_name], df[rater_2_col_name])
