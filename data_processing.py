@@ -59,6 +59,9 @@ class DataProcessing:
             Column name (preferred) or positional index in `cols_with_labels` to use for stratification.
             If None and `stratify=True`, defaults to the first label column (index 0).
             If `stratify=False`, this is ignored.
+            If there exists multi-variate wrt columns,
+                - **Me:** Can still choose the one that's imbalanced more and the not as much imbalanced columns will split based on the one that's the most imbalance.
+                - **Copilot:** Stratify on the column with the greatest imbalance or the one most critical for model performance. This ensures that rare classes in that column are preserved across train and test sets. Other label columns will split based on the same indices, which may slightly alter their original ratios.
 
         Returns
         -------

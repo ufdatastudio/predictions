@@ -48,13 +48,13 @@ class SkLearnModelFactory(ABC):
     def select_model(model_name: str):
         """Select a model based on the provided model name
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         model_name: `str`
             The name of the model to select
         
-        Returns:
-        --------
+        Returns
+        -------
         object
             An instance of the selected model
         """
