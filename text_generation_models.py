@@ -77,15 +77,10 @@ class TextGenerationModelFactory(ABC):
             return LlamaInstantTextGenerationModel()
         elif model_name == 'llama-3.3-70b-versatile':
             return LlamaVersatileTextGenerationModel()
-        # elif model_name == 'meta-llama/llama-guard-4-12b':
-        #     return LlamaGuard412bTextGenerationModel()
-        # elif model_name == 'whisper-large-v3':
-        #     return WhisperLarge3TextGenerationModel()
-        # elif model_name == 'whisper-large-v3-turbo':
-        #       Doesn't support generation
-        #     return WhisperLarge3TurboTextGenerationModel()
-        # NaviGator models (GPTs not available anymore)
-        #       Atuthentication error
+        elif model_name == 'openai/gpt-oss-120b':
+            return GptOss120bTextGenerationModel()
+        elif model_name == 'openai/gpt-oss-20b':
+            return GptOss20bTextGenerationModel()
    
         # elif model_name == 'gpt-4o':
         #     return Gpt4oTextGenerationModel()
@@ -180,11 +175,8 @@ class TextGenerationModelFactory(ABC):
     def get_groq_model_names(self):
         """Return list of Groq Cloud model names"""
         return [
-            'distil-whisper-large-v3-en',
-            'gemma2-9b-it',
-            'llama-3.1-8b-instant',
-            'llama-3.3-70b-versatile',
-            'meta-llama/llama-guard-4-12b',
+            'openai/gpt-oss-120b',
+            'openai/gpt-oss-20b',
             'whisper-large-v3',
             'whisper-large-v3-turbo'
         ]
@@ -465,7 +457,7 @@ class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):
     def __name__(self):
         return "llama-3.3-70b-versatile"
 
-class LlamaGuard412bTextGenerationModel(TextGenerationModelFactory):
+class GptOss120bTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_name = "GROQ_CLOUD"
@@ -474,7 +466,18 @@ class LlamaGuard412bTextGenerationModel(TextGenerationModelFactory):
         self.model_name = self.__name__()
 
     def __name__(self):
-        return "meta-llama/llama-guard-4-12b"
+        return "openai/gpt-oss-120b"
+    
+class GptOss20bTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "GROQ_CLOUD"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = Groq(api_key=self.api_key)
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "openai/gpt-oss-20b"
 
 class WhisperLarge3TextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
