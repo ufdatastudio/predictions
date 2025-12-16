@@ -51,6 +51,7 @@ class BaseVectorStoreMixin(ABC):
             """)
 
 class BaseVectorStoreBuilder(BaseVectorStoreMixin):
+    
     def __init__(self):
         self.vector_store = None
         self.documents = []
@@ -102,9 +103,9 @@ class BaseVectorStoreBuilder(BaseVectorStoreMixin):
     @abstractmethod
     def load_vector_store(self):
         pass
-    
 
 class BaseVectorStoreLoader(BaseVectorStoreMixin):
+    
     def __init__(self):
         self.client = None
     
@@ -112,7 +113,8 @@ class BaseVectorStoreLoader(BaseVectorStoreMixin):
         self.__init__() # Resets all properties to their initial state
     
     def load_vector_store(self):
-        self.client = client
+        # self.client = client
+        pass
     
 class ChromaVectorStore(BaseVectorStoreBuilder, BaseVectorStoreLoader):
     
@@ -159,44 +161,101 @@ class ChromaVectorStore(BaseVectorStoreBuilder, BaseVectorStoreLoader):
             )
             print(f"\tVector Store (Original): {self.vector_store}")
     
-    def query_vector_store(self, query_string, k):
+    def query_vector_store(self, query_string: str, k: int, query_search_type: str) -> dict:
+        """
+        Query the vector store using specified search methods and return structured results.
+        
+        Parameters
+        ----------
+        query_string : str
+            The query text to search for in the vector store
+        k : int
+            Number of top results to return for each search method
+        query_search_type : str
+            Type of search to perform. Options are:
+            - 'similarity': Basic similarity search
+            - 'similarity_with_score': Similarity search with relevance scores
+            - 'similarity_by_vector': Similarity search using embedded query vector
+            - 'retriever': MMR-based retriever search
+            - 'all': Execute all search methods
+        
+        Returns
+        -------
+        dict
+            Dictionary containing search results with the following possible keys:
+            - 'similarity_search': List of dicts with 'page_content' and 'metadata'
+            - 'similarity_with_score': List of dicts with 'page_content', 'metadata', and 'score'
+            - 'similarity_by_vector': List of dicts with 'page_content' and 'metadata'
+            - 'retriever': List of dicts with 'page_content' and 'metadata'
+            
+            Each result dict contains:
+                page_content : str
+                    The text content of the retrieved document
+                metadata : dict
+                    Metadata associated with the document
+                score : float (only in similarity_with_score)
+                    Relevance score for the document
+        
+        Examples
+        --------
+        >>> results = self.query_vector_store("What is AI?", k=5, query_search_type="all")
+        >>> results = self.query_vector_store("Machine learning", k=3, query_search_type="similarity_with_score")
+        """
         query_results = {}
-        similarity_search_results = []
-        similarity_with_score_results = []
-        similarity_by_vector_results = []
-        retriever_results = []
         
-        print("\t1. Similarity")
-        results = self.vector_store.similarity_search(query_string, k=k)
-        for res in results:
-            # print(f"\t\t* {res.page_content} [{res.metadata}]\n-------\n")
-            similarity_search_results.append(res.page_content)
-            query_results['similarity_search'] = similarity_search_results
-
-        print("\t2. Similarity with score")
-        results = self.vector_store.similarity_search_with_score(query_string, k=k)
-        for res, score in results:
-            # print(f"\t\t* [SIM={score:3f}] {res.page_content} [{res.metadata}]\n-------\n")
-            results_with_score = (res.page_content, f"{score:3f}")
-            similarity_with_score_results.append(results_with_score)
-            query_results['similarity_with_score'] = similarity_with_score_results
+        if query_search_type in ["similarity", "all"]:
+            print("\t1. Similarity")
+            results = self.vector_store.similarity_search(query_string, k=k)
+            query_results['similarity_search'] = [
+                {
+                    "page_content": res.page_content,
+                    "metadata": res.metadata
+                }
+                for res in results
+            ]
         
-        print("\t3. Similarity by vector")
-        results = self.vector_store.similarity_search_by_vector(embedding=self.embedding_model.embed_query(query_string), k=k)
-        for doc in results:
-            # print(f"\t\t* {doc.page_content} [{doc.metadata}]\n-------\n")
-            similarity_by_vector_results.append(doc.page_content)
-            query_results['similarity_by_vector'] = similarity_by_vector_results
-    
-        print("\t4. Retriever")
-        retriever = self.vector_store.as_retriever(search_type="mmr", search_kwargs={"k": k, "fetch_k": k})
-        retriever.invoke(query_string)
-        # print(f"\t\t* {retriever}\n-------\n")
-        retriever_results.append(retriever)
-        query_results['retriever'] = retriever_results
+        if query_search_type in ["similarity_with_score", "all"]:
+            print("\t2. Similarity with score")
+            results = self.vector_store.similarity_search_with_score(query_string, k=k)
+            query_results['similarity_with_score'] = [
+                {
+                    "page_content": res.page_content,
+                    "metadata": res.metadata,
+                    "score": float(score)
+                }
+                for res, score in results
+            ]
+        
+        if query_search_type in ["similarity_by_vector", "all"]:
+            print("\t3. Similarity by vector")
+            results = self.vector_store.similarity_search_by_vector(
+                embedding=self.embedding_model.embed_query(query_string), 
+                k=k
+            )
+            query_results['similarity_by_vector'] = [
+                {
+                    "page_content": doc.page_content,
+                    "metadata": doc.metadata
+                }
+                for doc in results
+            ]
+        
+        if query_search_type in ["retriever", "all"]:
+            print("\t4. Retriever")
+            retriever = self.vector_store.as_retriever(
+                search_type="mmr", 
+                search_kwargs={"k": k, "fetch_k": k}
+            )
+            results = retriever.invoke(query_string)
+            query_results['retriever'] = [
+                {
+                    "page_content": doc.page_content,
+                    "metadata": doc.metadata
+                }
+                for doc in results
+            ]
         
         return query_results
-    
     
     def rephraser_with_llm(self, prompt: str, llm_model_name: str = 'mistral-small-3.1'):
         new_query_string = []  
@@ -256,7 +315,7 @@ class VectorStoreDirector:
         self._builder.add_documents_to_vector_store()
         print(f"\tDocuments added: {self._builder.vector_store}")
     
-    def query(self, embedding_model_name, query_string, k):
+    def query(self, embedding_model_name, query_string, k, query_search_type):
         """Retrieves the final vector store from the builder using the loader class."""
         
         print(f"### INITIALIZE CLIENT VECTOR STORE ###")
@@ -267,13 +326,15 @@ class VectorStoreDirector:
         self._loader.set_embedding_model(embedding_model_name)
         print(f"\t{embedding_model_name}")
         
-        print(f"### LOAD VECTOR STORE ###")
+        print(f"### LOAD VECTOR STORE ###") 
+        # Why is this initialize after load? Is it bc we need the embedding model to initialize?
+        # Can rename functions?
         self._loader.initialize_vector_store()
         print(f"\tVector Store (Prediction's Wrapper): {self._loader}")
         print(f"\tDocuments (D) {len(self._loader.vector_store.get()['documents'])}")
         
         print(f"### TOP K ###")
-        results = self._loader.query_vector_store(query_string, k)       
+        results = self._loader.query_vector_store(query_string, k, query_search_type)       
         print(f"\tQuery Results: {results}")
         return results
     
