@@ -63,7 +63,7 @@ class BaseVectorStoreBuilder(BaseVectorStoreMixin):
             
     def build_documents(self, df: pd.DataFrame):
         """(Abstract) Processes raw data into LangChain Documents."""
-        metadata_cols = [col for col in df.columns if col != 'sentence']
+        metadata_cols = [col for col in df.columns if col != self.sentences_col_name]
         print(f"\tMetadata Columns: {metadata_cols}")
         
         for _, row in tqdm(df.iterrows()):
@@ -71,7 +71,7 @@ class BaseVectorStoreBuilder(BaseVectorStoreMixin):
             doc_metadata = {col: row[col] for col in metadata_cols}
             
             document = Document(
-                page_content=row['sentence'],
+                page_content=row[self.sentences_col_name],
                 metadata=doc_metadata
             )
             self.documents.append(document)
@@ -118,11 +118,13 @@ class ChromaVectorStore(BaseVectorStoreBuilder, BaseVectorStoreLoader):
     
     def __init__(self,
                  collection_name: str = None,
-                 persist_directory: str = None
+                 persist_directory: str = None,
+                 sentences_col_name: str = 'sentence'
                 ):
         self.client = None
         self.collection_name = collection_name
         self.persist_directory = persist_directory
+        self.sentences_col_name = sentences_col_name
         self.vector_store = None
         self.documents = []
         self.uuids = None
