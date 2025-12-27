@@ -28,7 +28,7 @@ A project to recognize and assess prediction data (text, numerical, audio, visua
 ```
 
 ## Installation
-> Use the package manager you prefer.
+> Use the package manager you prefer. If [uv package manager]([https://docs.astral.sh/uv/](https://docs.astral.sh/uv/getting-started/installation/#pypi)), follow the below
 
 1. Install the [uv package manager]([https://docs.astral.sh/uv/](https://docs.astral.sh/uv/getting-started/installation/#pypi)). For macOS, you can use `brew install uv`,
 2. OPTIONAL: Create a project with `uv init .` that'll default to name of directory. It may need to be repository name `predictions`, so you could try `uv init predictions`
@@ -36,6 +36,8 @@ A project to recognize and assess prediction data (text, numerical, audio, visua
 4. Create virtual environment with `uv venv` or `uv venv <name>` (`uv venv .venv_predictions`)
 5. Activate virtual environment with `source .venv/bin/activate` or `source .<name>/bin/activate` (`source .venv_predictions/bin/activate`)
 6. Install requirements with `uv pip install -r pyproject.toml`
-7. Create a `.env` file
-     - Create a [Groq Cloud](https://console.groq.com/) API key -- `GROQ_CLOUD_API_KEY = "djb"`
+7. Install `uv pip install ipykernel` so you can run the jupyter notebooks
+8. Create a `.env` file
      - Create a [NaviGator](https://api.ai.it.ufl.edu/) API key -- `NAVI_GATOR_API_KEY = "djb2"`
+     - OPTIONAL: Create a [Groq Cloud](https://console.groq.com/) API key -- `GROQ_CLOUD_API_KEY = "djb"`
+
