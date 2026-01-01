@@ -140,6 +140,8 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         word_tag_mappings = []
         
         data = self.extract_text_to_vectorize()
+        print(data)
+        print(data)
         
         for doc_i, doc in tqdm(enumerate(self.nlp.pipe(data, disable=disable_components, batch_size=batch_size))):
             if doc_i <= 3:
@@ -347,7 +349,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             
         return np.array(word_features)  # Ensuring it returns a 2D array with consistent dimensions
 
-    def sentence_feature_extraction(self, attach_to_df: bool = True):
+    def sentence_embeddings_extraction(self, attach_to_df: bool = True):
         """Extract sentence (Doc) vector embeddings (sentence to numbers) using Spacy
         
         Returns:
@@ -364,7 +366,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         embeddings_array = np.array(sentence_embeddings)
 
         if attach_to_df:
-            self.df_to_vectorize["Embedding"] = list(embeddings_array)
+            self.df_to_vectorize[f"{self.col_name_to_vectorize} Embedding"] = list(embeddings_array)
             return self.df_to_vectorize
         else:
             return embeddings_array

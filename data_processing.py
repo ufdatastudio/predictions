@@ -126,8 +126,6 @@ class DataProcessing:
 
         return splits
 
-        
-
     def join_predictions_with_labels(df: pd.DataFrame, true_labels: pd.Series, y_predictions: pd.Series, model) -> pd.DataFrame:
         """Join the predictions with the true labels DF
         
@@ -282,17 +280,17 @@ class DataProcessing:
     def drop_df_columns(df: pd.DataFrame, columns: list):
         """Drop columns
         
-        Parameters:
-        -----------
-        df: `pd.DataFrame`
+        Parameters
+        ----------
+        df: pd.DataFrame
             The DataFrame to drop columns from
         
-        columns: `list` 
+        columns: list 
             The list of columns to drop from the DataFrame
         
-        Returns:
-        --------
-        df: `pd.DataFrame`
+        Returns
+        -------
+        df: pd.DataFrame
             The DataFrame with the columns dropped
         """
         df = df.drop(columns=columns)
@@ -301,17 +299,17 @@ class DataProcessing:
     def encode_tags_entities_df(df: pd.DataFrame, sentence_and_label_df: pd.DataFrame) -> pd.DataFrame:
         """Encode the tags or entities in the DataFrame. Use 1 for the presence of the tag or entity and 0 if NaN
         
-        Parameters:
-        -----------
-        df: `pd.DataFrame`
+        Parameters
+        ----------
+        df: pd.DataFrame
             The DataFrame to encode
 
-        sentence_and_label_df: `pd.DataFrame`
+        sentence_and_label_df: pd.DataFrame
             The DataFrame containing the sentence and prediction labels
 
-        Returns:
-        --------
-        encoded_df: `pd.DataFrame`
+        Returns
+        -------
+        encoded_df: pd.DataFrame
             The DataFrame with the tags or entities encoded
         """
         bool_df = df.notnull() # Convert the DataFrame to boolean where if presence, place True and NaN place False
@@ -627,7 +625,11 @@ class DataProcessing:
             raise ValueError(f"Unsupported file type: {save_file_type}")
         # print(f"Saved to: \n\t{file_path}")
 
-    def load_from_file(path: str, file_type: str = 'json', sep = "\t", encoding = 'utf-8'):
+    def load_from_file(path: str, 
+                       file_type: str = 'csv', 
+                       sep = "\t", 
+                       encoding = 'utf-8'
+                       ):
         """Load data from directory
         
         Parameters
@@ -647,6 +649,8 @@ class DataProcessing:
         if file_type == 'csv': 
             df = pd.read_csv(path, sep=sep, encoding=encoding)
             return df
+        else:
+            return 'Did not properly load'
 
     def remove_duplicates(df):
         filt_no_duplicates = (df.duplicated() == False)
@@ -666,30 +670,16 @@ class DataProcessing:
         df = pd.DataFrame(value, index=row)
         return df
     
-    # def load_single_synthetic_data(notebook_dir: str, predictions: bool = True, batch_idx: int = 7):
-    #     if predictions == True:
-    #         base_data_path = os.path.join(notebook_dir, "../data")
-    #         predictions_data = os.path.join(base_data_path, f"prediction_logs/batch_{batch_idx}-prediction")
-    #         prediction_file_path = os.path.join(predictions_data, f"batch_{batch_idx}-from_df.csv")
-    #         print(prediction_file_path)
-    #         df = DataProcessing.load_from_file(prediction_file_path, 'csv')
-    #         return df
-    #     else:
-    #         base_data_path = os.path.join(notebook_dir, "../data")
-    #         observations_data = os.path.join(base_data_path, f"observation_logs/batch_{batch_idx}-observation")
-    #         observation_file_path = os.path.join(observations_data, f"batch_{batch_idx}-from_df.csv")
-    #         print(observation_file_path)
-    #         df = DataProcessing.load_from_file(observation_file_path, 'csv')
-    #         return df
+    def load_base_data_path(notebook_dir: str) -> str:
+        """Path to data/"""
+        return os.path.join(notebook_dir, "../data")
         
-    # def load_all_synthetic_data(notebook_dir: str, predictions: bool = True):
-            
     def _build_batch_path(notebook_dir: str, data_type: str, batch_idx: int) -> str:
         """
         Build the file path for a specific batch.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         notebook_dir : str
             Base notebook directory
         data_type : str
@@ -697,15 +687,15 @@ class DataProcessing:
         batch_idx : int
             Batch index number
         
-        Returns:
-        --------
+        Returns
+        -------
         str
             Full path to the batch CSV file
         """
         if data_type not in ['prediction', 'observation']:
             raise ValueError("data_type must be either 'prediction' or 'observation'")
         
-        base_data_path = os.path.join(notebook_dir, "../data")
+        base_data_path = DataProcessing.load_base_data_path(notebook_dir)
         batch_folder = f"batch_{batch_idx}-{data_type}"
         data_folder = f"{data_type}_logs"
         file_name = f"batch_{batch_idx}-from_df.csv"
@@ -716,8 +706,8 @@ class DataProcessing:
         """
         Load a single batch of synthetic data.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         notebook_dir : str
             Base notebook directory
         data_type : str
@@ -725,8 +715,8 @@ class DataProcessing:
         batch_idx : int
             Batch index number to load. Default is 7.
         
-        Returns:
-        --------
+        Returns
+        -------
         pd.DataFrame
             DataFrame containing the batch data
         """
@@ -742,8 +732,8 @@ class DataProcessing:
         """
         Load multiple batches of synthetic data and concatenate them.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         notebook_dir : str
             Base notebook directory
         data_type : str
@@ -755,8 +745,8 @@ class DataProcessing:
         end_idx : int, optional
             Ending batch index (inclusive). If None, automatically detects the last available batch.
         
-        Returns:
-        --------
+        Returns
+        -------
         pd.DataFrame
             Concatenated DataFrame containing all batch data
         """
@@ -769,7 +759,7 @@ class DataProcessing:
         else:
             # Auto-detect the number of available batches if end_idx is None
             if end_idx is None:
-                base_data_path = os.path.join(notebook_dir, "../data")
+                base_data_path = DataProcessing.load_base_data_path(notebook_dir)
                 log_directory = os.path.join(base_data_path, f"{data_type}_logs")
                 
                 if not os.path.exists(log_directory):
