@@ -3,8 +3,9 @@ import sklearn
 from abc import ABC, abstractmethod
 
 from sklearn.linear_model import Perceptron, SGDClassifier, LogisticRegression, RidgeClassifier, LinearRegression, ElasticNet
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
 
 from data_processing import DataProcessing
 
@@ -47,13 +48,13 @@ class SkLearnModelFactory(ABC):
     def select_model(model_name: str):
         """Select a model based on the provided model name
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         model_name: `str`
             The name of the model to select
         
-        Returns:
-        --------
+        Returns
+        -------
         object
             An instance of the selected model
         """
@@ -63,7 +64,11 @@ class SkLearnModelFactory(ABC):
             "logistic_regression": SkLearnLogisticRegression(),
             "ridge_classifier": SkLearnRidgeClassifier(),
             "linear_regression": SkLearnLinearRegression(),
-            "elastic_net": SkLearnElasticNet()
+            "elastic_net": SkLearnElasticNet(),
+            "decision_tree_classifier": SkLearnDecisionTreeClassifier(),
+            "random_forest_classifier": SkLearnRandomForestClassifier(),
+            "gradient_boosting_classifier": SkLearnGradientBoostingClassifier(),
+            "support_vector_machine_classifier": SkLearnSVC()
         }
 
         if model_name in models:
@@ -129,7 +134,7 @@ class SkLearnLinearRegression(SkLearnModelFactory):
         super().__init__()  
 
     def __name__(self):
-        return "Ridge Classifier"
+        return "Linear Regression"
     
     def train_model(self, X, y):
 
@@ -142,77 +147,62 @@ class SkLearnElasticNet(SkLearnModelFactory):
         super().__init__()  
 
     def __name__(self):
-        return "Ridge Classifier"
+        return "Elastic Net"
     
     def train_model(self, X, y):
 
         self.classifer = ElasticNet() # instantiate the model
         self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
 
-class EvaluationMetric:
+class SkLearnDecisionTreeClassifier(SkLearnModelFactory):      
 
-    def eval_accuracy(self, y_true, y_prediction):
-        return accuracy_score(y_true, y_prediction)
+    def __init__(self):
+        super().__init__()  
 
-    def eval_precision(self, y_true, y_prediction):
-        return precision_score(y_true, y_prediction)
-
-    def eval_recall(self, y_true, y_prediction):
-        return recall_score(y_true, y_prediction)
-
-    def eval_f1_score(self, y_true, y_prediction):
-        return f1_score(y_true, y_prediction)
+    def __name__(self):
+        return "Decision Tree"
     
-    def custom_evaluation_metrics(self, y_true, y_prediction):
-        """Evaluate the model using accuracy and precision"""
+    def train_model(self, X, y):
 
-        accuracy = self.eval_accuracy(y_true, y_prediction)
-        precision = self.eval_precision(y_true, y_prediction)
-        recall = self.eval_recall(y_true, y_prediction)
-        f1 = self.eval_f1_score(y_true, y_prediction)
+        self.classifer = DecisionTreeClassifier() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
 
-        metrics_dict = {
-            'Accuracy': accuracy,
-            'Precision': precision,
-            'Recall': recall,
-            'F1 Score': f1
-        }
+class SkLearnRandomForestClassifier(SkLearnModelFactory):      
 
-        return metrics_dict
+    def __init__(self):
+        super().__init__()  
 
-    def eval_classification_report(self, y_true, y_prediction):
-        print(classification_report(y_true, y_prediction))
-
-def train_and_evaluate_model(model_name, X_train, y_train, X_test, y_test):
-    """
-    Train and evaluate a model.
+    def __name__(self):
+        return "Random Forest"
     
-    Parameters:
-    -----------
-    model_name: `str`
-        The name of the model to be trained and evaluated.
-    X_train: `pd.DataFrame`
-        The training features.
-    y_train: `pd.Series`
-        The training labels.
-    X_test: `pd.DataFrame`
-        The test features.
-    y_test: `pd.Series`
-        The test labels.
+    def train_model(self, X, y):
+
+        self.classifer = RandomForestClassifier() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+
+class SkLearnGradientBoostingClassifier(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Gradient Boosting Machine"
     
-    Returns:
-    --------
-    dict
-        A dictionary containing the model name and its evaluation metrics.
-    pd.Series
-        The predictions made by the model.
-    """
-    model = SkLearnModelFactory.select_model(model_name)
-    model.train_model(X_train, y_train)
-    predictions = model.predict(X_test)
+    def train_model(self, X, y):
+
+        self.classifer = GradientBoostingClassifier() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+
+class SkLearnSVC(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "Support Vector Machine"
     
-    eval_metric = EvaluationMetric()
-    metrics = eval_metric.custom_evaluation_metrics(y_true=y_test, y_prediction=predictions)
-    metrics['Model'] = model.get_model_name()
-    
-    return metrics, predictions
+    def train_model(self, X, y):
+
+        self.classifer = SVC() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
+        

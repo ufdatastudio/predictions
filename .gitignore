@@ -4,9 +4,7 @@
 *.log
 *.csv
 /data/misc
-/data/observation_logs
 /data/others
-/data/predictions_logs
 *.DS_Store
 misc/open_data.ipynb
 *.png
@@ -27,7 +25,6 @@ misc/predictionsFrameworkDiagram
 /data/open_measures
 /data/tiktok_comments
 /data/bbc
-/data/financial_phrase_bank
 /data/reddit_pushshift_archives
 /data/twitter
 /data/webz
@@ -42,3 +39,11 @@ data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/data_level0
 *checkpoint.py
 *checkpoint.ipynb
 *.sqlite3
+/data/text_classification_tutorial
+/notebook_experiments/my_awesome_model
+data/dataset/train.json
+data/dataset/dev.json
+data/dataset/test.json
+/data/federal_open_market_committee_dataset
+/data/model_checkpoint
+data/chroma/chroma_langchain_db-oberservations/409f6c84-ee08-4d01-930c-12f79db80d68/index_metadata.pickle

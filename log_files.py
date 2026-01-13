@@ -131,40 +131,48 @@ class LogData:
         except Exception as e:
             logging.error(f"Error reading CSV file into DataFrame: {e}")
             return None
+
+
+"""
+Do NOT use the below. See updated code for entire file: https://chat.ai.it.ufl.edu/s/9d7a4dae-b88c-4618-afa1-b389653fa11e
+
+Use functions with the data_processing.py file. Primarily, DataProcessing.load_multiple_batches()
+"""
+# def read_data(notebook_dir, log_file_path, predictions):
+#     print("Start logging batch")
+
+#     base_path = os.path.join(notebook_dir, '../')
+
+#     log_directory = os.path.join(base_path, log_file_path)
+#     print(f"log_directory: {log_directory}")
+
+#     N = len(os.listdir(log_directory))
+#     # print(f"{N}")
+
+#     dfs = []
+#     for i in range(1, N):
+#         # print(i)
+
+#         batch_i = f"batch_{i}"
+#         if predictions == True:
+#             save_batch_directory = os.path.join(log_directory, f"{batch_i}-prediction")
+
+#         elif predictions == False:
+#             save_batch_directory = os.path.join(log_directory, f"{batch_i}-observation")
+#         else:
+#             print("Invalid path")
+#             quit()
+
         
-def read_data(notebook_dir, log_file_path, predictions):
-    print("Start logging batch")
+#         print(f"save_batch_directory: {save_batch_directory}")
+#         save_batch_name = f"{batch_i}-info.log"
+#         save_from_df_name = f"{batch_i}-from_df.csv"
+#         save_from_csv_name = f"{batch_i}-from_csv.log"
+#         ignore_patterns = ['INFO', 'DEBUG', 'ERROR', 'WARNING', 'CSV Row: ']
+#         logger = LogData(base_path, log_file_path, save_batch_directory, save_batch_name)
+#         # logger.log_to_csv(save_from_csv_name, save_from_df_name, ignore_patterns)
+#         df = logger.csv_to_dataframe(save_from_df_name)
+#         dfs.append(df)
 
-    base_path = os.path.join(notebook_dir, '../')
-
-    log_directory = os.path.join(base_path, log_file_path)
-    print(f"log_directory: {log_directory}")
-
-    N = len(os.listdir(log_directory))
-    # print(f"{N}")
-
-    dfs = []
-    for i in range(1, N):
-        # print(i)
-
-        batch_i = f"batch_{i}"
-        if predictions == True:
-            save_batch_directory = os.path.join(log_directory, f"{batch_i}-prediction")
-        elif predictions == False:
-            save_batch_directory = os.path.join(log_directory, f"{batch_i}-observation")
-        else:
-            print("Invalid path")
-            quit()
-
-        print(f"save_batch_directory: {save_batch_directory}")
-        save_batch_name = f"{batch_i}-info.log"
-        save_from_df_name = f"{batch_i}-from_df.csv"
-        save_from_csv_name = f"{batch_i}-from_csv.log"
-        ignore_patterns = ['INFO', 'DEBUG', 'ERROR', 'WARNING', 'CSV Row: ']
-        logger = LogData(base_path, log_file_path, save_batch_directory, save_batch_name)
-        # logger.log_to_csv(save_from_csv_name, save_from_df_name, ignore_patterns)
-        df = logger.csv_to_dataframe(save_from_df_name)
-        dfs.append(df)
-
-    data_df = DataProcessing.concat_dfs(dfs)
-    return data_df
+#     data_df = DataProcessing.concat_dfs(dfs)
+#     return data_df
