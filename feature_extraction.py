@@ -136,28 +136,25 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             A tuple containing the POS tags, dict{POS : word}, NER tags, and dict{NER : word}.
         """
         # print(f"Pipeline: {self.nlp.pipe_names}")
-        
-        word_tag_mappings = []
+        sentences = []
+        words = []
+        labels = []
+        unique_labels = []
+        lemmas = []
+        dependencies = []
+        is_stop_words = []
+        pos_features_df = pd.DataFrame()
         
         data = self.extract_text_to_vectorize()
-        print(data)
-        print(data)
-        
+        pos_label_counts = defaultdict(int) # RESET for this doc!
+
         for doc_i, doc in tqdm(enumerate(self.nlp.pipe(data, disable=disable_components, batch_size=batch_size))):
             if doc_i <= 3:
                 print(f"Spacy Doc ({doc_i}): ", doc)
 
                 if visualize is True:
-                    DataProcessing.visualize_spacy_doc(doc)
+                    DataProcessing.visualize_spacy_doc(doc)  
 
-            """Extract POSs"""    
-            words = []
-            labels = []
-            unique_labels = []
-            lemmas = []
-            dependencies = []
-            is_stop_words = []
-            pos_label_counts = defaultdict(int) # RESET for this doc!
             for token in doc:
                 text = token.text # The original word text.
                 label = token.pos_ # The simple UPOS part-of-speech tag.
@@ -166,23 +163,33 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 is_stop_word = token.is_stop
                 new_count_for_label = self.update_features_count(label, pos_label_counts) # Update count
                 unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: noun_1, noun_2, etc)
-                # doc_tags.append((text, label, unique_label, lemma, dependency, is_stop_word))
+                
+                sentences.append(doc)
                 words.append(text)
                 labels.append(label)
                 unique_labels.append(unique_label)
                 lemmas.append(lemma)
                 dependencies.append(dependency)
-                is_stop_words.append(is_stop_word)                
-            word_tag_mappings.append(words)
-            word_tag_mappings.append(labels)
-            word_tag_mappings.append(unique_labels)
-            word_tag_mappings.append(lemmas)
-            word_tag_mappings.append(dependencies)
-            word_tag_mappings.append(is_stop_words)
-            # if doc_i <= 2:
-            #     print(word_tag_mappings)
+                is_stop_words.append(is_stop_word)  
             
-        return word_tag_mappings
+            # Add a free row with no entry for every new sentence
+            sentences.append("")
+            words.append("")
+            labels.append("")
+            unique_labels.append("")
+            lemmas.append(lemma)
+            dependencies.append(dependency)
+            is_stop_words.append(is_stop_word)  
+
+        pos_features_df["Sentence"] = sentences
+        pos_features_df["Term"] = words
+        pos_features_df["POS Label"] = labels
+        pos_features_df["Unique POS Label"] = unique_labels
+        pos_features_df["Lemmas"] = lemmas
+        pos_features_df["Dependencies"] = dependencies
+        pos_features_df["Stop Word"] = is_stop_words
+                
+        return pos_features_df
     
     def extract_ner_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> pd.DataFrame:
         """
@@ -212,8 +219,8 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         unique_labels = []
         start_chars = []
         end_chars = []
-
         ner_features_df = pd.DataFrame()
+
         data = self.extract_text_to_vectorize()
         ner_label_counts = defaultdict(int)
 
@@ -232,7 +239,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 new_count_for_label = self.update_features_count(label, ner_label_counts) # Update count
                 unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: person_1, person_2, etc)
 
-                sentences.append(data[doc_i])
+                sentences.append(doc)
                 words.append(text)
                 labels.append(label)
                 unique_labels.append(unique_label)
