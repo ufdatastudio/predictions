@@ -337,7 +337,7 @@ for col_name, model_name_with_results in ml_models_with_predictions.items():
 
 # %%
 eval_reports_df = pd.DataFrame(eval_reports)
-eval_reports_df.to_latex()
+print(eval_reports_df.to_latex())
 
 # %%
 ml_models
