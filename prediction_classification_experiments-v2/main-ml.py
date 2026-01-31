@@ -12,7 +12,6 @@ import sys
 import warnings
 import joblib
 
-
 import pandas as pd
 
 from tqdm import tqdm
@@ -38,6 +37,21 @@ pd.set_option('display.max_rows', None)
 
 warnings.filterwarnings('ignore')
 
+# %%
+# [SCRIPT: PARSE COMMAND LINE ARGUMENTS]
+def parse_arguments():
+    """Parse command line arguments in key=value format"""
+    args = {}
+    for arg in sys.argv[1:]:
+        if '=' in arg:
+            key, value = arg.split('=', 1)
+            args[key] = value
+    return args
+
+# Get command line arguments
+cmd_args = parse_arguments()
+# %%
+
 # %% [markdown]
 # ## Load Data
 
@@ -45,9 +59,23 @@ warnings.filterwarnings('ignore')
 print("======= LOAD DATA =======")
 
 # %%
+# [NOTEBOOK: LOAD DATA]
 base_data_path = os.path.join(notebook_dir, '../data')
 combine_data_path = os.path.join(base_data_path, 'combined_datasets')
-data_path = os.path.join(combine_data_path, 'combined-synthetic-fin_phrase_bank-v5.csv')
+# data_path = os.path.join(combine_data_path, 'combined-synthetic-fin_phrase_bank-v5.csv')
+
+# [SCRIPT: LOAD DATA]
+# Use command line argument if provided, otherwise use default
+data_path_arg = cmd_args.get('data_file', os.path.join(combine_data_path, 'combined-synthetic-fin_phrase_bank-v5.csv'))
+# If data_file is a relative path, make it relative to notebook_dir
+if not os.path.isabs(data_path_arg):
+    data_path = os.path.join(notebook_dir, data_path_arg)
+else:
+    data_path = data_path_arg
+
+dataset_name = cmd_args.get('dataset_name', 'synthetic_fin_phrasebank')
+print(f"Using data file: {data_path}")
+print(f"Using dataset: {dataset_name}")
 
 # %%
 df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
@@ -64,6 +92,33 @@ df.shape, df.tail(3)
 
 # %%
 df.head(3)
+
+# %%
+df['Author Type'].value_counts()
+
+# %% [markdown]
+# > Select dataset
+# 1. Synthetic x financial phrasebank
+# 2. Synthetic only
+# 3. financial phrasebank
+
+# %%
+def get_which_dataset(df, dataset_name: str):
+    if dataset_name == "synthetic_fin_phrasebank":
+        return df
+    elif dataset_name == "synthetic":
+        filt_synthetic_dataset = (df.loc[:, 'Author Type'] == 0)
+        return df[filt_synthetic_dataset]
+    elif dataset_name == "fin_phrasebank":
+        filt_synthetic_dataset = (df.loc[:, 'Author Type'] == 1)
+        return df[filt_synthetic_dataset]
+    else: 
+        print("No dataset")
+
+# %%
+# dataset_name = "synthetic_fin_phrasebank"
+df = get_which_dataset(df, dataset_name)
+df
 
 # %%
 print("======= SHUFFLE DATA =======")
@@ -86,41 +141,13 @@ spacy_fe
 spacy_sentence_embeddings_df = spacy_fe.sentence_embeddings_extraction(attach_to_df=True)
 spacy_sentence_embeddings_df
 
-# %% [markdown]
-# ### Normalize Embeddings
-# 
-# - Why: Getting the below warnings
-#     1. sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul ret = a @ b
-#     2. sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul ret = a @ b
-#     3. sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul ret = a @ b
-# 
-# - Normalize will place data within "boundaries" to be all on one scale
-
 # %%
-print("======= NORMALIZE EMBEDDINGS =======")
-
-# %%
-# Convert embeddings to matrix if not already
-embeddings_matrix = pd.DataFrame(spacy_sentence_embeddings_df["Base Sentence Embedding"].tolist())
-
-# Scale the embeddings
-scaler = StandardScaler()
-scaled_embeddings = scaler.fit_transform(embeddings_matrix)
-
-spacy_sentence_embeddings_df['Normalized Embedding'] = list(scaled_embeddings)
-
-# %%
-# print(f"{spacy_sentence_embeddings_df.head(3)}")
-# spacy_sentence_embeddings_df
-# print(f"{spacy_sentence_embeddings_df.to_dict()}")
-
 for idx, row in spacy_sentence_embeddings_df.iterrows():
     text = row['Base Sentence']
     label = row['Sentence Label']
     embedding = row['Base Sentence Embedding']
-    norm_embedding = row['Normalized Embedding']
     if idx < 7:
-        print(f"{idx}\n Sentence: {text}\n Label: {label}\n Embeddings Shape: {embedding.shape}\n\t Embeddings Subset [:6]: {embedding[:6]} \n Norm Embeddings: {norm_embedding.shape}, \n\tNorm Embeddings Subset [:6]: {norm_embedding[:6]}")
+        print(f"{idx}\n Sentence: {text}\n Label: {label}\n Embeddings Shape: {embedding.shape}\n\t Embeddings Subset [:6]: {embedding[:6]}")
 
 # %%
 embeddings_col_name = 'Base Sentence Embedding'
@@ -147,30 +174,22 @@ embeddings_col_name = 'Base Sentence Embedding'
 print("======= SPLIT DATA =======")
 
 # %%
-spacy_sentence_embeddings_df.head(3)
-
-# %%
-# spacy_embeds = spacy_sentence_embeddings_df['Embedding'].to_list()
-cols_with_labels = spacy_sentence_embeddings_df.loc[:, ['Sentence Label', 'Author Type']]
-cols_with_labels.head(3)
+spacy_embeds = spacy_sentence_embeddings_df[embeddings_col_name].to_list()
+cols_with_labels = spacy_sentence_embeddings_df.loc[:, ['Sentence Label']]
 
 # %%
 data_splits = DataProcessing.split_data(spacy_sentence_embeddings_df, cols_with_labels, stratify=True, stratify_by='Sentence Label')
 data_splits
-# print(f"{X_train_df.head(3)}")
 
 # %%
-X_train_df, X_test_df, y_sentence_train_df, y_sentence_test_df, y_author_train_df, y_author_test_df = data_splits
-X_train_df.head(3)
+X_train_df, X_test_df, y_sentence_train_df, y_sentence_test_df = data_splits
+X_train_df
 
 # %%
-# Example variables for demonstration (replace with actual lengths in your environment)
 X_train_len = len(X_train_df)
 X_test_len = len(X_test_df)
 y_sentence_train_len = len(y_sentence_train_df)
 y_sentence_test_len = len(y_sentence_test_df)
-y_author_train_len = len(y_author_train_df)
-y_author_test_len = len(y_author_test_df)
 
 # Pretty print in a formatted table
 print("{:<25} {:>10}".format("Dataset", "Count"))
@@ -179,12 +198,6 @@ print("{:<25} {:>10}".format("X_train", X_train_len))
 print("{:<25} {:>10}".format("X_test", X_test_len))
 print("{:<25} {:>10}".format("y_sentence_train", y_sentence_train_len))
 print("{:<25} {:>10}".format("y_sentence_test", y_sentence_test_len))
-print("{:<25} {:>10}".format("y_author_train", y_author_train_len))
-print("{:<25} {:>10}".format("y_author_test", y_author_test_len))
-
-
-# %%
-X_test_df.head(3)
 
 # %%
 save_df = True
@@ -194,22 +207,17 @@ if save_df == True:
     # save_path = os.path.join(base_data_path, 'combined_generated_fin_phrase_bank')
     DataProcessing.save_to_file(X_test_df, combine_data_path, 'x_test_set', 'csv')
     DataProcessing.save_to_file(y_sentence_test_df, combine_data_path, 'y_sentence_test_df', 'csv')
-    DataProcessing.save_to_file(y_author_test_df, combine_data_path, 'y_author_test_df', 'csv')
 
 # %%
 y_train_sets = {
     cols_with_labels.columns.to_list()[0]: y_sentence_train_df.to_dict(),
-    cols_with_labels.columns.to_list()[1]: y_author_train_df.to_dict()
 }
-
 y_train_sets
 
 # %%
 y_test_sets = {
     cols_with_labels.columns.to_list()[0]: y_sentence_test_df.to_dict(),
-    cols_with_labels.columns.to_list()[1]: y_author_test_df.to_dict()
 }
-
 y_test_sets
 
 # %%
@@ -263,13 +271,15 @@ for y_train_set_name, y_train_set_values in y_train_sets.items():
     # print(ml_models)
 
     X_train_list = X_train_df[embeddings_col_name].to_list()
-    X_test_list  = X_test_df[embeddings_col_name].to_list()
     y_train_list = list(y_train_set_values.values())
+
+    X_test_list  = X_test_df[embeddings_col_name].to_list()
+    print(f"- Lengths -> X_train: {len(X_train_list)}, y_train: {len(y_train_list)}\n- Lengths -> X_test: {len(X_test_list)}")
 
     ml_models_with_predictions[y_train_set_name] = {}
 
     for model_name, ml_model in ml_models.items():
-        print(f"Train -> Predict for {ml_model.get_model_name()} on {y_train_set_name}")
+        print(f"- Train -> Predict for {ml_model.get_model_name()} on {y_train_set_name}")
         ml_model.train_model(X_train_list, y_train_list)
         ml_model_predictions = ml_model.predict(X_test_list)
         ml_models_with_predictions[y_train_set_name][model_name] = ml_model_predictions
