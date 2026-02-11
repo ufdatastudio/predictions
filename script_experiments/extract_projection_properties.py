@@ -19,7 +19,7 @@ from prediction_properties import PredictionProperties
 from text_generation_models import TextGenerationModelFactory
 
 
-def load_dataset(dataset_name):
+def load_dataset(script_dir, base_data_path, dataset_name):
     """
     Load dataset from file path.
     
@@ -41,8 +41,8 @@ def load_dataset(dataset_name):
     print("LOAD DATASET")
     print("="*50)
     
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    base_data_path = DataProcessing.load_base_data_path(script_dir)
+    # script_dir = os.path.dirname(os.path.abspath(__file__))
+    # base_data_path = DataProcessing.load_base_data_path(script_dir)
     data_path = os.path.join(base_data_path, dataset_name)
     
     print(f"Dataset path: {dataset_name}")
@@ -229,11 +229,11 @@ def process_llm_results(results: List[tuple]) -> pd.DataFrame:
     for idx, row in results_df.iterrows():
         try:
             parsed = ast.literal_eval(row['Raw Response'])
-            results_df.at[idx, 'No Property'] = ', '.join(parsed.get(0, []))
-            results_df.at[idx, 'Source'] = ', '.join(parsed.get(1, []))
-            results_df.at[idx, 'Target'] = ', '.join(parsed.get(2, []))
-            results_df.at[idx, 'Date'] = ', '.join(parsed.get(3, []))
-            results_df.at[idx, 'Outcome'] = ', '.join(parsed.get(4, []))
+            results_df.at[idx, 'No Property'] = ', '.join(parsed.get(0, []) or parsed.get("0", []))
+            results_df.at[idx, 'Source'] = ', '.join(parsed.get(1, []) or parsed.get("1", []))
+            results_df.at[idx, 'Target'] = ', '.join(parsed.get(2, []) or parsed.get("2", []))
+            results_df.at[idx, 'Date'] = ', '.join(parsed.get(3, []) or parsed.get("3", []))
+            results_df.at[idx, 'Outcome'] = ', '.join(parsed.get(4, []) or parsed.get("4", []))
             success_count += 1
         except:
             pass  # Keep empty strings
@@ -241,31 +241,31 @@ def process_llm_results(results: List[tuple]) -> pd.DataFrame:
     print(f"✓ Parsed {success_count}/{len(results_df)} responses")
     return results_df
 
-# Save Output
-
 if __name__ == "__main__":
     """Usage
     # Default models
-    python extract_projection_properties.py
+    python3 extract_projection_properties.py
 
     # Single model
-    python extract_projection_properties.py --models llama-3.1-70b-instruct
+    python3 extract_projection_properties.py --models llama-3.1-70b-instruct
 
     # Multiple models
-    python extract_projection_properties.py --models llama-3.1-8b-instant llama-3.3-70b-versatile gpt-oss-120b
+    python3 extract_projection_properties.py --models llama-3.1-8b-instant llama-3.3-70b-versatile gpt-oss-120b
 
     # Custom dataset + single model
-    python extract_projection_properties.py --dataset_name financial_phrase_bank/data.csv --models mistral-7b-instruct
+    python3 extract_projection_properties.py --dataset_name financial_phrase_bank/data.csv --models mistral-7b-instruct
+
+    # Custom dataset + single model + specify filename
+    python3 extract_projection_properties.py --dataset_name financial_phrase_bank/annotators/maya_annotations-fpb-binary_labels-v2.csv --models mistral-7b-instruct --save_filename fpb
     
     """
-
-
     print("\n" + "="*50)
     print("PREDICTION PROPERTY EXTRACTION")
     print("="*50)
     
     # Parse arguments
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    base_data_path = DataProcessing.load_base_data_path(script_dir)
     default_dataset = DataProcessing.load_single_synthetic_data(
         script_dir, batch_idx=1, sep=',', return_as='path'
     )
@@ -273,17 +273,26 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Extract prediction properties from sentences using LLMs')
     parser.add_argument('--dataset_name', default=default_dataset, 
                        help='Path to dataset relative to base data directory. Default: synthetic dataset')
-    parser.add_argument('--models', nargs='+', default=None,
+    parser.add_argument('--models', nargs='+', default='llama-3.1-8b-instant',
                        help='Model name(s) to use. Single model or space-separated list. Default: llama-3.1-8b-instant')
+    parser.add_argument('--save_filename', type=str, default='extracted_prediction_properties',
+                       help='Save the data with extracted properties. Location: data/extract_prediction_properties')
     args = parser.parse_args()
     
     # Execute pipeline
-    df = load_dataset(args.dataset_name)
+    df = load_dataset(script_dir, base_data_path, args.dataset_name)
     base_prompt, task, format_output, models = load_prompts_and_llms(args.models)
     results = get_results(df, base_prompt, task, format_output, models)
     
     # Process results
     results_df = process_llm_results(results)
+    # Build filename with model names
+    model_names_str = '-'.join([m.__name__() for m in models])
+    filename = f"{args.save_filename}-{model_names_str}"
+
+    extract_prediction_properties_path = "extract_prediction_properties/"
+    extract_prediction_properties_full_path = os.path.join(base_data_path, extract_prediction_properties_path)
+    DataProcessing.save_to_file(results_df, extract_prediction_properties_full_path, filename, 'csv')
     
     # Summary as JSON
     print("\n" + "="*50)
