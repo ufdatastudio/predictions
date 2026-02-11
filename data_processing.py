@@ -11,6 +11,7 @@ from spacy import displacy
 from sklearn.model_selection import train_test_split
 
 # from feature_extraction import SpacyFeatureExtraction
+from data_plotting import DataPlotting
 from prediction_properties import PredictionProperties
 
 class DataProcessing:
@@ -702,7 +703,11 @@ class DataProcessing:
         
         return os.path.join(base_data_path, data_folder, batch_folder, file_name)
 
-    def load_single_synthetic_data(notebook_dir: str, batch_idx: int, sep: str, data_type: str = 'prediction') -> pd.DataFrame:
+    def load_single_synthetic_data(notebook_dir: str, 
+                                   batch_idx: int, 
+                                   sep: str, 
+                                   data_type: str = 'prediction',
+                                   return_as: str = 'dataframe') -> pd.DataFrame:
         """
         Load a single batch of synthetic data.
         
@@ -714,17 +719,24 @@ class DataProcessing:
             Either 'prediction' or 'observation'. Default is 'prediction'.
         batch_idx : int
             Batch index number to load. Default is 7.
+        sep : str
+            Separator for CSV file
+        return_as : str
+            Either 'dataframe' or 'path'. Default is 'dataframe'.
         
         Returns
         -------
-        pd.DataFrame
-            DataFrame containing the batch data
+        pd.DataFrame or str
+            DataFrame containing the batch data or path string
         """
         file_path = DataProcessing._build_batch_path(notebook_dir, data_type, batch_idx)
-        print(f"Loading: {file_path}")
         
-        df = DataProcessing.load_from_file(file_path, 'csv', sep)
-        return df
+        if return_as.lower() in ['path', 'string']:
+            return file_path
+        else:  # default to dataframe
+            print(f"Loading: {file_path}")
+            df = DataProcessing.load_from_file(file_path, 'csv', sep)
+            return df
 
     def load_multiple_batches(notebook_dir: str, sep: str, data_type: str = 'prediction', 
                             batch_indices: list = None, start_idx: int = 1, 
@@ -858,3 +870,230 @@ class DataProcessing:
         numerical_labels_df = DataProcessing.concat_dfs([match_df, non_match_df])
         
         return numerical_labels_df
+    
+    def balance_data(
+        df: pd.DataFrame, 
+        X_features_col_names: str,
+        y_labels_col_name: str, 
+        method_to_balance, 
+        sampling_strategy='auto',
+        create_plot: bool = False,
+        classes_names: list = None
+    ) -> pd.DataFrame:
+        """
+        Balance an imbalanced dataset using resampling methods.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame containing features and labels.
+        X_features_col_names : list of str or str
+            Column name(s) containing features. Can be:
+            - A list of column names (e.g., ['Feature_1', 'Feature_2'])
+            - A single column name containing feature vectors (e.g., 'embeddings')
+        y_labels_col_name : str
+            Column name containing target labels.
+        method_to_balance : callable
+            Resampler class from imblearn (e.g., RandomOverSampler, SMOTE).
+        sampling_strategy : str or dict or float, default='auto'
+            Sampling strategy for the resampler.
+        create_plot : bool, default=False
+            If True, generates a visualization comparing before/after resampling.
+        classes_names : list of str, optional
+            Names for [class_0, class_1] for plot labels. Only used if create_plot=True.
+            
+        Returns
+        -------
+        pd.DataFrame
+            Original DataFrame with resampled data added as new columns.
+            For multiple feature columns, adds '{col}_resampled' for each feature.
+            For a single embedding column, adds '{col}_resampled'.
+            Always adds '{y_labels_col_name}_resampled' for labels.
+            If resampled data is longer/shorter, padding with f"Resampled {sampling_strategy}".
+        """
+        # Handle both single column (embeddings) and multiple columns (features)
+        if isinstance(X_features_col_names, str):
+            # Single column containing feature vectors
+            X = np.array(df[X_features_col_names].tolist())
+            is_single_embedding_col = True
+        elif isinstance(X_features_col_names, list):
+            # Multiple feature columns
+            X = df[X_features_col_names].values
+            is_single_embedding_col = False
+        else:
+            raise ValueError("X_features_col_names must be a string or list of strings")
+        
+        y = df[y_labels_col_name].values
+        
+        # Generate plot if requested (before resampling)
+        if create_plot:
+            DataPlotting.plot_balancedness(
+                X=X,
+                y=y,
+                method_to_balance=method_to_balance,
+                sampling_strategy=sampling_strategy,
+                classes_names=classes_names
+            )
+        
+        # Apply resampling
+        resampler = method_to_balance(sampling_strategy=sampling_strategy, random_state=42)
+        X_resampled, y_resampled = resampler.fit_resample(X, y)
+        
+        # Create a copy of the original dataframe
+        result_df = df.copy()
+        
+        # Determine lengths
+        original_len = len(df)
+        resampled_len = len(X_resampled)
+        
+        # Placeholder text
+        placeholder = f"Resampled {sampling_strategy}"
+        
+        # Pad original columns if needed
+        if resampled_len > original_len:
+            padding_rows = pd.DataFrame(
+                {col: [placeholder] * (resampled_len - original_len) for col in result_df.columns}
+            )
+            result_df = pd.concat([result_df, padding_rows], ignore_index=True)
+        
+        # Add resampled columns based on input type
+        if is_single_embedding_col:
+            # Single embedding column
+            X_resampled_col = [x for x in X_resampled]
+            if original_len > resampled_len:
+                X_resampled_col.extend([placeholder] * (original_len - resampled_len))
+            result_df[f'{X_features_col_names}_resampled'] = X_resampled_col
+        else:
+            # Multiple feature columns
+            for i, col_name in enumerate(X_features_col_names):
+                feature_values = X_resampled[:, i].tolist()
+                if original_len > resampled_len:
+                    feature_values.extend([placeholder] * (original_len - resampled_len))
+                result_df[f'{col_name}_resampled'] = feature_values
+        
+        # Add resampled labels
+        y_resampled_col = list(y_resampled)
+        if original_len > resampled_len:
+            y_resampled_col.extend([placeholder] * (original_len - resampled_len))
+        result_df[f'{y_labels_col_name}_resampled'] = y_resampled_col
+        
+        return result_df
+    
+    @staticmethod
+    def balance_data_two(
+        df: pd.DataFrame, 
+        X_features_col_names: str, 
+        y_labels_col_name: str, 
+        method_to_balance, 
+        sampling_strategy='auto',
+        create_plot: bool = False,
+        classes_names: list = None
+    ) -> pd.DataFrame:
+        """
+        Balance an imbalanced dataset using resampling methods.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame containing features and labels.
+        X_features_col_names : list of str or str
+            Column name(s) containing features. Can be:
+            - A list of column names (e.g., ['Feature_1', 'Feature_2'])
+            - A single column name containing feature vectors/embeddings (e.g., 'embeddings')
+              where each cell contains an array-like object
+        y_labels_col_name : str
+            Column name containing target labels.
+        method_to_balance : callable
+            Resampler class from imblearn (e.g., RandomOverSampler, SMOTE).
+        sampling_strategy : str or dict or float, default='auto'
+            Sampling strategy for the resampler.
+        create_plot : bool, default=False
+            If True, generates a visualization comparing before/after resampling.
+        classes_names : list of str, optional
+            Names for [class_0, class_1] for plot labels. Only used if create_plot=True.
+            
+        Returns
+        -------
+        pd.DataFrame
+            Original DataFrame with resampled data added as new columns.
+            For multiple feature columns, adds '{col}_resampled' for each feature.
+            For a single embedding column, adds '{col}_resampled'.
+            Always adds '{y_labels_col_name}_resampled' for labels.
+            If resampled data is longer/shorter, padding with f"Resampled {sampling_strategy}".
+        """
+        # Handle both single column (embeddings) and multiple columns (features)
+        if isinstance(X_features_col_names, str):
+            # Single column - check if it contains arrays or scalars
+            first_val = df[X_features_col_names].iloc[0]
+            if isinstance(first_val, (list, np.ndarray)):
+                # Column contains feature vectors (embeddings)
+                X = np.array(df[X_features_col_names].tolist())
+                is_single_embedding_col = True
+            else:
+                # Column contains scalar values - treat as single feature column
+                X = df[[X_features_col_names]].values
+                is_single_embedding_col = False
+                X_features_col_names = [X_features_col_names]  # Convert to list for consistency
+        elif isinstance(X_features_col_names, list):
+            # Multiple feature columns
+            X = df[X_features_col_names].values
+            is_single_embedding_col = False
+        else:
+            raise ValueError("X_features_col_names must be a string or list of strings")
+        
+        y = df[y_labels_col_name].values
+        
+        # Generate plot if requested (before resampling)
+        if create_plot:
+            DataPlotting.plot_balancedness_two(
+                X=X,
+                y=y,
+                method_to_balance=method_to_balance,
+                sampling_strategy=sampling_strategy,
+                classes_names=classes_names
+            )
+        
+        # Apply resampling
+        resampler = method_to_balance(sampling_strategy=sampling_strategy, random_state=42)
+        X_resampled, y_resampled = resampler.fit_resample(X, y)
+        
+        # Create a copy of the original dataframe
+        result_df = df.copy()
+        
+        # Determine lengths
+        original_len = len(df)
+        resampled_len = len(X_resampled)
+        
+        # Placeholder text
+        placeholder = f"Resampled {sampling_strategy}"
+        
+        # Pad original columns if needed
+        if resampled_len > original_len:
+            padding_rows = pd.DataFrame(
+                {col: [placeholder] * (resampled_len - original_len) for col in result_df.columns}
+            )
+            result_df = pd.concat([result_df, padding_rows], ignore_index=True)
+        
+        # Add resampled columns based on input type
+        if is_single_embedding_col:
+            # Single embedding column (each row is an array)
+            original_col_name = list(df.columns)[list(df.columns).index(X_features_col_names)]
+            X_resampled_col = [x for x in X_resampled]
+            if original_len > resampled_len:
+                X_resampled_col.extend([placeholder] * (original_len - resampled_len))
+            result_df[f'{original_col_name}_resampled'] = X_resampled_col
+        else:
+            # Multiple feature columns or single scalar column
+            for i, col_name in enumerate(X_features_col_names):
+                feature_values = X_resampled[:, i].tolist()
+                if original_len > resampled_len:
+                    feature_values.extend([placeholder] * (original_len - resampled_len))
+                result_df[f'{col_name}_resampled'] = feature_values
+        
+        # Add resampled labels
+        y_resampled_col = list(y_resampled)
+        if original_len > resampled_len:
+            y_resampled_col.extend([placeholder] * (original_len - resampled_len))
+        result_df[f'{y_labels_col_name}_resampled'] = y_resampled_col
+        
+        return result_df
