@@ -8,6 +8,7 @@ from tqdm import tqdm
 from spacy import displacy
 from collections import defaultdict
 from abc import ABC, abstractmethod
+from typing import Iterable, Tuple, Union
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -90,7 +91,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
         self.nlp = spacy.load("en_core_web_lg")  # Load a SpaCy model with word vectors
     
-    def update_features_count(self, label, label_counts):
+    def update_features_count_old(self, label, label_counts):
         """
         Increment and return the count for a given label (NOUN, ORG) in this document. The purpose is so we can collect every feature,
         especially those features with same type (NOUN, ORG) instead of only one of them. For ex, NOUN_n corresponds to 
@@ -115,7 +116,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         label_counts[label] += 1 # Increment the count for this label in this document.
         return label_counts[label]
 
-    def extract_pos_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
+    def extract_pos_features_old(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
         """
         Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
 
@@ -191,7 +192,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 
         return pos_features_df
     
-    def extract_ner_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> pd.DataFrame:
+    def extract_ner_features_old(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> pd.DataFrame:
         """
         Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
 
@@ -263,7 +264,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 
         return ner_features_df
     
-    def extract_features(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
+    def extract_features_old(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
         """
         Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
 
@@ -335,6 +336,283 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
 
         return all_pos_tags, tags, all_ner_tags, entities
    
+    # ------------------------------------------------------------------
+    # Helper
+    # ------------------------------------------------------------------
+    def update_features_count(self, label: str, label_counts: dict[int]) -> int:
+        """
+        Parameters
+        ----------
+        label : str
+            The POS or NER tag.
+        label_counts : dict[int]
+            Map from tag to current counter.
+
+        Returns
+        -------
+        int
+            Updated counter for the tag.
+        """
+        label_counts[label] += 1
+        return label_counts[label]
+
+
+    # ------------------------------------------------------------------
+    # Morphological keys that should be split out into separate columns
+    # ------------------------------------------------------------------
+    _morph_keys = [
+        "Case", "Number", "Person", "PronType", "Tense", "VerbForm",
+        "Mood", "Voice", "Aspect", "Gender", "Definite", "Degree",
+        "SubCat",
+        "Animacy", "Acc", "Gen", "Loc", "Ins", "Parat", "Prep"
+    ]
+
+    # ------------------------------------------------------------------
+    # POS+Morph extraction
+    # ------------------------------------------------------------------
+    def extract_pos_features(
+        self,
+        disable_components: list,
+        batch_size: int = 50,
+        visualize: bool = False,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        disable_components : list
+            Components to disable in the SpaCy pipeline.
+        batch_size : int, default 50
+            How many documents to process per batch.
+        visualize : bool, default False
+            Show the first few docs if True.
+
+        Notes
+        -----
+        The columns are ordered the same way they appear in SpaCy's
+        token‑attribute reference (text → lemma_ → pos_ → tag_ → dep_
+        → shape_ → is_alpha → is_stop → morph).  Every morphological
+        feature defined in ``_morph_keys`` gets its own column.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per token.
+        """
+        # 1. Prepare containers -------------------------------------------------
+        sentences, words, lemmas = [], [], []
+        pos_labels, detailed_pos_labels = [], []
+        dependencies, shape, is_alpha, is_stop_words = [], [], [], []
+
+        # Morphological columns – one list per feature
+        morph_dict = {k: [] for k in self._morph_keys}
+
+        unique_pos_labels, unique_pos_detailed_labels = [], []
+
+        data = self.extract_text_to_vectorize()
+        pos_label_counts = defaultdict(int)
+        detailed_pos_label_counts = defaultdict(int)
+
+        # 2. Iterate over documents ---------------------------------------------
+        for doc_i, doc in tqdm(
+            enumerate(
+                self.nlp.pipe(
+                    data,
+                    disable=disable_components,
+                    batch_size=batch_size,
+                )
+            ),
+            desc="Spacy POS extraction",
+        ):
+            if doc_i <= 3 and visualize:
+                DataProcessing.visualize_spacy_doc(doc)
+
+            for token in doc:
+                # baseline token attributes
+                sentences.append(doc)
+                words.append(token.text)
+                lemmas.append(token.lemma_)
+                pos_labels.append(token.pos_)
+                detailed_pos_labels.append(token.tag_)
+                dependencies.append(token.dep_)
+                shape.append(token.shape_)
+                is_alpha.append(token.is_alpha)
+                is_stop_words.append(token.is_stop)
+
+                # unique suffixes
+                unique_pos_labels.append(
+                    f"{token.pos_}_{self.update_features_count(token.pos_, pos_label_counts)}"
+                )
+                unique_pos_detailed_labels.append(
+                    f"{token.tag_}_{self.update_features_count(token.tag_, detailed_pos_label_counts)}"
+                )
+
+                # --- Morphological features ------------------------------------
+                for key in self._morph_keys:
+                    morph_dict[key].append(token.morph.get(key) or "")
+
+            # Optional empty row to separate documents
+            sentences.append("")
+            words.append("")
+            lemmas.append("")
+            pos_labels.append("")
+            detailed_pos_labels.append("")
+            dependencies.append("")
+            shape.append("")
+            is_alpha.append(False)
+            is_stop_words.append("")
+            unique_pos_labels.append("")
+            unique_pos_detailed_labels.append("")
+            for key in self._morph_keys:
+                morph_dict[key].append("")
+
+        # 3. Assemble the dataframe --------------------------------------------
+        df_dict = {
+            "Sentence": sentences,
+            "Term": words,
+            "Lemma": lemmas,
+            "POS Label": pos_labels,
+            "Detailed POS Label": detailed_pos_labels,
+            "Dependency": dependencies,
+            "Shape": shape,
+            "Is Alpha": is_alpha,
+            "Stop Word": is_stop_words,
+            "Unique POS Label": unique_pos_labels,
+            "Unique Detailed POS Label": unique_pos_detailed_labels,
+        }
+
+        # Add all morph columns
+        df_dict.update(morph_dict)
+
+        return pd.DataFrame(df_dict)
+
+    # ------------------------------------------------------------------
+    # NER‑only
+    # ------------------------------------------------------------------
+    def extract_ner_features(
+        self,
+        disable_components: list,
+        batch_size: int = 50,
+        visualize: bool = False,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        disable_components : list
+            Components to disable in the spaCy pipeline.
+        batch_size : int, default 50
+            How many documents to process per pipeline batch.
+        visualize : bool, default False
+            If True, visualise the first few docs.
+
+        Notes
+        -----
+        Returns a DataFrame containing one row per entity.
+
+        Returns
+        -------
+        pd.DataFrame
+            Columns: Sentence, Term, NER Label, Unique NER Label,
+            Start Char, End Char.
+        """
+        sentences, words, labels, unique_labels = [], [], [], []
+        start_chars, end_chars = [], []
+
+        data = self.extract_text_to_vectorize()
+        ner_label_counts = defaultdict(int)
+
+        for doc_i, doc in tqdm(
+            enumerate(
+                self.nlp.pipe(
+                    data,
+                    disable=disable_components,
+                    batch_size=batch_size,
+                )
+            )
+        ):
+            if doc_i <= 3 and visualize:
+                DataProcessing.visualize_spacy_doc(doc)
+
+            for ent in doc.ents:
+                sentences.append(doc)
+                words.append(ent.text)
+                labels.append(ent.label_)
+                unique_labels.append(
+                    f"{ent.label_}_{self.update_features_count(ent.label_, ner_label_counts)}"
+                )
+                start_chars.append(ent.start_char)
+                end_chars.append(ent.end_char)
+
+            # Empty row to mark end of current document
+            sentences.append("")
+            words.append("")
+            labels.append("")
+            unique_labels.append("")
+            start_chars.append("")
+            end_chars.append("")
+
+        return pd.DataFrame(
+            {
+                "Sentence": sentences,
+                "Term": words,
+                "NER Label": labels,
+                "Unique NER Label": unique_labels,
+                "Start Char": start_chars,
+                "End Char": end_chars,
+            }
+        )
+
+    # ------------------------------------------------------------------
+    # Unified extractor
+    # ------------------------------------------------------------------
+    def extract_features(
+        self,
+        disable_components: list,
+        batch_size: int = 50,
+        visualize: bool = False,
+        mode: str = "both",
+    ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame]]:
+        """
+        Parameters
+        ----------
+        disable_components : list
+            Components to disable in the spaCy pipeline.
+        batch_size : int, default 50
+            How many documents to process per pipeline batch.
+        visualize : bool, default False
+            If True, visualise the first few docs.
+        mode : {'pos', 'ner', 'both'}, default 'both'
+            Which feature set to extract.
+
+        Notes
+        -----
+        The method simply forwards to the appropriate helper(s).
+
+        Returns
+        -------
+        pd.DataFrame or tuple[pd.DataFrame, pd.DataFrame]
+            * ``'pos'`` → POS DataFrame
+            * ``'ner'`` → NER DataFrame
+            * ``'both'`` → (POS DataFrame, NER DataFrame)
+        """
+        mode = mode.lower()
+        if mode == "pos":
+            return self.extract_pos_features(disable_components, batch_size, visualize)
+
+        if mode == "ner":
+            return self.extract_ner_features(disable_components, batch_size, visualize)
+
+        # both
+        pos_df = self.extract_pos_features(disable_components, batch_size, visualize)
+        ner_df = self.extract_ner_features(disable_components, batch_size, visualize)
+        return pos_df, ner_df
+    
+    # ------------------------------------------------------------------
+    # Legacy alias (not strictly NumPy‑docstring compliant)
+    # ------------------------------------------------------------------
+    def extract_pos_ner_features(self, *args, **kwargs):
+        """Alias to preserve backward compatibility. Returns as (pos_df, ner_df)"""
+        return self.extract_features(*args, **kwargs)
+    
     def word_feature_extraction(self):
         """Extract word vector embeddings using Spacy
         
@@ -529,3 +807,6 @@ class BertFeatureExtraction(FeatureExtractionFactory):
                 sentence_embedding = output.last_hidden_state[:, 0, :].squeeze()
             sentence_embeddings.append(sentence_embedding)            
         return np.array(sentence_embeddings)
+
+
+
