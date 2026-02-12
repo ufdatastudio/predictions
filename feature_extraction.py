@@ -16,6 +16,7 @@ from sentence_transformers import SentenceTransformer
 from transformers import RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer, BertModel
 
 from data_processing import DataProcessing
+from data_visualizing import DataVisualizing
 
 
 class FeatureExtractionFactory(ABC):
@@ -424,7 +425,9 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             desc="Spacy POS extraction",
         ):
             if doc_i <= 3 and visualize:
-                DataProcessing.visualize_spacy_doc(doc)
+                # DataProcessing.visualize_spacy_doc(doc)
+                print(f"\n\t####### Sentence ({doc_i}): {doc} #######")
+                DataVisualizing.spacy_pos_dep(doc, self.nlp)
 
             for token in doc:
                 # baseline token attributes
@@ -530,7 +533,9 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             )
         ):
             if doc_i <= 3 and visualize:
-                DataProcessing.visualize_spacy_doc(doc)
+                # DataProcessing.visualize_spacy_doc(doc)
+                print(f"\n\t####### Sentence ({doc_i}): {doc} #######")
+                DataVisualizing.spacy_ner_ent(doc, self.nlp)
 
             for ent in doc.ents:
                 sentences.append(doc)
