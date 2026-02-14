@@ -738,9 +738,9 @@ class DataProcessing:
             df = DataProcessing.load_from_file(file_path, 'csv', sep)
             return df
 
-    def load_multiple_batches(notebook_dir: str, sep: str, data_type: str = 'prediction', 
+    def load_multiple_batches(notebook_dir: str, sep: str = ',', data_type: str = 'prediction', 
                             batch_indices: list = None, start_idx: int = 1, 
-                            end_idx: int = None) -> pd.DataFrame:
+                            end_idx: int = None, return_as: str = 'dataframe') -> pd.DataFrame:
         """
         Load multiple batches of synthetic data and concatenate them.
         
@@ -748,6 +748,8 @@ class DataProcessing:
         ----------
         notebook_dir : str
             Base notebook directory
+        sep : str
+            Separator for CSV file. Default is ','.
         data_type : str
             Either 'prediction' or 'observation'. Default is 'prediction'.
         batch_indices : list, optional
@@ -756,11 +758,14 @@ class DataProcessing:
             Starting batch index (inclusive). Default is 1.
         end_idx : int, optional
             Ending batch index (inclusive). If None, automatically detects the last available batch.
+        return_as : str
+            Either 'dataframe' or 'path'. Default is 'dataframe'.
+            If 'path', returns list of file paths instead of loading data.
         
         Returns
         -------
-        pd.DataFrame
-            Concatenated DataFrame containing all batch data
+        pd.DataFrame or list
+            Concatenated DataFrame containing all batch data, or list of file paths
         """
         if data_type not in ['prediction', 'observation']:
             raise ValueError("data_type must be either 'prediction' or 'observation'")
@@ -799,16 +804,44 @@ class DataProcessing:
             
             indices = range(start_idx, end_idx + 1)
         
-        # Load all batches
+        # If return_as is 'path', return list of paths
+        if return_as.lower() in ['path', 'string']:
+            paths = []
+            for idx in indices:
+                try:
+                    path = DataProcessing.load_single_synthetic_data(
+                        notebook_dir=notebook_dir, 
+                        batch_idx=idx,
+                        sep=sep,
+                        data_type=data_type,
+                        return_as='path'
+                    )
+                    paths.append(path)
+                    print(f"✓ Found batch {idx}: {path}")
+                except FileNotFoundError:
+                    print(f"⚠ Warning: Batch {idx} not found, skipping...")
+                    continue
+                except Exception as e:
+                    print(f"⚠ Error locating batch {idx}: {e}")
+                    continue
+            
+            if not paths:
+                raise ValueError("No batch paths were found")
+            
+            print(f"\nFound {len(paths)} batch file(s)")
+            return paths
+        
+        # Default behavior: load as dataframes
         dfs = []
         for idx in indices:
             try:
                 df = DataProcessing.load_single_synthetic_data(
                     notebook_dir=notebook_dir, 
-                    batch_idx = idx,
+                    batch_idx=idx,
                     sep=sep,
-                    data_type=data_type, 
-                    )
+                    data_type=data_type,
+                    return_as='dataframe'
+                )
                 dfs.append(df)
                 print(f"✓ Loaded batch {idx}")
             except FileNotFoundError:
