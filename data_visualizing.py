@@ -1,5 +1,7 @@
-import spacy
+
 import numpy as np
+import pandas as pd
+
 import matplotlib.pyplot as plt
 
 from typing import Union
@@ -238,12 +240,90 @@ class DataVisualizing:
         DataVisualizing.spacy_pos_dep(sentence, spacy_nlp_model)
         DataVisualizing.spacy_ner_ent(sentence, spacy_nlp_model)
 
-    
     def spacy_vis_all(self, *args, **kwargs):
         """Alias to preserve backward compatibility. Visualize pos_dep, dep_ent."""
         return self.extract_features(*args, **kwargs)
 
-
-
-
-
+    def visualize_before_after_resampling(df_before: pd.DataFrame,
+                                      df_after: pd.DataFrame,
+                                      label_col: str = 'Label',
+                                      class_names: list = ['Class 0', 'Class 1'],
+                                      feature_cols: list = ['Feature_1', 'Feature_2'],
+                                      method_name: str = 'Resampling') -> None:
+        """Visualize class distribution before and after resampling."""
+        fig = plt.figure(figsize=(14, 10))
+        
+        # Before resampling - bar chart
+        ax1 = plt.subplot(2, 2, 1)
+        counts_before = df_before[label_col].value_counts().sort_index()
+        total_before = len(df_before[label_col])
+        
+        bars_before = ax1.bar([0, 1], counts_before.values, color=['#1f77b4', '#ff7f0e'],
+                            edgecolor='black', width=0.6)
+        
+        for bar, count in zip(bars_before, counts_before.values):
+            percentage = (count / total_before) * 100
+            ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                    f'n={count}\n({percentage:.1f}%)', ha='center', va='bottom',
+                    fontsize=10, fontweight='bold')
+        
+        ax1.set_xticks([0, 1])
+        ax1.set_xticklabels(class_names)
+        ax1.set_ylabel('Count')
+        ax1.set_title(f'Before {method_name} - Class Distribution')
+        ax1.set_ylim(0, max(counts_before.values) * 1.30)
+        ax1.grid(axis='y', alpha=0.3)
+        
+        # After resampling - bar chart
+        ax2 = plt.subplot(2, 2, 2)
+        counts_after = df_after[label_col].value_counts().sort_index()
+        total_after = len(df_after[label_col])
+        
+        bars_after = ax2.bar([0, 1], counts_after.values, color=['#1f77b4', '#ff7f0e'],
+                            edgecolor='black', width=0.6)
+        
+        for bar, count in zip(bars_after, counts_after.values):
+            percentage = (count / total_after) * 100
+            ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                    f'n={count}\n({percentage:.1f}%)', ha='center', va='bottom',
+                    fontsize=10, fontweight='bold')
+        
+        ax2.set_xticks([0, 1])
+        ax2.set_xticklabels(class_names)
+        ax2.set_ylabel('Count')
+        ax2.set_title(f'After {method_name} - Class Distribution')
+        ax2.set_ylim(0, max(counts_after.values) * 1.30)
+        ax2.grid(axis='y', alpha=0.3)
+        
+        # Before resampling - scatter plot
+        ax3 = plt.subplot(2, 2, 3)
+        X_before = df_before[feature_cols].values
+        y_before = df_before[label_col].values
+        
+        ax3.scatter(X_before[y_before == 0][:, 0], X_before[y_before == 0][:, 1],
+                label=class_names[0], alpha=0.5, edgecolor='k')
+        ax3.scatter(X_before[y_before == 1][:, 0], X_before[y_before == 1][:, 1],
+                label=class_names[1], alpha=0.5, edgecolor='k')
+        ax3.set_title(f'Before {method_name} - Feature Space\n(n={len(df_before)})')
+        ax3.set_xlabel(feature_cols[0])
+        ax3.set_ylabel(feature_cols[1])
+        ax3.legend()
+        ax3.grid(alpha=0.3)
+        
+        # After resampling - scatter plot
+        ax4 = plt.subplot(2, 2, 4)
+        X_after = df_after[feature_cols].values
+        y_after = df_after[label_col].values
+        
+        ax4.scatter(X_after[y_after == 0][:, 0], X_after[y_after == 0][:, 1],
+                label=class_names[0], alpha=0.5, edgecolor='k')
+        ax4.scatter(X_after[y_after == 1][:, 0], X_after[y_after == 1][:, 1],
+                label=class_names[1], alpha=0.5, edgecolor='k')
+        ax4.set_title(f'After {method_name} - Feature Space\n(n={len(df_after)})')
+        ax4.set_xlabel(feature_cols[0])
+        ax4.set_ylabel(feature_cols[1])
+        ax4.legend()
+        ax4.grid(alpha=0.3)
+        
+        plt.tight_layout()
+        plt.show()
