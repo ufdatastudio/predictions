@@ -1,6 +1,8 @@
+import os
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 import matplotlib.pyplot as plt
 
@@ -327,3 +329,32 @@ class DataVisualizing:
         
         plt.tight_layout()
         plt.show()
+
+    def visualize_confusion_matrix(confusion_mat, model_name, save_path):
+        """Save confusion matrix as colored heatmap image."""
+        
+        plt.figure(figsize=(8, 6))
+        
+        # Create heatmap with annotations
+        sns.heatmap(
+            confusion_mat,
+            annot=True,           # Show numbers in cells
+            fmt='d',              # Integer format
+            cmap='Blues',         # Color scheme
+            cbar=True,            # Show color bar
+            square=True,          # Square cells
+            xticklabels=['Non-Prediction', 'Prediction'],
+            yticklabels=['Non-Prediction', 'Prediction']
+        )
+        
+        plt.ylabel('Actual')
+        plt.xlabel('Predicted')
+        plt.title(f'Confusion Matrix - {model_name}')
+        plt.tight_layout()
+        
+        # Save as PNG (good for Keynote)
+        filename = f'confusion_matrix_{model_name}.png'
+        plt.savefig(os.path.join(save_path, filename), dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        print(f"✓ Saved confusion matrix: {filename}")

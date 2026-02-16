@@ -12,10 +12,12 @@ script_dir = os.getcwd()
 # Add the parent directory to the system path
 sys.path.append(os.path.join(script_dir, '../'))
 
+from metrics import EvaluationMetric
 from data_processing import DataProcessing
+from data_visualizing import DataVisualizing
 from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
-from metrics import EvaluationMetric
+
 
 pd.set_option('max_colwidth', 800)
 pd.set_option('display.max_rows', None)
@@ -381,7 +383,7 @@ def create_results_dataframe(X_test_df, predictions_dict):
     
     return results_df
 
-def evaluate_models(predictions_dict, y_test_df, label_name):
+def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name: str, save_path: str):
     """
     Evaluate all model predictions and generate classification reports.
     
@@ -393,15 +395,20 @@ def evaluate_models(predictions_dict, y_test_df, label_name):
         True test labels
     label_name : str
         Name of label column
+    save_path : str
+        Directory path to save visualizations
     
     Returns
     -------
-    pd.DataFrame
-        Evaluation metrics for all models
+    tuple
+        (eval_reports_df, confusion_matrices, auc_scores)
+        - eval_reports_df: DataFrame with classification metrics
+        - confusion_matrices: dict of {model_name: confusion_matrix_array}
+        - auc_scores: dict of {model_name: auc_score}
     
     Notes
     -----
-    Prints classification report for each model and returns combined metrics.
+    Prints classification report for each model and saves confusion matrix visualizations.
     """
     print("\n" + "="*50)
     print("EVALUATION RESULTS")
@@ -412,12 +419,29 @@ def evaluate_models(predictions_dict, y_test_df, label_name):
     actual_labels = y_test_df.values
     
     eval_reports = {}
+    confusion_matrices = {}
+    auc_scores = {}
     
     for model_name, predictions in predictions_dict.items():
         print(f"### Model: {model_name} ###")
+        
+        # Classification report
         eval_report = get_metrics.eval_classification_report(actual_labels, predictions)
         eval_reports[f"{label_name}-{model_name}"] = eval_report
-        print()
+        
+        # Confusion matrix
+        confusion_mat = get_metrics.get_confusion_matrix(actual_labels, predictions)
+        confusion_matrices[model_name] = confusion_mat
+        print(f"Confusion Matrix:\n{confusion_mat}\n")
+        
+        # AUC score
+        auc_score = get_metrics.get_auc(actual_labels, predictions)
+        auc_scores[model_name] = auc_score
+        print(f"AUC Score: {auc_score:.4f}\n")
+        
+        # Save confusion matrix visualization
+        DataVisualizing.visualize_confusion_matrix(confusion_mat, model_name, save_path)
+        print(f"✓ Saved confusion matrix visualization: confusion_matrix_{model_name}.png\n")
     
     eval_reports_df = pd.DataFrame(eval_reports)
     
@@ -427,8 +451,8 @@ def evaluate_models(predictions_dict, y_test_df, label_name):
     print(eval_reports_df.to_latex())
     print()
     
-    return eval_reports_df
-    
+    return eval_reports_df, confusion_matrices, auc_scores
+
 if __name__ == "__main__":
     """
     Usage Examples:
@@ -438,6 +462,9 @@ if __name__ == "__main__":
     
     # Custom single file
     python3 ml_classifiers.py --dataset ../data/my_data.csv
+    
+    # Filter to synthetic only
+    python3 ml_classifiers.py --dataset_type synthetic
     
     # Specify custom column names
     python3 ml_classifiers.py --text_column "Sentence" --label_column "Label"
@@ -458,8 +485,8 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     base_data_path = os.path.join(script_dir, '../data')
     
-    default_dataset = os.path.join(base_data_path, 'combined_datasets/combined-synthetic-fin_phrase_bank-v5.csv')
-    default_save_path = os.path.join(base_data_path, 'combined_datasets/')
+    default_dataset = os.path.join(base_data_path, 'classification_results/combined-synthetic-fin_phrase_bank-v5.csv')
+    default_save_path = os.path.join(base_data_path, 'classification_results/')
     
     parser = argparse.ArgumentParser(
         description='Train ML classifiers for prediction sentence classification'
@@ -473,7 +500,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--save_path',
         default=default_save_path,
-        help='Directory to save results and checkpoints. Default: ../data/combined_datasets/'
+        help='Directory to save results and checkpoints. Default: ../data/classification_results/'
     )
     parser.add_argument(
         '--dataset_type',
@@ -496,8 +523,22 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
+    # Extract dataset name for organized output directory
+    dataset_filename = os.path.basename(args.dataset)
+    dataset_name = os.path.splitext(dataset_filename)[0]
+    
+    # Add filter suffix to dataset name if filtering applied
+    if args.dataset_type and args.dataset_type != 'synthetic_fin_phrasebank':
+        dataset_name = f"{dataset_name}_{args.dataset_type}"
+    
+    # Create organized output directory
+    output_dir = os.path.join(args.save_path, dataset_name)
+    os.makedirs(output_dir, exist_ok=True)
+    
+    print(f"\nOutput directory: {output_dir}\n")
+    
     # Load dataset
-    print("\n" + "="*50)
+    print("="*50)
     print("DATASET LOADING")
     print("="*50)
     print(f"Loading dataset: {args.dataset}")
@@ -511,7 +552,7 @@ if __name__ == "__main__":
     print(f"Dataset type filter: {args.dataset_type}")
     print(f"Text column: '{args.text_column}'")
     print(f"Label column: '{args.label_column}'")
-    print(f"Save path: {args.save_path}\n")
+    print(f"Save path: {output_dir}\n")
     
     # Define model names
     ml_model_names = [
@@ -543,7 +584,7 @@ if __name__ == "__main__":
     else:
         print("No dataset filtering applied - using loaded dataset as-is")
         print(f"Dataset shape: {df.shape}\n")
-
+    
     shuffled_df = shuffle_dataset(df)
     
     embeddings_df, embeddings_col_name = extract_sentence_embeddings(
@@ -554,9 +595,10 @@ if __name__ == "__main__":
         embeddings_df, embeddings_col_name, stratify_by=args.label_column
     )
     
-    save_test_sets(X_test_df, y_test_df, args.save_path)
+    save_test_sets(X_test_df, y_test_df, output_dir)
     
-    model_checkpoint_path = os.path.join(base_data_path, 'model_checkpoint')
+    # Create model checkpoint directory inside output directory
+    model_checkpoint_path = os.path.join(output_dir, 'model_checkpoints')
     os.makedirs(model_checkpoint_path, exist_ok=True)
     
     predictions = train_and_predict_models(
@@ -566,14 +608,17 @@ if __name__ == "__main__":
     
     results_df = create_results_dataframe(X_test_df, predictions)
     
-    DataProcessing.save_to_file(results_df, args.save_path, 'ml_classifiers', '.csv')
-    print(f"✓ Saved results to: {os.path.join(args.save_path, 'ml_classifiers.csv')}")
+    DataProcessing.save_to_file(results_df, output_dir, 'ml_classifiers', '.csv')
+    print(f"✓ Saved results to: {os.path.join(output_dir, 'ml_classifiers.csv')}")
     
-    eval_df = evaluate_models(predictions, y_test_df, args.label_column)
+    # Evaluate models and save confusion matrices
+    eval_df, confusion_matrices, auc_scores = evaluate_models(
+        predictions, y_test_df, args.label_column, output_dir
+    )
     
     print("\n" + "="*50)
     print("PIPELINE COMPLETE")
     print("="*50)
     print(f"Results shape: {results_df.shape}")
     print(f"Models evaluated: {len(predictions)}")
-    print(f"\n✓ All outputs saved to: {args.save_path}\n")
+    print(f"\n✓ All outputs saved to: {output_dir}\n")

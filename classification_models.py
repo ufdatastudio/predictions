@@ -6,6 +6,7 @@ from sklearn.linear_model import Perceptron, SGDClassifier, LogisticRegression, 
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
+from xgboost import XGBClassifier
 
 from data_processing import DataProcessing
 
@@ -68,7 +69,8 @@ class SkLearnModelFactory(ABC):
             "decision_tree_classifier": SkLearnDecisionTreeClassifier(),
             "random_forest_classifier": SkLearnRandomForestClassifier(),
             "gradient_boosting_classifier": SkLearnGradientBoostingClassifier(),
-            "support_vector_machine_classifier": SkLearnSVC()
+            "support_vector_machine_classifier": SkLearnSVC(),
+            "x_gradient_boosting_classifier": CustomXGBClassifier()
         }
 
         if model_name in models:
@@ -205,4 +207,16 @@ class SkLearnSVC(SkLearnModelFactory):
 
         self.classifer = SVC() # instantiate the model
         self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
-        
+
+class CustomXGBClassifier(SkLearnModelFactory):      
+
+    def __init__(self):
+        super().__init__()  
+
+    def __name__(self):
+        return "X Gradient Boosting Machine"
+    
+    def train_model(self, X, y):
+
+        self.classifer = XGBClassifier() # instantiate the model
+        self.classifer.fit(X, y) # train the model on the training data; sklearn intializes the weights and bias randomly
