@@ -512,6 +512,7 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
     eval_reports = {}
     confusion_matrices = {}
     auc_scores = {}
+    metrics_summary = []  # NEW: Store metrics per model
     
     for model_name, predictions in predictions_dict.items():
         print(f"### Model: {model_name} ###")
@@ -530,16 +531,37 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
         auc_scores[model_name] = auc_score
         print(f"AUC Score: {auc_score:.4f}\n")
         
+        # NEW: Extract metrics from classification report for averaging
+        # Assuming eval_report is a dict with structure from sklearn.metrics.classification_report
+        metrics_row = {
+            'model': model_name,
+            'accuracy': eval_report.get('accuracy', None),
+            'precision_class_0': eval_report.get('0', {}).get('precision', None),
+            'precision_class_1': eval_report.get('1', {}).get('precision', None),
+            'recall_class_0': eval_report.get('0', {}).get('recall', None),
+            'recall_class_1': eval_report.get('1', {}).get('recall', None),
+            'f1_class_0': eval_report.get('0', {}).get('f1-score', None),
+            'f1_class_1': eval_report.get('1', {}).get('f1-score', None),
+            'auc': auc_score
+        }
+        metrics_summary.append(metrics_row)
+        
         # Save confusion matrix visualization
         DataVisualizing.visualize_confusion_matrix(
             confusion_mat, 
             model_name, 
             save_path, 
-            include_version=False  # Protected by experiment/seed folder structure
+            include_version=False
         )
         print(f"✓ Saved confusion matrix visualization: confusion_matrix_{model_name}.png\n")
     
     eval_reports_df = pd.DataFrame(eval_reports)
+    
+    # NEW: Save metrics summary as CSV
+    metrics_summary_df = pd.DataFrame(metrics_summary)
+    metrics_file = os.path.join(save_path, 'metrics_summary.csv')
+    metrics_summary_df.to_csv(metrics_file, index=False)
+    print(f"✓ Saved metrics summary to: {metrics_file}")
     
     print("\n" + "="*50)
     print("METRICS SUMMARY (LaTeX)")
