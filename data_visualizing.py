@@ -374,16 +374,12 @@ class DataVisualizing:
         plt.title(f'Confusion Matrix - {model_name}')
         plt.tight_layout()
         
-        # Save based on versioning preference
-        if include_version:
-            # Use versioning system (adds -v1, -v2, etc.)
-            filename_prefix = f'confusion_matrix_{model_name}'
-            DataProcessing.save_to_file(None, save_path, filename_prefix, 'png')
-            print(f"✓ Saved confusion matrix with version: {filename_prefix}-vN.png")
-        else:
-            # Save directly without versioning (protected by folder hierarchy)
-            filename = f'confusion_matrix_{model_name}.png'
-            filepath = os.path.join(save_path, filename)
-            plt.savefig(filepath, dpi=300, bbox_inches='tight')
-            plt.close()
-            print(f"✓ Saved confusion matrix: {filename}")
+        # Use unified save function
+        filename_prefix = f'confusion_matrix_{model_name}'
+        DataProcessing.save_to_file(
+            None, 
+            save_path, 
+            filename_prefix, 
+            'png',
+            include_versioning=include_version
+        )

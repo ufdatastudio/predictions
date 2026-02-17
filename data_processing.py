@@ -656,7 +656,13 @@ class DataProcessing:
         print(f"[DEBUG] Numbers found: {numbers}")
         print(f"[DEBUG] Next number: {next_num}\n")
         return next_num
-    def save_to_file(data, path: str, prefix: str, save_file_type: str, **kwargs: dict) -> None:
+    
+    def save_to_file(data, 
+                     path: str, 
+                     prefix: str, 
+                     save_file_type: str, 
+                     include_version: bool = True, 
+                     **kwargs: dict) -> None:
         """ 
         Save data to any file with an incremented filename based on existing files.
 
@@ -670,6 +676,10 @@ class DataProcessing:
             Prefix for the filename (e.g., 'siteA' results in 'siteA-1.json', 'siteA-2.json', etc.).
         save_file_type : str
             File types such as json, csv, png, etc
+        include_version : bool, optional
+            If True, uses versioning system (adds -v1, -v2, etc.)
+            If False, saves directly without version suffix (will overwrite)
+            Default is False.
         **kwargs : dict
             Additional arguments for specific file types:
             - For PNG: dpi (default=300), bbox_inches (default='tight')
@@ -677,29 +687,40 @@ class DataProcessing:
         -------
         None
             Saves the file to disk and prints the file path.
-
         """
         os.makedirs(path, exist_ok=True)
-        next_number = DataProcessing.get_next_file_number(path, prefix)
-        print(f"Using file number: {next_number}")
+        
+        # Determine filename based on versioning
+        if include_version:
+            next_number = DataProcessing.get_next_file_number(path, prefix)
+            print(f"Using file number: {next_number}")
         
         if save_file_type == 'json':
-            file_name = f"{prefix}-v{next_number}.json"
+            if include_version:
+                file_name = f"{prefix}-v{next_number}.json"
+            else:
+                file_name = f"{prefix}.json"
             file_path = os.path.join(path, file_name)
             print(f"Saving JSON file to: {file_path}")
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
         
-        elif save_file_type == 'csv' or save_file_type == '.csv':
-            file_name = f"{prefix}-v{next_number}.csv"
+        elif save_file_type in ['csv', '.csv']:
+            if include_version:
+                file_name = f"{prefix}-v{next_number}.csv"
+            else:
+                file_name = f"{prefix}.csv"
             file_path = os.path.join(path, file_name)
             print(f"Saving CSV file to: {file_path}")
             data.to_csv(file_path, index=False)
         
-        elif save_file_type == 'png' or save_file_type == '.png' or save_file_type == 'PNG':
+        elif save_file_type in ['png', '.png', 'PNG']:
             import matplotlib.pyplot as plt
-
-            file_name = f"{prefix}-v{next_number}.png"
+            
+            if include_version:
+                file_name = f"{prefix}-v{next_number}.png"
+            else:
+                file_name = f"{prefix}.png"
             file_path = os.path.join(path, file_name)
             print(f"Saving PNG file to: {file_path}")
             
@@ -707,13 +728,12 @@ class DataProcessing:
             dpi = kwargs.get('dpi', 300)
             bbox_inches = kwargs.get('bbox_inches', 'tight')
             
-            # Save the current figure (assumes plt has an active figure)
+            # Save the current figure
             plt.savefig(file_path, dpi=dpi, bbox_inches=bbox_inches)
             plt.close()
-            # data.to_csv(file_path, index=False)
+        
         else:
-            raise ValueError(f"Unsupported file type: {save_file_type}")
-        # print(f"Saved to: \n\t{file_path}")
+            raise ValueError(f"Unsupported file type: {save_file_type}. Choose from [json, csv, png]")
 
     def load_from_file(path: str, 
                        file_type: str = 'csv', 

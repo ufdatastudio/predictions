@@ -21,6 +21,99 @@ from data_visualizing import DataVisualizing
 from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
 
+def create_output_directory(args, experiment_name):
+    """
+    Create output directory with collision detection and user choice.
+    
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command line arguments containing save_path and seed
+    experiment_name : str
+        Name of the experiment (e.g., 'undersampled_96d-v4_2026-02-17')
+    
+    Returns
+    -------
+    str
+        Full path to output directory
+    
+    Notes
+    -----
+    If directory exists, prompts user to:
+    - overwrite: Replace existing results
+    - version: Create versioned seed folder (seed42_v1, seed42_v2, etc.)
+    - cancel: Exit without changes
+    """
+    # Create folder hierarchy: experiment_name/seed{N}/
+    seed_folder = f"seed{args.seed}"
+    output_dir = os.path.join(args.save_path, experiment_name, seed_folder)
+    
+    # Check if this exact experiment+seed already exists
+    if os.path.exists(output_dir) and os.listdir(output_dir):
+        print(f"\n{'='*60}")
+        print(f"⚠️  OUTPUT DIRECTORY ALREADY EXISTS")
+        print(f"{'='*60}")
+        print(f"Directory: {output_dir}")
+        print(f"\nThis means seed {args.seed} was already run for experiment '{experiment_name}'")
+        print(f"\nOptions:")
+        print(f"  1. Overwrite - Replace existing results (type: overwrite)")
+        print(f"  2. Version   - Create versioned seed folder (type: version)")
+        print(f"  3. Cancel    - Exit without making changes (type: cancel)")
+        print(f"{'='*60}")
+        
+        user_input = input(f"\nYour choice (overwrite/version/cancel): ").strip().lower()
+        
+        if user_input == 'overwrite':
+            print(f"\n⚠️  Overwriting existing results in: {output_dir}")
+            # Directory already exists, will overwrite files
+            
+        elif user_input == 'version':
+            # Find next available version number for this seed
+            base_seed_name = f"seed{args.seed}"
+            version_num = 1
+            
+            # Check for existing versioned seed folders
+            experiment_dir = os.path.join(args.save_path, experiment_name)
+            if os.path.exists(experiment_dir):
+                existing_seeds = [d for d in os.listdir(experiment_dir) 
+                                if os.path.isdir(os.path.join(experiment_dir, d)) 
+                                and d.startswith(base_seed_name)]
+                
+                # Extract version numbers from existing folders
+                versions = []
+                for seed_dir in existing_seeds:
+                    if seed_dir == base_seed_name:
+                        versions.append(0)  # Original has implicit version 0
+                    else:
+                        # Try to extract version: seed42_v1, seed42_v2, etc.
+                        try:
+                            version_part = seed_dir.split('_v')[-1]
+                            versions.append(int(version_part))
+                        except (ValueError, IndexError):
+                            continue
+                
+                if versions:
+                    version_num = max(versions) + 1
+            
+            # Create versioned seed folder
+            seed_folder = f"seed{args.seed}_v{version_num}"
+            output_dir = os.path.join(args.save_path, experiment_name, seed_folder)
+            print(f"\n✓ Creating versioned seed folder: {seed_folder}")
+            
+        elif user_input == 'cancel':
+            print("\nExiting without making changes.")
+            sys.exit(0)
+            
+        else:
+            print(f"\n❌ Invalid input: '{user_input}'")
+            print("Please run again and choose: overwrite, version, or cancel")
+            sys.exit(1)
+    
+    # Create directory (either new or confirmed overwrite)
+    os.makedirs(output_dir, exist_ok=True)
+    
+    return output_dir
+
 def load_dataset(script_dir, dataset_path):
     """
     Load dataset from file path.
@@ -240,7 +333,7 @@ def split_train_test(df, embeddings_col_name, seed=42, stratify_by='Sentence Lab
     
     return X_train_df, X_test_df, y_train_df, y_test_df
 
-def save_test_sets(X_test_df, y_test_df, save_path):
+def save_test_sets(X_test_df, y_test_df, save_path, include_version):
     """
     Save test sets to disk for later use with LLMs.
     
@@ -257,8 +350,8 @@ def save_test_sets(X_test_df, y_test_df, save_path):
     print("SAVE TEST SETS")
     print("="*50)
     
-    DataProcessing.save_to_file(X_test_df, save_path, 'x_test_set', 'csv')
-    DataProcessing.save_to_file(y_test_df, save_path, 'y_sentence_test_df', 'csv')
+    DataProcessing.save_to_file(X_test_df, save_path, 'x_test_set', 'csv', include_version=include_version)
+    DataProcessing.save_to_file(y_test_df, save_path, 'y_sentence_test_df', 'csv', include_version=include_version)
     
     print(f"✓ Saved X_test to: {os.path.join(save_path, 'x_test_set.csv')}")
     print(f"✓ Saved y_test to: {os.path.join(save_path, 'y_sentence_test_df.csv')}\n")
@@ -536,6 +629,12 @@ if __name__ == "__main__":
         default=42,
         help='Random seed for reproducibility. Default: 42'
     )
+    parser.add_argument(
+        '--experiment_version',
+        type=int,
+        default=1,
+        help='Experiment version number. Default: 1'
+    )
     
     args = parser.parse_args()
     
@@ -547,34 +646,19 @@ if __name__ == "__main__":
 
     # Extract base dataset name (with version) from filename
     dataset_filename = os.path.basename(args.dataset)
-    dataset_base = os.path.splitext(dataset_filename)[0]  # e.g., 'undersampled_96d-v4'
+    dataset_base = os.path.splitext(dataset_filename)[0]
 
     # Determine experiment base name based on filtering
     if args.dataset_type and args.dataset_type != 'synthetic_fin_phrasebank':
-        # Use the filter type as experiment name (cleaner)
-        experiment_base = args.dataset_type  # e.g., 'fin_phrasebank' or 'synthetic'
+        experiment_base = args.dataset_type
     else:
-        # Use original dataset name (includes file version like -v4)
-        experiment_base = dataset_base  # e.g., 'undersampled_96d-v4'
+        experiment_base = dataset_base
 
-    # Build prefix WITHOUT version number: base_date
-    # This will match: undersampled_96d-v4_v1_2026-02-17, undersampled_96d-v4_v2_2026-02-17, etc.
-    experiment_prefix = f"{experiment_base}_"  # Changed: just base + underscore
+    # Simple experiment name: base + date (no auto-increment)
+    experiment_name = f"{experiment_base}_{current_date}"
 
-    next_exp_version = DataProcessing.get_next_directory_number(
-        args.save_path, 
-        experiment_prefix,
-        current_date  # Pass date separately
-    )
-
-    # Create versioned experiment name
-    experiment_name = f"{experiment_base}_v{next_exp_version}_{current_date}"
-
-    # ADD THESE LINES:
-    # Create folder hierarchy: experiment_name/seed{N}/
-    seed_folder = f"seed{args.seed}"
-    output_dir = os.path.join(args.save_path, experiment_name, seed_folder)
-    os.makedirs(output_dir, exist_ok=True)
+    # Create output directory with collision detection
+    output_dir = create_output_directory(args, experiment_name)
 
     print(f"\nExperiment: {experiment_name}")
     print(f"Seed: {args.seed}")
@@ -657,7 +741,11 @@ if __name__ == "__main__":
     # ============================================================
     # SAVE TEST SETS (FOR LLM EXPERIMENTS)
     # ============================================================
-    save_test_sets(X_test_df, y_test_df, output_dir)
+    save_test_sets(X_test_df, 
+                   y_test_df, 
+                   output_dir, 
+                   include_version=False  # Protected by experiment/seed folder structure
+                   )
     
     # ============================================================
     # TRAIN MODELS & GENERATE PREDICTIONS
