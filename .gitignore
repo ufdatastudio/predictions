@@ -48,3 +48,5 @@ data/dataset/test.json
 /data/model_checkpoint
 data/chroma/chroma_langchain_db-oberservations/409f6c84-ee08-4d01-930c-12f79db80d68/index_metadata.pickle
 /data/time_ml
+/data/classification_results
+/data/timebank_1_2
