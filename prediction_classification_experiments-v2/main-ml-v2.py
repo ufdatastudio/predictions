@@ -1,10 +1,13 @@
 import os
 import sys
+import joblib
 import warnings
 import argparse
-import joblib
+
 import pandas as pd
-from tqdm import tqdm
+
+from datetime import datetime
+
 from sklearn.preprocessing import StandardScaler
 
 # Get the current working directory of the script
@@ -17,11 +20,6 @@ from data_processing import DataProcessing
 from data_visualizing import DataVisualizing
 from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
-
-
-pd.set_option('max_colwidth', 800)
-pd.set_option('display.max_rows', None)
-warnings.filterwarnings('ignore')
 
 def load_dataset(script_dir, dataset_path):
     """
@@ -440,7 +438,12 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
         print(f"AUC Score: {auc_score:.4f}\n")
         
         # Save confusion matrix visualization
-        DataVisualizing.visualize_confusion_matrix(confusion_mat, model_name, save_path)
+        DataVisualizing.visualize_confusion_matrix(
+            confusion_mat, 
+            model_name, 
+            save_path, 
+            include_version=False  # Protected by experiment/seed folder structure
+        )
         print(f"✓ Saved confusion matrix visualization: confusion_matrix_{model_name}.png\n")
     
     eval_reports_df = pd.DataFrame(eval_reports)
@@ -455,13 +458,18 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
 
 if __name__ == "__main__":
     """
-    Usage Examples:
+    Train ML classifiers for prediction sentence classification.
     
+    Usage Examples
+    --------------
     # Default dataset (combined synthetic + financial phrasebank)
     python3 ml_classifiers.py
     
     # Custom single file
     python3 ml_classifiers.py --dataset ../data/my_data.csv
+    
+    # Custom seed
+    python3 ml_classifiers.py --seed 33
     
     # Filter to synthetic only
     python3 ml_classifiers.py --dataset_type synthetic
@@ -481,7 +489,9 @@ if __name__ == "__main__":
     print("ML CLASSIFIER PIPELINE")
     print("="*50)
     
-    # Parse arguments
+    # ============================================================
+    # PARSE ARGUMENTS
+    # ============================================================
     script_dir = os.path.dirname(os.path.abspath(__file__))
     base_data_path = os.path.join(script_dir, '../data')
     
@@ -520,7 +530,6 @@ if __name__ == "__main__":
         default='Sentence Label',
         help='Name of column containing classification labels. Default: "Sentence Label"'
     )
-
     parser.add_argument(
         '--seed',
         type=int,
@@ -530,37 +539,46 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    # Extract dataset name for organized output directory
+    # ============================================================
+    # CREATE EXPERIMENT FOLDER STRUCTURE
+    # ============================================================
+    # Get current date for experiment versioning
+    current_date = datetime.now().strftime('%Y-%m-%d')
+
+    # Extract base dataset name (with version) from filename
     dataset_filename = os.path.basename(args.dataset)
-    dataset_name = os.path.splitext(dataset_filename)[0]
-    dataset_name = f"{dataset_name}_seed{args.seed}"
-    
-    # Add filter suffix to dataset name if filtering applied
+    dataset_base = os.path.splitext(dataset_filename)[0]  # e.g., 'undersampled_96d-v4'
+
+    # Determine experiment base name based on filtering
     if args.dataset_type and args.dataset_type != 'synthetic_fin_phrasebank':
-        dataset_name = f"{dataset_name}_{args.dataset_type}"
-    
-    # Create organized output directory
-    output_dir = os.path.join(args.save_path, dataset_name)
+        # Use the filter type as experiment name (cleaner)
+        experiment_base = args.dataset_type  # e.g., 'fin_phrasebank' or 'synthetic'
+    else:
+        # Use original dataset name (includes file version like -v4)
+        experiment_base = dataset_base  # e.g., 'undersampled_96d-v4'
+
+    # Build prefix WITHOUT version number: base_date
+    # This will match: undersampled_96d-v4_v1_2026-02-17, undersampled_96d-v4_v2_2026-02-17, etc.
+    experiment_prefix = f"{experiment_base}_"  # Changed: just base + underscore
+
+    next_exp_version = DataProcessing.get_next_directory_number(
+        args.save_path, 
+        experiment_prefix,
+        current_date  # Pass date separately
+    )
+
+    # Create versioned experiment name
+    experiment_name = f"{experiment_base}_v{next_exp_version}_{current_date}"
+
+    # ADD THESE LINES:
+    # Create folder hierarchy: experiment_name/seed{N}/
+    seed_folder = f"seed{args.seed}"
+    output_dir = os.path.join(args.save_path, experiment_name, seed_folder)
     os.makedirs(output_dir, exist_ok=True)
-    
-    print(f"\nOutput directory: {output_dir}\n")
-    
-    # Load dataset
-    print("="*50)
-    print("DATASET LOADING")
-    print("="*50)
-    print(f"Loading dataset: {args.dataset}")
-    
-    df = load_dataset(script_dir, args.dataset)
-    
-    print(f"\n✓ Dataset loaded successfully!")
-    print(f"Shape: {df.shape}")
-    print(f"Columns: {list(df.columns)}\n")
-    
-    print(f"Dataset type filter: {args.dataset_type}")
-    print(f"Text column: '{args.text_column}'")
-    print(f"Label column: '{args.label_column}'")
-    print(f"Save path: {output_dir}\n")
+
+    print(f"\nExperiment: {experiment_name}")
+    print(f"Seed: {args.seed}")
+    print(f"Output directory: {output_dir}\n")
     
     # Define model names
     ml_model_names = [
@@ -574,7 +592,29 @@ if __name__ == "__main__":
         'x_gradient_boosting_classifier'
     ]
     
-    # Validate columns exist
+    # ============================================================
+    # LOAD DATASET
+    # ============================================================
+    print("="*50)
+    print("DATASET LOADING")
+    print("="*50)
+    print(f"Loading dataset: {args.dataset}")
+    
+    df = load_dataset(script_dir, args.dataset)
+    
+    print("\n✓ Dataset loaded successfully!")
+    print(f"Shape: {df.shape}")
+    print(f"Columns: {list(df.columns)}\n")
+    
+    print(f"Dataset type filter: {args.dataset_type}")
+    print(f"Text column: '{args.text_column}'")
+    print(f"Label column: '{args.label_column}'")
+    print(f"Random seed: {args.seed}")
+    print(f"Date: {current_date}\n")
+    
+    # ============================================================
+    # VALIDATE DATASET COLUMNS
+    # ============================================================
     if args.text_column not in df.columns:
         print(f"\n❌ ERROR: Text column '{args.text_column}' not found in dataset")
         print(f"Available columns: {list(df.columns)}")
@@ -585,8 +625,9 @@ if __name__ == "__main__":
         print(f"Available columns: {list(df.columns)}")
         sys.exit(1)
     
-    # Execute pipeline
-    # Only apply filtering if dataset_type is specified AND is one of the known options
+    # ============================================================
+    # APPLY DATASET FILTERING (IF SPECIFIED)
+    # ============================================================
     if args.dataset_type in ['synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank']:
         print(f"Applying filter: {args.dataset_type}")
         df = get_which_dataset(df, args.dataset_type)
@@ -594,19 +635,34 @@ if __name__ == "__main__":
         print("No dataset filtering applied - using loaded dataset as-is")
         print(f"Dataset shape: {df.shape}\n")
     
+    # ============================================================
+    # SHUFFLE DATASET
+    # ============================================================
     shuffled_df = shuffle_dataset(df, seed=args.seed)
     
+    # ============================================================
+    # EXTRACT SENTENCE EMBEDDINGS
+    # ============================================================
     embeddings_df, embeddings_col_name = extract_sentence_embeddings(
         shuffled_df, text_column=args.text_column
     )
     
+    # ============================================================
+    # SPLIT TRAIN/TEST SETS
+    # ============================================================
     X_train_df, X_test_df, y_train_df, y_test_df = split_train_test(
         embeddings_df, embeddings_col_name, seed=args.seed, stratify_by=args.label_column
     )
     
+    # ============================================================
+    # SAVE TEST SETS (FOR LLM EXPERIMENTS)
+    # ============================================================
     save_test_sets(X_test_df, y_test_df, output_dir)
     
-    # Create model checkpoint directory inside output directory
+    # ============================================================
+    # TRAIN MODELS & GENERATE PREDICTIONS
+    # ============================================================
+    # Create model checkpoint directory inside seed folder
     model_checkpoint_path = os.path.join(output_dir, 'model_checkpoints')
     os.makedirs(model_checkpoint_path, exist_ok=True)
     
@@ -615,19 +671,31 @@ if __name__ == "__main__":
         embeddings_col_name, args.label_column, model_checkpoint_path, seed=args.seed
     )
     
+    # ============================================================
+    # CREATE RESULTS DATAFRAME
+    # ============================================================
     results_df = create_results_dataframe(X_test_df, predictions)
     
-    DataProcessing.save_to_file(results_df, output_dir, 'ml_classifiers', '.csv')
-    print(f"✓ Saved results to: {os.path.join(output_dir, 'ml_classifiers.csv')}")
+    # Save without versioning (protected by folder hierarchy)
+    results_file = os.path.join(output_dir, 'ml_classifiers.csv')
+    results_df.to_csv(results_file, index=False)
+    print(f"✓ Saved results to: {results_file}")
     
-    # Evaluate models and save confusion matrices
+    # ============================================================
+    # EVALUATE MODELS & SAVE METRICS
+    # ============================================================
     eval_df, confusion_matrices, auc_scores = evaluate_models(
         predictions, y_test_df, args.label_column, output_dir
     )
     
+    # ============================================================
+    # PIPELINE COMPLETE
+    # ============================================================
     print("\n" + "="*50)
     print("PIPELINE COMPLETE")
     print("="*50)
+    print(f"Experiment: {experiment_name}")
+    print(f"Seed: {args.seed}")
     print(f"Results shape: {results_df.shape}")
     print(f"Models evaluated: {len(predictions)}")
     print(f"\n✓ All outputs saved to: {output_dir}\n")

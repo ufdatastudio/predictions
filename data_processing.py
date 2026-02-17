@@ -530,39 +530,40 @@ class DataProcessing:
         img = Image.open(io.BytesIO(png_data))
         img.save(save_dir)
 
-    def get_next_file_number(directory: str, prefix: str, extensions: str = ('.json', '.log', '.csv')):
+    @staticmethod
+    def get_next_file_number(directory: str, prefix: str, extensions: str = ('.json', '.log', '.csv', '.png')):
         """
-        Scans the directory for files starting with the given prefix and ending with one of the specified extensions.
-        Extracts the numeric suffix and returns the next available number.
-        
         Determine the next available file number based on existing files in a directory.
-
+        
         Parameters
         ----------
         directory : str
             Path to the directory where files are stored.
         prefix : str
-            The prefix used in filenames (e.g., 'siteA' for files like 'siteA-1.json').
+            The prefix used in filenames (e.g., 'siteA' for files like 'siteA-v3.json').
         extensions : tuple of str, optional
-            File extensions to consider when scanning for existing files. Default is ('.json', '.log', '.csv').
-
+            File extensions to consider when scanning for existing files. Default is ('.json', '.log', '.csv', '.png').
+        
         Returns
         -------
         int
             The next available file number (e.g., returns 4 if files with numbers 1, 2, and 3 exist).
-
         """
+        if not os.path.exists(directory):
+            return 1
+        
         numbers = []
         for name in os.listdir(directory):
-            # print(f"Found file: {name}")
+            full_path = os.path.join(directory, name)
+            
+            # Only check files
+            if not os.path.isfile(full_path):
+                continue
             
             if name.startswith(prefix) and name.endswith(extensions):
                 try:
                     # Assumes format: prefix-vN.ext (e.g., siteA-v3.json)
-                    # Extract the part between prefix and extension
                     after_prefix = name[len(prefix):]  # e.g., "-v3.json"
-                    
-                    # Remove the extension
                     without_ext = after_prefix.rsplit('.', 1)[0]  # e.g., "-v3"
                     
                     # Extract just the number (handle both "-v3" and "-3" formats)
@@ -573,20 +574,89 @@ class DataProcessing:
                     else:
                         continue
                     
-                    # print(f"Extracted number part: {number_part}")
                     number = int(number_part)
                     numbers.append(number)
-                    # print(f"Added number: {number}")
                     
-                except (ValueError, IndexError) as e:
-                    print(f"Skipping {name}: {e}")
+                except (ValueError, IndexError):
                     continue
         
         next_num = max(numbers, default=0) + 1
-        # print(f"Next file number will be: {next_num}")
         return next_num
 
-    def save_to_file(data, path: str, prefix: str, save_file_type: str):
+    @staticmethod
+    def get_next_directory_number(directory: str, prefix: str, date_filter: str = None):
+        """
+        Determine the next available directory number based on existing directories.
+        
+        Parameters
+        ----------
+        directory : str
+            Path to the parent directory where subdirectories are stored.
+        prefix : str
+            The prefix used in directory names (e.g., 'undersampled_96d-v4_').
+        date_filter : str, optional
+            Filter directories by date (e.g., '2026-02-17'). Only counts directories with this date.
+        
+        Returns
+        -------
+        int
+            The next available directory number.
+        
+        Notes
+        -----
+        Expected directory format: {prefix}v{N}_{date}
+        Example: undersampled_96d-v4_v2_2026-02-17
+        """
+        if not os.path.exists(directory):
+            return 1
+        
+        numbers = []
+        print(f"\n[DEBUG] Looking for directories with prefix: '{prefix}' and date: '{date_filter}'")
+        
+        for name in os.listdir(directory):
+            full_path = os.path.join(directory, name)
+            
+            # Only check directories
+            if not os.path.isdir(full_path):
+                continue
+            
+            print(f"[DEBUG] Checking directory: '{name}'")
+            
+            # Check if starts with prefix
+            if name.startswith(prefix):
+                # If date filter specified, check if directory ends with that date
+                if date_filter and not name.endswith(date_filter):
+                    print(f"[DEBUG] ✗ Doesn't match date filter '{date_filter}'")
+                    continue
+                
+                print(f"[DEBUG] ✓ Matches prefix and date")
+                try:
+                    # Extract part after prefix: "v1_2026-02-17" or "v2_2026-02-17"
+                    after_prefix = name[len(prefix):]
+                    print(f"[DEBUG] After prefix: '{after_prefix}'")
+                    
+                    # Split by underscore: ["v1", "2026-02-17"]
+                    parts = after_prefix.split('_')
+                    print(f"[DEBUG] Parts: {parts}")
+                    
+                    # First part should be version: "v1", "v2", etc.
+                    if parts and parts[0].startswith('v') and len(parts[0]) > 1:
+                        number_part = parts[0][1:]  # Remove 'v'
+                        number = int(number_part)
+                        numbers.append(number)
+                        print(f"[DEBUG] Found version number: {number}")
+                            
+                except (ValueError, IndexError) as e:
+                    print(f"[DEBUG] ✗ Error extracting number: {e}")
+                    continue
+            else:
+                print(f"[DEBUG] ✗ Doesn't match prefix")
+        
+        next_num = max(numbers, default=0) + 1
+        print(f"[DEBUG] Numbers found: {numbers}")
+        print(f"[DEBUG] Next number: {next_num}\n")
+        return next_num
+    def save_to_file(data, path: str, prefix: str, save_file_type: str, **kwargs: dict) -> None:
         """ 
         Save data to any file with an incremented filename based on existing files.
 
@@ -599,8 +669,10 @@ class DataProcessing:
         prefix : str
             Prefix for the filename (e.g., 'siteA' results in 'siteA-1.json', 'siteA-2.json', etc.).
         save_file_type : str
-            File types such as json, csv, etc
-
+            File types such as json, csv, png, etc
+        **kwargs : dict
+            Additional arguments for specific file types:
+            - For PNG: dpi (default=300), bbox_inches (default='tight')
         Returns
         -------
         None
@@ -617,11 +689,28 @@ class DataProcessing:
             print(f"Saving JSON file to: {file_path}")
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
+        
         elif save_file_type == 'csv' or save_file_type == '.csv':
             file_name = f"{prefix}-v{next_number}.csv"
             file_path = os.path.join(path, file_name)
             print(f"Saving CSV file to: {file_path}")
             data.to_csv(file_path, index=False)
+        
+        elif save_file_type == 'png' or save_file_type == '.png' or save_file_type == 'PNG':
+            import matplotlib.pyplot as plt
+
+            file_name = f"{prefix}-v{next_number}.png"
+            file_path = os.path.join(path, file_name)
+            print(f"Saving PNG file to: {file_path}")
+            
+            # Get optional parameters with defaults
+            dpi = kwargs.get('dpi', 300)
+            bbox_inches = kwargs.get('bbox_inches', 'tight')
+            
+            # Save the current figure (assumes plt has an active figure)
+            plt.savefig(file_path, dpi=dpi, bbox_inches=bbox_inches)
+            plt.close()
+            # data.to_csv(file_path, index=False)
         else:
             raise ValueError(f"Unsupported file type: {save_file_type}")
         # print(f"Saved to: \n\t{file_path}")

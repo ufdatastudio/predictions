@@ -12,6 +12,8 @@ from spacy.tokens import Doc
 
 from IPython.display import HTML, display
 
+from data_processing import DataProcessing
+
 class DataPlotting:
     """A class to plot data"""
 
@@ -330,8 +332,28 @@ class DataVisualizing:
         plt.tight_layout()
         plt.show()
 
-    def visualize_confusion_matrix(confusion_mat, model_name, save_path):
-        """Save confusion matrix as colored heatmap image."""
+    def visualize_confusion_matrix(confusion_mat, model_name, save_path, include_version: bool = False):
+        """
+        Save confusion matrix as colored heatmap image.
+        
+        Parameters
+        ----------
+        confusion_mat : np.ndarray
+            2x2 confusion matrix array
+        model_name : str
+            Name of the model (used in filename and title)
+        save_path : str
+            Directory path to save the PNG file
+        include_version : bool, optional
+            If True, uses versioning system (adds -v1, -v2, etc.)
+            If False, saves directly without version suffix (will overwrite)
+            Default is False.
+        
+        Notes
+        -----
+        When include_version=False, saves as: confusion_matrix_{model_name}.png
+        When include_version=True, saves as: confusion_matrix_{model_name}-v1.png, -v2.png, etc.
+        """
         
         plt.figure(figsize=(8, 6))
         
@@ -352,9 +374,16 @@ class DataVisualizing:
         plt.title(f'Confusion Matrix - {model_name}')
         plt.tight_layout()
         
-        # Save as PNG (good for Keynote)
-        filename = f'confusion_matrix_{model_name}.png'
-        plt.savefig(os.path.join(save_path, filename), dpi=300, bbox_inches='tight')
-        plt.close()
-        
-        print(f"✓ Saved confusion matrix: {filename}")
+        # Save based on versioning preference
+        if include_version:
+            # Use versioning system (adds -v1, -v2, etc.)
+            filename_prefix = f'confusion_matrix_{model_name}'
+            DataProcessing.save_to_file(None, save_path, filename_prefix, 'png')
+            print(f"✓ Saved confusion matrix with version: {filename_prefix}-vN.png")
+        else:
+            # Save directly without versioning (protected by folder hierarchy)
+            filename = f'confusion_matrix_{model_name}.png'
+            filepath = os.path.join(save_path, filename)
+            plt.savefig(filepath, dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"✓ Saved confusion matrix: {filename}")
