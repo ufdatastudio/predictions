@@ -126,7 +126,7 @@ def get_which_dataset(df, dataset_name):
     
     return result_df
 
-def shuffle_dataset(df):
+def shuffle_dataset(df, seed):
     """
     Shuffle dataset rows.
     
@@ -144,7 +144,7 @@ def shuffle_dataset(df):
     print("SHUFFLE DATASET")
     print("="*50)
     
-    shuffled_df = DataProcessing.shuffle_df(df)
+    shuffled_df = DataProcessing.shuffle_df(df, random_state=seed)
     print(f"Shape: {shuffled_df.shape}")
     print(f"\nPreview:\n{shuffled_df.head(7)}\n")
     
@@ -196,7 +196,7 @@ def extract_sentence_embeddings(df, text_column='Base Sentence'):
     
     return embeddings_df, embeddings_col_name
 
-def split_train_test(df, embeddings_col_name, stratify_by='Sentence Label'):
+def split_train_test(df, embeddings_col_name, seed=42, stratify_by='Sentence Label'):
     """
     Split dataset into train and test sets with stratification.
     
@@ -226,7 +226,7 @@ def split_train_test(df, embeddings_col_name, stratify_by='Sentence Label'):
     
     cols_with_labels = df.loc[:, [stratify_by]]
     data_splits = DataProcessing.split_data(
-        df, cols_with_labels, stratify=True, stratify_by=stratify_by
+        df, cols_with_labels, stratify=True, random_state=seed, stratify_by=stratify_by
     )
     
     X_train_df, X_test_df, y_train_df, y_test_df = data_splits
@@ -265,7 +265,7 @@ def save_test_sets(X_test_df, y_test_df, save_path):
     print(f"✓ Saved X_test to: {os.path.join(save_path, 'x_test_set.csv')}")
     print(f"✓ Saved y_test to: {os.path.join(save_path, 'y_sentence_test_df.csv')}\n")
 
-def build_models(factory, model_names):
+def build_models(factory, model_names, seed=42):
     """
     Initialize ML models from factory.
     
@@ -283,12 +283,12 @@ def build_models(factory, model_names):
     """
     models = {}
     for name in model_names:
-        models[name] = factory.select_model(name)
+        models[name] = factory.select_model(name, random_state=seed)
     return models
 
 def train_and_predict_models(
     ml_model_names, X_train_df, y_train_df, X_test_df, 
-    embeddings_col_name, label_name, model_checkpoint_path
+    embeddings_col_name, label_name, model_checkpoint_path, seed
 ):
     """
     Train multiple ML models and generate predictions on test set.
@@ -325,7 +325,7 @@ def train_and_predict_models(
     print(f"Label: {label_name}")
     print(f"Models: {len(ml_model_names)}")
     
-    ml_models = build_models(SkLearnModelFactory, ml_model_names)
+    ml_models = build_models(SkLearnModelFactory, ml_model_names, seed=seed)
     
     X_train_list = X_train_df[embeddings_col_name].to_list()
     y_train_list = y_train_df.to_list()
@@ -520,12 +520,20 @@ if __name__ == "__main__":
         default='Sentence Label',
         help='Name of column containing classification labels. Default: "Sentence Label"'
     )
+
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=42,
+        help='Random seed for reproducibility. Default: 42'
+    )
     
     args = parser.parse_args()
     
     # Extract dataset name for organized output directory
     dataset_filename = os.path.basename(args.dataset)
     dataset_name = os.path.splitext(dataset_filename)[0]
+    dataset_name = f"{dataset_name}_seed{args.seed}"
     
     # Add filter suffix to dataset name if filtering applied
     if args.dataset_type and args.dataset_type != 'synthetic_fin_phrasebank':
@@ -563,6 +571,7 @@ if __name__ == "__main__":
         'decision_tree_classifier',
         'random_forest_classifier',
         'gradient_boosting_classifier',
+        'x_gradient_boosting_classifier'
     ]
     
     # Validate columns exist
@@ -585,14 +594,14 @@ if __name__ == "__main__":
         print("No dataset filtering applied - using loaded dataset as-is")
         print(f"Dataset shape: {df.shape}\n")
     
-    shuffled_df = shuffle_dataset(df)
+    shuffled_df = shuffle_dataset(df, seed=args.seed)
     
     embeddings_df, embeddings_col_name = extract_sentence_embeddings(
         shuffled_df, text_column=args.text_column
     )
     
     X_train_df, X_test_df, y_train_df, y_test_df = split_train_test(
-        embeddings_df, embeddings_col_name, stratify_by=args.label_column
+        embeddings_df, embeddings_col_name, seed=args.seed, stratify_by=args.label_column
     )
     
     save_test_sets(X_test_df, y_test_df, output_dir)
@@ -603,7 +612,7 @@ if __name__ == "__main__":
     
     predictions = train_and_predict_models(
         ml_model_names, X_train_df, y_train_df, X_test_df,
-        embeddings_col_name, args.label_column, model_checkpoint_path
+        embeddings_col_name, args.label_column, model_checkpoint_path, seed=args.seed
     )
     
     results_df = create_results_dataframe(X_test_df, predictions)

@@ -22,11 +22,11 @@ class DataProcessing:
         df = pd.concat(dfs, axis=axis, ignore_index=ignore_index)
         return df
     
-    def shuffle_df(df: pd.DataFrame):
+    def shuffle_df(df: pd.DataFrame, random_state=42):
         """Shuffle the data"""
-        df = df.sample(frac=1).reset_index(drop=True)
+        df = df.sample(frac=1, random_state=random_state).reset_index(drop=True)
         return df
-
+    
     def split_data(
         vectorized_features,
         cols_with_labels: pd.DataFrame,
