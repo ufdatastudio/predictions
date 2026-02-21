@@ -1,10 +1,12 @@
 # average_classification_results.py
-import pandas as pd
-import numpy as np
 import os
-import sys
 import re
+import sys
 import json
+
+import numpy as np
+import pandas as pd
+
 from datetime import datetime
 
 # Add project modules to path
@@ -60,7 +62,6 @@ def get_latest_seed_version(experiment_dir, base_seed):
     # Return folder with highest version
     latest_version, latest_folder = max(versioned_folders, key=lambda x: x[0])
     return latest_folder
-
 
 def collect_results(results_dir):
     """
@@ -138,7 +139,6 @@ def collect_results(results_dir):
     
     return experiments
 
-
 def average_experiment_results(experiment_data):
     """
     Average metrics across seeds, grouped by model.
@@ -169,7 +169,6 @@ def average_experiment_results(experiment_data):
     n_seeds = len(all_dfs)
     
     return mean_df, std_df, n_seeds
-
 
 def save_averaged_results(results_dir, experiments):
     """
@@ -268,7 +267,6 @@ def save_averaged_results(results_dir, experiments):
     
     return all_summaries
 
-
 if __name__ == "__main__":
     """
     Average classification results across multiple seed runs.
@@ -279,7 +277,7 @@ if __name__ == "__main__":
     """
     
     # ============================================================
-    # CONFIGURATION
+    # 1. CONFIGURATION
     # ============================================================
     script_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(script_dir, '../data/classification_results/')
@@ -290,7 +288,7 @@ if __name__ == "__main__":
     print(f"Results directory: {results_dir}\n")
     
     # ============================================================
-    # COLLECT RESULTS
+    # 2. COLLECT RESULTS
     # ============================================================
     experiments = collect_results(results_dir)
     
@@ -304,12 +302,12 @@ if __name__ == "__main__":
         print(f"  - {exp_name}: {len(exp_data)} seed(s)")
     
     # ============================================================
-    # AVERAGE AND SAVE RESULTS
+    # 3. AVERAGE AND SAVE RESULTS
     # ============================================================
     summaries = save_averaged_results(results_dir, experiments)
     
     # ============================================================
-    # COMPLETE
+    # 4. PIPELINE COMPLETE
     # ============================================================
     print("\n" + "="*50)
     print("AVERAGING COMPLETE")
