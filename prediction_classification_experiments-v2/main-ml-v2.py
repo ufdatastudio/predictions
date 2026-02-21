@@ -8,8 +8,6 @@ import pandas as pd
 
 from datetime import datetime
 
-from sklearn.preprocessing import StandardScaler
-
 # Get the current working directory of the script
 script_dir = os.getcwd()
 # Add the parent directory to the system path
@@ -377,9 +375,14 @@ def build_models(factory, model_names, seed=42):
         models[name] = factory.select_model(name, random_state=seed)
     return models
 
-def train_and_predict_models(
-    ml_model_names, X_train_df, y_train_df, X_test_df, 
-    embeddings_col_name, label_name, model_checkpoint_path, seed
+def train_and_predict_models(ml_model_names,
+                             X_train_df,
+                             y_train_df, 
+                             X_test_df,
+                             embeddings_col_name,
+                             label_name,
+                             model_checkpoint_path,
+                             seed
 ):
     """
     Train multiple ML models and generate predictions on test set.
@@ -512,7 +515,7 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
     eval_reports = {}
     confusion_matrices = {}
     auc_scores = {}
-    metrics_summary = []  # NEW: Store metrics per model
+    metrics_summary = []
     
     for model_name, predictions in predictions_dict.items():
         print(f"### Model: {model_name} ###")
@@ -531,8 +534,7 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
         auc_scores[model_name] = auc_score
         print(f"AUC Score: {auc_score:.4f}\n")
         
-        # NEW: Extract metrics from classification report for averaging
-        # Assuming eval_report is a dict with structure from sklearn.metrics.classification_report
+        # For averaging
         metrics_row = {
             'model': model_name,
             'accuracy': eval_report.get('accuracy', None),
@@ -557,7 +559,6 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
     
     eval_reports_df = pd.DataFrame(eval_reports)
     
-    # NEW: Save metrics summary as CSV
     metrics_summary_df = pd.DataFrame(metrics_summary)
     metrics_file = os.path.join(save_path, 'metrics_summary.csv')
     metrics_summary_df.to_csv(metrics_file, index=False)
@@ -605,28 +606,31 @@ if __name__ == "__main__":
     print("="*50)
     
     # ============================================================
-    # PARSE ARGUMENTS
+    # 1. CONFIGURATION
     # ============================================================
     script_dir = os.path.dirname(os.path.abspath(__file__))
     base_data_path = os.path.join(script_dir, '../data')
     
-    default_dataset = os.path.join(base_data_path, 'classification_results/combined-synthetic-fin_phrase_bank-v5.csv')
+    default_dataset = os.path.join(base_data_path, 'financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv')
     default_save_path = os.path.join(base_data_path, 'classification_results/')
     
     parser = argparse.ArgumentParser(
         description='Train ML classifiers for prediction sentence classification'
     )
     
+    # dataset
     parser.add_argument(
         '--dataset',
         default=default_dataset,
-        help='Path to dataset file. Default: combined-synthetic-fin_phrase_bank-v5.csv'
+        help='Path to dataset file. Default: fpb-maya-binary-imbalanced-96d-v1.csv'
     )
+    # save_path
     parser.add_argument(
         '--save_path',
         default=default_save_path,
         help='Directory to save results and checkpoints. Default: ../data/classification_results/'
     )
+    # dataset_type
     parser.add_argument(
         '--dataset_type',
         default=None,
@@ -635,33 +639,30 @@ if __name__ == "__main__":
             'Options: synthetic_fin_phrasebank (both), synthetic (only synthetic), fin_phrasebank (only fin_phrasebank). '
             'Default: None (no filtering, use dataset as-is)'
     )
+    # text_column
     parser.add_argument(
         '--text_column',
         default='Base Sentence',
         help='Name of column containing text to classify. Default: "Base Sentence"'
     )
+    # label_column
     parser.add_argument(
         '--label_column',
         default='Sentence Label',
         help='Name of column containing classification labels. Default: "Sentence Label"'
     )
+    # seed
     parser.add_argument(
         '--seed',
         type=int,
         default=42,
         help='Random seed for reproducibility. Default: 42'
     )
-    parser.add_argument(
-        '--experiment_version',
-        type=int,
-        default=1,
-        help='Experiment version number. Default: 1'
-    )
     
     args = parser.parse_args()
     
     # ============================================================
-    # CREATE EXPERIMENT FOLDER STRUCTURE
+    # 2. EXPERIMENT PRE-PROCESSING
     # ============================================================
     # Get current date for experiment versioning
     current_date = datetime.now().strftime('%Y-%m-%d')
@@ -687,6 +688,9 @@ if __name__ == "__main__":
     print(f"Output directory: {output_dir}\n")
     
     # Define model names
+    # Need to make an arg, s.t. 
+        #  we/user can specify model(s) of interests
+        # to reduce runtime by running all models if all models aren't of interest
     ml_model_names = [
         'perceptron',
         'sgd_classifier',
@@ -695,11 +699,13 @@ if __name__ == "__main__":
         'decision_tree_classifier',
         'random_forest_classifier',
         'gradient_boosting_classifier',
+        'support_vector_machine_classifier',
         'x_gradient_boosting_classifier'
     ]
+    # ml_model_names = ['support_vector_machine_classifier']
     
     # ============================================================
-    # LOAD DATASET
+    # 3. LOAD DATASET
     # ============================================================
     print("="*50)
     print("DATASET LOADING")
@@ -719,7 +725,7 @@ if __name__ == "__main__":
     print(f"Date: {current_date}\n")
     
     # ============================================================
-    # VALIDATE DATASET COLUMNS
+    # 4. VALIDATE DATASET COLUMNS
     # ============================================================
     if args.text_column not in df.columns:
         print(f"\n❌ ERROR: Text column '{args.text_column}' not found in dataset")
@@ -732,7 +738,7 @@ if __name__ == "__main__":
         sys.exit(1)
     
     # ============================================================
-    # APPLY DATASET FILTERING (IF SPECIFIED)
+    # 5. APPLY DATASET FILTERING (IF SPECIFIED)
     # ============================================================
     if args.dataset_type in ['synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank']:
         print(f"Applying filter: {args.dataset_type}")
@@ -742,26 +748,26 @@ if __name__ == "__main__":
         print(f"Dataset shape: {df.shape}\n")
     
     # ============================================================
-    # SHUFFLE DATASET
+    # 6. SHUFFLE DATASET
     # ============================================================
     shuffled_df = shuffle_dataset(df, seed=args.seed)
     
     # ============================================================
-    # EXTRACT SENTENCE EMBEDDINGS
+    # 7. EXTRACT SENTENCE EMBEDDINGS
     # ============================================================
     embeddings_df, embeddings_col_name = extract_sentence_embeddings(
         shuffled_df, text_column=args.text_column
     )
     
     # ============================================================
-    # SPLIT TRAIN/TEST SETS
+    # 8. SPLIT TRAIN/TEST SETS
     # ============================================================
     X_train_df, X_test_df, y_train_df, y_test_df = split_train_test(
         embeddings_df, embeddings_col_name, seed=args.seed, stratify_by=args.label_column
     )
     
     # ============================================================
-    # SAVE TEST SETS (FOR LLM EXPERIMENTS)
+    # 9. SAVE TEST SETS (FOR LLM EXPERIMENTS)
     # ============================================================
     save_test_sets(X_test_df, 
                    y_test_df, 
@@ -770,7 +776,7 @@ if __name__ == "__main__":
                    )
     
     # ============================================================
-    # TRAIN MODELS & GENERATE PREDICTIONS
+    # 10. TRAIN MODELS & GENERATE MODEL PREDICTIONS (y_hat)
     # ============================================================
     # Create model checkpoint directory inside seed folder
     model_checkpoint_path = os.path.join(output_dir, 'model_checkpoints')
@@ -782,8 +788,9 @@ if __name__ == "__main__":
     )
     
     # ============================================================
-    # CREATE RESULTS DATAFRAME
+    # 11. POST-PROCESS
     # ============================================================
+    # Rows are sentences and columns are models with cells being 1/0
     results_df = create_results_dataframe(X_test_df, predictions)
     
     # Save without versioning (protected by folder hierarchy)
@@ -792,14 +799,14 @@ if __name__ == "__main__":
     print(f"✓ Saved results to: {results_file}")
     
     # ============================================================
-    # EVALUATE MODELS & SAVE METRICS
+    # 12. EVALUATE MODELS & SAVE METRICS
     # ============================================================
     eval_df, confusion_matrices, auc_scores = evaluate_models(
         predictions, y_test_df, args.label_column, output_dir
     )
     
     # ============================================================
-    # PIPELINE COMPLETE
+    # 13. PIPELINE COMPLETE
     # ============================================================
     print("\n" + "="*50)
     print("PIPELINE COMPLETE")
