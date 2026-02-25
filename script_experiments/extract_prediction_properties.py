@@ -43,7 +43,7 @@ def load_prompts_and_llms(model_names=None):
     
     # Build base prompt
     prediction_properties = PredictionProperties.get_prediction_properties()
-    system_identity_prompt, task, format_output = Prompts.extract_projection_properties()
+    system_identity_prompt, task, format_output = Prompts.extract_prediction_properties()
     base_prompt = f"""{system_identity_prompt} For each prediction, the format is based on: 
     {prediction_properties}
     """
@@ -207,6 +207,14 @@ if __name__ == "__main__":
     # Single model
     python3 extract_projection_properties.py --models llama-3.1-70b-instruct
     """
+
+    """NEEDS:
+    + Change "Prompts.extract_projection_properties()" to "Prompts.extract_prediction_properties()"
+    + read and save with my functions in DataProcessing
+    + handle if prompt changes, but everything else same
+    + get temperature and top_p for each llm and more metadata
+    + be sure we are using llms in text_generation_models.py vs model.chat_completion() in llm_certifier
+    """
         
     print("\n" + "="*50)
     print("PREDICTION PROPERTY EXTRACTION")
@@ -218,7 +226,7 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     base_data_path = DataProcessing.load_base_data_path(script_dir)
     default_dataset = DataProcessing.load_single_synthetic_data(
-        script_dir, batch_idx=1, sep=',', return_as='path'
+        script_dir, batch_idx=2, sep=',', return_as='path'
     )
     
     parser = argparse.ArgumentParser(description='Extract prediction properties from sentences using LLMs')
