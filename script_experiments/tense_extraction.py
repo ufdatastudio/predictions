@@ -25,8 +25,8 @@ def load_dataset(base_data_path, dataset_name):
     print("="*50)
     
     data_path = os.path.join(base_data_path, dataset_name)
-    
     print(f"Dataset path: {dataset_name}")
+    
     # Assuming DataProcessing handles file not found errors internally
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
     print(f"Shape: {df.shape}")
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Extract prediction properties from sentences using LLMs')
     parser.add_argument('--dataset', default=default_dataset, 
                        help='Path to dataset relative to base data directory.')
-    parser.add_argument('--dataset_name', type=str, default=f"synthtic_batch_{batch_idx}", 
+    parser.add_argument('--dataset_name', type=str, default=f"synthetic_batch_{batch_idx}", 
                        help='Name of dataset. Used for saving.')
     parser.add_argument('--text_column', type=str, default='Base Sentence',
                        help='Column name containing the text to analyze')
