@@ -530,7 +530,6 @@ class DataProcessing:
         img = Image.open(io.BytesIO(png_data))
         img.save(save_dir)
 
-    @staticmethod
     def get_next_file_number(directory: str, prefix: str, extensions: str = ('.json', '.log', '.csv', '.png')):
         """
         Determine the next available file number based on existing files in a directory.
@@ -583,7 +582,6 @@ class DataProcessing:
         next_num = max(numbers, default=0) + 1
         return next_num
 
-    @staticmethod
     def get_next_directory_number(directory: str, prefix: str, date_filter: str = None):
         """
         Determine the next available directory number based on existing directories.
@@ -761,6 +759,59 @@ class DataProcessing:
             return df
         else:
             return 'Did not properly load'
+
+    def get_latest_file(directory: str, prefix: str, file_type: str = 'csv') -> str:
+        """
+        Parameters
+        ----------
+        directory : str
+            Path to the directory to search in.
+        prefix : str
+            Filename prefix to match (e.g., 'classifications').
+        file_type : str, default 'csv'
+            File extension to match (without dot).
+
+        Notes
+        -----
+        Relies on the same versioning format as get_next_file_number()
+        (e.g., classifications-v3.csv). Returns the filename with the
+        highest version number.
+
+        Returns
+        -------
+        str
+            Filename of the latest versioned file.
+        """
+        if not os.path.exists(directory):
+            raise FileNotFoundError(f"Directory not found: {directory}")
+
+        matched = {}
+        for name in os.listdir(directory):
+            full_path = os.path.join(directory, name)
+            if not os.path.isfile(full_path):
+                continue
+            if name.startswith(prefix) and name.endswith(f'.{file_type}'):
+                try:
+                    after_prefix = name[len(prefix):]        # e.g., "-v3.csv"
+                    without_ext = after_prefix.rsplit('.', 1)[0]  # e.g., "-v3"
+                    if without_ext.startswith('-v'):
+                        number = int(without_ext[2:])
+                    elif without_ext.startswith('-'):
+                        number = int(without_ext[1:])
+                    else:
+                        continue
+                    matched[number] = name
+                except (ValueError, IndexError):
+                    continue
+
+        if not matched:
+            raise FileNotFoundError(
+                f"No versioned '{prefix}' files found in: {directory}"
+            )
+
+        # Return the filename with the highest version number
+        latest_filename = matched[max(matched)]
+        return latest_filename
 
     def remove_duplicates(df):
         filt_no_duplicates = (df.duplicated() == False)

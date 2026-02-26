@@ -5,6 +5,8 @@ import ast
 import json
 import argparse
 import pandas as pd
+import matplotlib
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 from typing import List
 from datetime import datetime
@@ -13,7 +15,6 @@ from collections import defaultdict
 # Add project modules to path
 script_dir = os.getcwd()
 sys.path.append(os.path.join(script_dir, '../'))
-
 from data_processing import DataProcessing
 from data_visualizing import DataPlotting
 
@@ -26,12 +27,10 @@ def load_dataset(base_data_path, dataset_name):
         Root path to all data.
     dataset_path : str
         Full path to the dataset file.
-
     Notes
     -----
     Expects a CSV with at least: Sentence, POS Label, Detailed POS Label,
     and a column named 'N Sentences' which holds the true sentence count.
-
     Returns
     -------
     pd.DataFrame
@@ -40,10 +39,10 @@ def load_dataset(base_data_path, dataset_name):
     print("\n" + "="*50)
     print("LOAD DATASET")
     print("="*50)
-    
+
     data_path = os.path.join(base_data_path, dataset_name)
     print(f"Dataset path: {dataset_name}")
-    
+
     # Assuming DataProcessing handles file not found errors internally
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
     print(f"Shape: {df.shape}")
@@ -52,8 +51,9 @@ def load_dataset(base_data_path, dataset_name):
     # Validate that the expected sentence count column exists
     if 'N Sentences' not in df.columns:
         raise ValueError("Input file must contain a column named 'N Sentences'.")
-    
+
     return df
+
 
 def classify_tense_per_sentence(
     df: pd.DataFrame,
@@ -70,7 +70,6 @@ def classify_tense_per_sentence(
         The coarse POS label to look for.
     detailed_pos_feature : str, default 'MD'
         The fine-grained POS tag to look for.
-
     Notes
     -----
     Tense is a sentence-level label, but the input data is token-level.
@@ -78,7 +77,6 @@ def classify_tense_per_sentence(
     that extract_pos_features() inserts after each sentence.
     Rule: if ANY token in the sentence has POS == pos_feature AND
     Detailed POS == detailed_pos_feature → Prediction (1), else Non-Prediction (0).
-
     Returns
     -------
     pd.DataFrame
@@ -148,12 +146,10 @@ def validate_sentence_count(results_df: pd.DataFrame, df: pd.DataFrame) -> None:
         Sentence-level classification output.
     df : pd.DataFrame
         Original token-level input dataframe containing 'N Sentences'.
-
     Notes
     -----
     Raises an error if the classified sentence count does not match
     the expected count stored in 'N Sentences'.
-
     Returns
     -------
     None
@@ -182,6 +178,7 @@ def visualize_tense_distribution(
     results_df: pd.DataFrame,
     save_path: str,
     dataset_name: str,
+    show: bool = False,
 ) -> None:
     """
     Parameters
@@ -192,12 +189,14 @@ def visualize_tense_distribution(
         Directory path where the PNG will be saved.
     dataset_name : str
         Used in the chart title so it's clear which dataset is shown.
-
+    show : bool, default False
+        If True, display the interactive pop-up window.
+        If False, only save the image (safe for bash/headless runs).
     Notes
     -----
-    Calls DataPlotting.plot_class_distribution() to render the bar chart,
-    then saves via DataProcessing.save_to_file().
-
+    Always saves the image. Pop-up window is optional via --visualize flag.
+    Uses the non-interactive 'Agg' backend when show=False to prevent
+    the plot window from blocking the bash script.
     Returns
     -------
     None
@@ -206,17 +205,21 @@ def visualize_tense_distribution(
     print("VISUALIZING TENSE DISTRIBUTION")
     print("="*50)
 
-    # Draw the bar chart – this leaves the figure open for saving
+    # Switch to non-interactive backend when not showing the window –
+    # this prevents the plot from blocking the bash script
+    if not show:
+        matplotlib.use('Agg')
+
+    # Draw the bar chart
     DataPlotting.plot_class_distribution(
         df=results_df,
         label_col='Future Tense',
         class_names=['Non-Prediction', 'Prediction'],
         title=f'Tense Distribution – {dataset_name}',
-        # Pass None for save_path here; we handle saving below explicitly
-        save_path=None,
+        save_path=None,     # We handle saving below explicitly
     )
 
-    # Save the current open figure using the unified save utility
+    # Always save the image regardless of show flag
     DataProcessing.save_to_file(
         data=None,
         path=save_path,
@@ -227,23 +230,31 @@ def visualize_tense_distribution(
         bbox_inches='tight',
     )
 
+    # Only show the interactive window if explicitly requested
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
     print(f"✓ Tense distribution plot saved to: {save_path}\n")
 
 
 if __name__ == "__main__":
     """Usage
-    # With visualisation
+    # Save image only (default – safe for bash)
     python3 tense_classification.py \
-        --dataset tense_extraction/synthetic_batch_1/pos_features-v1.csv \
-        --dataset_name synthetic_batch_1 \
+        --dataset tense_extraction/synthetic_combined/pos_features-v1.csv \
+        --dataset_name synthetic_combined \
+        --pos_feature AUX \
+        --detailed_pos_feature MD
+
+    # Save image AND show pop-up window
+    python3 tense_classification.py \
+        --dataset tense_extraction/synthetic_combined/pos_features-v1.csv \
+        --dataset_name synthetic_combined \
         --pos_feature AUX \
         --detailed_pos_feature MD \
         --visualize
-
-    # Without visualisation (default)
-    python3 tense_classification.py \
-        --dataset /path/to/pos_features-v1.csv \
-        --dataset_name synthetic_batch_1
     """
 
     print("\n" + "="*50)
@@ -282,9 +293,9 @@ if __name__ == "__main__":
     parser.add_argument('--detailed_pos_feature', type=str, default='MD',
                         help='Fine-grained POS tag to use for classification rule (e.g., MD).')
 
-    # Flag to optionally generate and save the distribution bar chart
+    # Flag to optionally show the pop-up window; image is always saved regardless
     parser.add_argument('--visualize', action='store_true',
-                        help='If set, generate and save a bar chart of Prediction vs Non-Prediction.')
+                        help='If set, show the interactive plot window. Image is always saved.')
 
     args = parser.parse_args()
 
@@ -343,8 +354,8 @@ if __name__ == "__main__":
         "classification_rule": f"POS=={args.pos_feature} AND Detailed POS=={args.detailed_pos_feature}",
         "pos_feature": args.pos_feature,
         "detailed_pos_feature": args.detailed_pos_feature,
-        "total_token_rows_input": len(df),                          # Token-level rows in
-        "total_sentences_classified": len(results_df),              # Sentence-level rows out
+        "total_token_rows_input": len(df),
+        "total_sentences_classified": len(results_df),
         "prediction_count": int(results_df['Future Tense'].sum()),
         "non_prediction_count": int((results_df['Future Tense'] == 0).sum()),
         "expected_sentence_count": int(df['N Sentences'].iloc[0]),
@@ -361,14 +372,14 @@ if __name__ == "__main__":
     )
 
     # ============================================================
-    # 6. OPTIONAL VISUALISATION
+    # 6. VISUALISATION – always saves image; pop-up only if --visualize
     # ============================================================
-    if args.visualize:
-        visualize_tense_distribution(
-            results_df=results_df,
-            save_path=save_path,
-            dataset_name=args.dataset_name,
-        )
+    visualize_tense_distribution(
+        results_df=results_df,
+        save_path=save_path,
+        dataset_name=args.dataset_name,
+        show=args.visualize,        # False by default → no blocking pop-up
+    )
 
     print("\n✓ Tense classification complete!")
     print(f"Files saved to          : {save_path}")

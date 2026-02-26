@@ -230,7 +230,7 @@ if __name__ == "__main__":
     )
     
     parser = argparse.ArgumentParser(description='Extract prediction properties from sentences using LLMs')
-    parser.add_argument('--dataset_name', default=default_dataset, 
+    parser.add_argument('--dataset', default=default_dataset, 
                        help='Path to dataset relative to base data directory.')
     parser.add_argument('--models', nargs='+', default='llama-3.1-8b-instant',
                        help='Model name(s) to use.')
@@ -242,12 +242,15 @@ if __name__ == "__main__":
     # ============================================================
     # 2. LOAD DATASET & VALIDATE COLUMNS
     # ============================================================
-    df = load_dataset(base_data_path, args.dataset_name)
+    df = load_dataset(base_data_path, args.dataset)
     
     if args.text_column not in df.columns:
         print(f"\n❌ ERROR: Text column '{args.text_column}' not found in dataset")
-        print(f"Available columns: {list(df.columns)}")
-        sys.exit(1)
+        print(f"Available columns: {list(df.columns)}. Enter column of interests.")
+        args.text_column = input("Enter column of interests: ")
+        print(f"Text column '{args.text_column}'")
+
+        # sys.exit(1)
 
     # ============================================================
     # 3. LOAD PROMPTS and LLMs
@@ -257,10 +260,10 @@ if __name__ == "__main__":
     # ============================================================
     # 4. SETUP OUTPUT DIRECTORY
     # ============================================================
-    dataset_basename = os.path.basename(args.dataset_name).split('.')[0]
+    dataset_basename = os.path.basename(args.dataset).split('.')[0]
     model_names_str = '-'.join([m.__name__() for m in models])
     
-    # Structure: data/extract_prediction_properties/{dataset_name}/{model_name}/
+    # Structure: data/extract_prediction_properties/{dataset}/{model_name}/
     output_dir = os.path.join(
         base_data_path, 
         "extract_prediction_properties", 
@@ -278,7 +281,7 @@ if __name__ == "__main__":
     # ============================================================
     metadata = {
         "timestamp": pd.Timestamp.now().isoformat(),
-        "dataset_name": args.dataset_name,
+        "dataset": args.dataset,
         "dataset_basename": dataset_basename,
         "text_column": args.text_column,
         "models_used": [m.__name__() for m in models], 
