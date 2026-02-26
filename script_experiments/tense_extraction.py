@@ -8,6 +8,8 @@ import pandas as pd
 from tqdm import tqdm
 from typing import List
 
+from datetime import datetime
+
 # Add project modules to path
 script_dir = os.getcwd()
 sys.path.append(os.path.join(script_dir, '../'))
@@ -48,16 +50,16 @@ if __name__ == "__main__":
     # ============================================================
     script_dir = os.path.dirname(os.path.abspath(__file__))
     base_data_path = DataProcessing.load_base_data_path(script_dir)
+    batch_idx = 1
     default_dataset = DataProcessing.load_single_synthetic_data(
-        script_dir, batch_idx=2, sep=',', return_as='path'
+        script_dir, batch_idx=batch_idx, sep=',', return_as='path'
     )
     
     parser = argparse.ArgumentParser(description='Extract prediction properties from sentences using LLMs')
     parser.add_argument('--dataset', default=default_dataset, 
                        help='Path to dataset relative to base data directory.')
-    parser.add_argument('--models', nargs='+', default='llama-3.1-8b-instant',
-                       help='Model name(s) to use.')
-    # Added arguments for flexible column names
+    parser.add_argument('--dataset_name', type=str, default=f"synthtic_batch_{batch_idx}", 
+                       help='Name of dataset. Used for saving.')
     parser.add_argument('--text_column', type=str, default='Base Sentence',
                        help='Column name containing the text to analyze')
     parser.add_argument('--spacy_disable_components', type=list, default=[],
@@ -70,6 +72,7 @@ if __name__ == "__main__":
     # 2. LOAD DATASET & VALIDATE COLUMNS
     # ============================================================
     df = load_dataset(base_data_path, args.dataset)
+    df = df.loc[:7, : ]
     
     if args.text_column not in df.columns:
         print(f"\n❌ ERROR: Text column '{args.text_column}' not found in dataset")
@@ -80,8 +83,14 @@ if __name__ == "__main__":
     # ============================================================
     # 3. EXTRACT FEATURES
     # ============================================================
-    spe = SpacyFeatureExtraction(df, 'Base Sentence')
+    spe = SpacyFeatureExtraction(df, args.text_column)
     pos_df, ner_df = spe.extract_pos_ner_features(disable_components=args.spacy_disable_components, visualize=True)
+    pos_df['Dataset Name'] = args.dataset_name
+    ner_df['Dataset Name'] = args.dataset_name
+
+    pos_df['N Sentences'] = len(df)
+    ner_df['N Sentences'] = len(df)
+
     print(f"\nPOS Preview:\n{pos_df.head()}\n")
     print(f"\nNER Preview:\n{ner_df.head()}\n")
 
@@ -92,15 +101,15 @@ if __name__ == "__main__":
     print("SAVING TENSE EXTRACTION FEATURES")
     print("="*50)
 
-    # Get dataset name from path for organizing saves
-    dataset_name = os.path.splitext(os.path.basename(args.dataset))[0]
-    save_path = os.path.join(base_data_path, 'tense_extraction')
+    save_path = os.path.join(base_data_path, 'tense_extraction', args.dataset_name)
+    os.makedirs(save_path, exist_ok=True)
+    # save_path = os.path.join(save_path, 'tense_extraction')
 
     # Save POS features
     DataProcessing.save_to_file(
         data=pos_df,
         path=save_path,
-        prefix=f'{dataset_name}_pos_features',
+        prefix=f'pos_features',
         save_file_type='csv',
         include_version=True
     )
@@ -109,27 +118,28 @@ if __name__ == "__main__":
     DataProcessing.save_to_file(
         data=ner_df,
         path=save_path,
-        prefix=f'{dataset_name}_ner_features',
+        prefix=f'ner_features',
         save_file_type='csv',
         include_version=True
     )
 
     # Save metadata
     extraction_metadata = {
-        "dataset_name": dataset_name,
+        "dataset_name": f'{args.dataset_name}',
         "dataset_path": args.dataset,
+        "save_path": save_path,
         "text_column": args.text_column,
         "total_rows": len(df),
         "pos_features_shape": pos_df.shape,
         "ner_features_shape": ner_df.shape,
         "spacy_disabled_components": args.spacy_disable_components,
-        "extraction_timestamp": pd.Timestamp.now().isoformat()
+        "extraction_timestamp": datetime.now().strftime('%Y-%m-%d')
     }
 
     DataProcessing.save_to_file(
         data=extraction_metadata,
         path=save_path,
-        prefix=f'{dataset_name}_extraction_metadata',
+        prefix=f'{args.dataset_name}_extraction_metadata',
         save_file_type='json',
         include_version=False
     )
