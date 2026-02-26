@@ -399,6 +399,9 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         pd.DataFrame
             One row per token.
         """
+        print("\n" + "="*50)
+        print("EXTRACTING POS FEATURES")
+        print("="*50)
         # 1. Prepare containers -------------------------------------------------
         sentences, words, lemmas = [], [], []
         pos_labels, detailed_pos_labels = [], []
@@ -422,7 +425,10 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                     batch_size=batch_size,
                 )
             ),
-            desc="Spacy POS extraction",
+            total=len(data),
+            desc="Extracting POS Features",
+            unit="doc",
+            miniters=1
         ):
             if doc_i <= 3 and visualize:
                 # DataProcessing.visualize_spacy_doc(doc)
@@ -486,6 +492,9 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         # Add all morph columns
         df_dict.update(morph_dict)
 
+        print("\n" + "="*50)
+        print("DONE EXTRACTING POS FEATURES")
+        print("="*50)
         return pd.DataFrame(df_dict)
 
     # ------------------------------------------------------------------
@@ -517,6 +526,10 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             Columns: Sentence, Term, NER Label, Unique NER Label,
             Start Char, End Char.
         """
+        print("\n" + "="*50)
+        print("EXTRACTING NER FEATURES")
+        print("="*50)
+
         sentences, words, labels, unique_labels = [], [], [], []
         start_chars, end_chars = [], []
 
@@ -530,7 +543,11 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                     disable=disable_components,
                     batch_size=batch_size,
                 )
-            )
+            ),
+            total=len(data),
+            desc="Extracting NER Features",
+            unit="doc",
+            miniters=1
         ):
             if doc_i <= 3 and visualize:
                 # DataProcessing.visualize_spacy_doc(doc)
@@ -555,6 +572,9 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             start_chars.append("")
             end_chars.append("")
 
+        print("\n" + "="*50)
+        print("DONE EXTRACTING NER FEATURES")
+        print("="*50)
         return pd.DataFrame(
             {
                 "Sentence": sentences,
