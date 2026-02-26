@@ -13,17 +13,18 @@ from collections import defaultdict
 # Add project modules to path
 script_dir = os.getcwd()
 sys.path.append(os.path.join(script_dir, '../'))
+
 from data_processing import DataProcessing
-from feature_extraction import SpacyFeatureExtraction
+from data_visualizing import DataPlotting
 
 
-def load_dataset(base_data_path: str, dataset_name: str) -> pd.DataFrame:
+def load_dataset(base_data_path, dataset_name):
     """
     Parameters
     ----------
     base_data_path : str
         Root path to all data.
-    dataset_name : str
+    dataset_path : str
         Full path to the dataset file.
 
     Notes
@@ -39,22 +40,26 @@ def load_dataset(base_data_path: str, dataset_name: str) -> pd.DataFrame:
     print("\n" + "="*50)
     print("LOAD DATASET")
     print("="*50)
-
+    
     data_path = os.path.join(base_data_path, dataset_name)
-    print(f"Data path: {data_path}")
-
+    print(f"Dataset path: {dataset_name}")
+    
+    # Assuming DataProcessing handles file not found errors internally
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
     print(f"Shape: {df.shape}")
-    print(f"\nPreview:\n{df.head(10)}\n")
+    print(f"\nPreview:\n{df.head()}\n")
 
-    # Validate that the expected column exists before doing anything
+    # Validate that the expected sentence count column exists
     if 'N Sentences' not in df.columns:
         raise ValueError("Input file must contain a column named 'N Sentences'.")
-
+    
     return df
 
-
-def classify_tense_per_sentence(df: pd.DataFrame, pos_feature: str = 'AUX', detailed_pos_feature: str = 'MD') -> pd.DataFrame:
+def classify_tense_per_sentence(
+    df: pd.DataFrame,
+    pos_feature: str = 'AUX',
+    detailed_pos_feature: str = 'MD',
+) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -62,18 +67,17 @@ def classify_tense_per_sentence(df: pd.DataFrame, pos_feature: str = 'AUX', deta
         Token-level POS features dataframe, one row per token, with empty
         rows separating each sentence.
     pos_feature : str, default 'AUX'
-        The POS label to look for (e.g., 'AUX').
+        The coarse POS label to look for.
     detailed_pos_feature : str, default 'MD'
-        The fine-grained POS tag to look for (e.g., 'MD' for modals).
+        The fine-grained POS tag to look for.
 
     Notes
     -----
-    The input data is token-level, but tense is a sentence-level label.
+    Tense is a sentence-level label, but the input data is token-level.
     We group tokens back into sentences using the empty-row boundaries
     that extract_pos_features() inserts after each sentence.
     Rule: if ANY token in the sentence has POS == pos_feature AND
-    Detailed POS == detailed_pos_feature, classify as Future (1),
-    otherwise Non-Future (0).
+    Detailed POS == detailed_pos_feature → Prediction (1), else Non-Prediction (0).
 
     Returns
     -------
@@ -81,43 +85,35 @@ def classify_tense_per_sentence(df: pd.DataFrame, pos_feature: str = 'AUX', deta
         One row per sentence with columns: Sentence, Future Tense.
     """
     print("\n" + "="*50)
-    print("CLASSIFYING TENSE PER WORD")
-    print("Future: AUX and MD")
+    print("CLASSIFYING TENSE PER SENTENCE")
     print("="*50)
 
     results = []
 
-    # -----------------------------------------------------------------
-    # Group tokens back into sentence-level blocks using the empty-row
-    # boundaries that extract_pos_features() inserts after each sentence.
-    # An empty row is identified by an empty string in 'Sentence'.
-    # -----------------------------------------------------------------
+    # Accumulate tokens per sentence, then classify at sentence boundary
     current_sentence_tokens = []
     current_sentence_text = ""
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Classifying words", unit="row"):
 
-        # Empty row signals end of current sentence block
+        # Empty row signals end of the current sentence block
         if row['Sentence'] == "" or pd.isna(row['Sentence']):
             if current_sentence_tokens:
-                # -------------------------------------------------------
-                # Apply the classification rule at the sentence level:
-                # future = 1 if any token matches AUX + MD, else 0
-                # -------------------------------------------------------
-                is_future = any(
+                # Apply rule: AUX + MD anywhere in sentence → Prediction
+                is_prediction = any(
                     t['POS Label'] == pos_feature and t['Detailed POS Label'] == detailed_pos_feature
                     for t in current_sentence_tokens
                 )
                 results.append({
                     "Sentence": current_sentence_text,
-                    "Future Tense": 1 if is_future else 0,
+                    "Future Tense": 1 if is_prediction else 0,
                 })
                 # Reset for the next sentence
                 current_sentence_tokens = []
                 current_sentence_text = ""
         else:
             # Accumulate tokens belonging to the current sentence
-            current_sentence_text = row['Sentence']  # Same for all tokens in sentence
+            current_sentence_text = row['Sentence']
             current_sentence_tokens.append({
                 "POS Label": row['POS Label'],
                 "Detailed POS Label": row['Detailed POS Label'],
@@ -125,20 +121,20 @@ def classify_tense_per_sentence(df: pd.DataFrame, pos_feature: str = 'AUX', deta
 
     # Handle any trailing sentence that didn't end with an empty row
     if current_sentence_tokens:
-        is_future = any(
+        is_prediction = any(
             t['POS Label'] == pos_feature and t['Detailed POS Label'] == detailed_pos_feature
             for t in current_sentence_tokens
         )
         results.append({
             "Sentence": current_sentence_text,
-            "Future Tense": 1 if is_future else 0,
+            "Future Tense": 1 if is_prediction else 0,
         })
 
     results_df = pd.DataFrame(results)
 
     print(f"Shape: {results_df.shape}")
-    print(f"Future tense sentences: {results_df['Future Tense'].sum()}")
-    print(f"Non-future sentences: {(results_df['Future Tense'] == 0).sum()}")
+    print(f"Prediction sentences    : {results_df['Future Tense'].sum()}")
+    print(f"Non-Prediction sentences: {(results_df['Future Tense'] == 0).sum()}")
     print(f"\nPreview:\n{results_df.head(10)}\n")
 
     return results_df
@@ -155,16 +151,14 @@ def validate_sentence_count(results_df: pd.DataFrame, df: pd.DataFrame) -> None:
 
     Notes
     -----
-    Compares the number of classified sentences against the expected
-    sentence count stored in the 'N Sentences' column of the input file.
-    Raises an error if they do not match so the issue is caught early.
+    Raises an error if the classified sentence count does not match
+    the expected count stored in 'N Sentences'.
 
     Returns
     -------
     None
     """
-    # The 'N Sentences' column should be constant across all rows (it's a
-    # property of the file, not a per-token value), so we take the first value.
+    # 'N Sentences' is a file-level property – the same value on every row
     expected_n_sentences = int(df['N Sentences'].iloc[0])
     actual_n_sentences = len(results_df)
 
@@ -172,7 +166,7 @@ def validate_sentence_count(results_df: pd.DataFrame, df: pd.DataFrame) -> None:
     print("VALIDATING SENTENCE COUNT")
     print("="*50)
     print(f"Expected sentences (N Sentences column): {expected_n_sentences}")
-    print(f"Actual sentences classified:             {actual_n_sentences}")
+    print(f"Actual sentences classified            : {actual_n_sentences}")
 
     if expected_n_sentences != actual_n_sentences:
         raise ValueError(
@@ -184,13 +178,72 @@ def validate_sentence_count(results_df: pd.DataFrame, df: pd.DataFrame) -> None:
     print("✓ Sentence count matches.\n")
 
 
+def visualize_tense_distribution(
+    results_df: pd.DataFrame,
+    save_path: str,
+    dataset_name: str,
+) -> None:
+    """
+    Parameters
+    ----------
+    results_df : pd.DataFrame
+        Sentence-level classification output with a 'Future Tense' column.
+    save_path : str
+        Directory path where the PNG will be saved.
+    dataset_name : str
+        Used in the chart title so it's clear which dataset is shown.
+
+    Notes
+    -----
+    Calls DataPlotting.plot_class_distribution() to render the bar chart,
+    then saves via DataProcessing.save_to_file().
+
+    Returns
+    -------
+    None
+    """
+    print("\n" + "="*50)
+    print("VISUALIZING TENSE DISTRIBUTION")
+    print("="*50)
+
+    # Draw the bar chart – this leaves the figure open for saving
+    DataPlotting.plot_class_distribution(
+        df=results_df,
+        label_col='Future Tense',
+        class_names=['Non-Prediction', 'Prediction'],
+        title=f'Tense Distribution – {dataset_name}',
+        # Pass None for save_path here; we handle saving below explicitly
+        save_path=None,
+    )
+
+    # Save the current open figure using the unified save utility
+    DataProcessing.save_to_file(
+        data=None,
+        path=save_path,
+        prefix='tense_distribution',
+        save_file_type='png',
+        include_version=True,
+        dpi=300,
+        bbox_inches='tight',
+    )
+
+    print(f"✓ Tense distribution plot saved to: {save_path}\n")
+
+
 if __name__ == "__main__":
     """Usage
+    # With visualisation
     python3 tense_classification.py \
-        --dataset /path/to/pos_features-v1.csv \
+        --dataset tense_extraction/synthetic_batch_1/pos_features-v1.csv \
         --dataset_name synthetic_batch_1 \
         --pos_feature AUX \
-        --detailed_pos_feature MD
+        --detailed_pos_feature MD \
+        --visualize
+
+    # Without visualisation (default)
+    python3 tense_classification.py \
+        --dataset /path/to/pos_features-v1.csv \
+        --dataset_name synthetic_batch_1
     """
 
     print("\n" + "="*50)
@@ -208,12 +261,12 @@ if __name__ == "__main__":
     default_dataset = os.path.join(
         base_data_path,
         f'tense_extraction/synthetic_batch_{batch_idx}/',
-        'pos_features-v1.csv'
+        'pos_features-v1.csv',
     )
 
     parser = argparse.ArgumentParser(description='Classify sentence tense using rule-based POS features.')
 
-    # Path to the POS features CSV (explicit – no auto-discovery of latest version)
+    # Full path to the POS features CSV (explicit – no auto-discovery of latest version)
     parser.add_argument('--dataset', default=default_dataset,
                         help='Full path to the POS features CSV file.')
 
@@ -221,13 +274,17 @@ if __name__ == "__main__":
     parser.add_argument('--dataset_name', type=str, default=f"synthetic_batch_{batch_idx}",
                         help='Name of the dataset. Used for naming the output folder.')
 
-    # POS feature to match (coarse tag) – explicit so every run is reproducible
+    # Coarse POS label for the classification rule
     parser.add_argument('--pos_feature', type=str, default='AUX',
                         help='Coarse POS label to use for classification rule (e.g., AUX).')
 
-    # Fine-grained POS tag to match – explicit for the same reason
+    # Fine-grained POS tag for the classification rule
     parser.add_argument('--detailed_pos_feature', type=str, default='MD',
                         help='Fine-grained POS tag to use for classification rule (e.g., MD).')
+
+    # Flag to optionally generate and save the distribution bar chart
+    parser.add_argument('--visualize', action='store_true',
+                        help='If set, generate and save a bar chart of Prediction vs Non-Prediction.')
 
     args = parser.parse_args()
 
@@ -238,7 +295,7 @@ if __name__ == "__main__":
 
     # ============================================================
     # 3. CLASSIFY TENSE – sentence level
-    # Rule: sentence contains AUX + MD → Future (1), else Non-Future (0)
+    # Rule: sentence contains AUX + MD → Prediction (1), else Non-Prediction (0)
     # ============================================================
     results_df = classify_tense_per_sentence(
         df,
@@ -247,7 +304,7 @@ if __name__ == "__main__":
     )
 
     # Tag each row with the source file so we can trace back later
-    results_df['Source Dataset'] = args.dataset_name
+    results_df['Source Dataset'] = args.dataset
 
     # ============================================================
     # 4. VALIDATE – classified sentence count must match N Sentences
@@ -261,12 +318,12 @@ if __name__ == "__main__":
     print("SAVING TENSE CLASSIFICATION RESULTS")
     print("="*50)
 
-    # Save under rule_based method, organised by dataset name
+    # All outputs go under rule_based/dataset_name/
     save_path = os.path.join(
         base_data_path,
         'tense_classification',
         'rule_based',
-        f'{args.dataset_name}'
+        f'{args.dataset_name}',
     )
 
     # Save sentence-level classifications
@@ -275,7 +332,7 @@ if __name__ == "__main__":
         path=save_path,
         prefix='classifications',
         save_file_type='csv',
-        include_version=True
+        include_version=True,
     )
 
     # Save metadata so every run is fully reproducible
@@ -286,13 +343,13 @@ if __name__ == "__main__":
         "classification_rule": f"POS=={args.pos_feature} AND Detailed POS=={args.detailed_pos_feature}",
         "pos_feature": args.pos_feature,
         "detailed_pos_feature": args.detailed_pos_feature,
-        "total_token_rows_input": len(df),                      # Token-level rows in
-        "total_sentences_classified": len(results_df),          # Sentence-level rows out
-        "future_tense_count": int(results_df['Future Tense'].sum()),
-        "non_future_tense_count": int((results_df['Future Tense'] == 0).sum()),
+        "total_token_rows_input": len(df),                          # Token-level rows in
+        "total_sentences_classified": len(results_df),              # Sentence-level rows out
+        "prediction_count": int(results_df['Future Tense'].sum()),
+        "non_prediction_count": int((results_df['Future Tense'] == 0).sum()),
         "expected_sentence_count": int(df['N Sentences'].iloc[0]),
         "columns": list(results_df.columns),
-        "classification_timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        "classification_timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
     }
 
     DataProcessing.save_to_file(
@@ -300,11 +357,21 @@ if __name__ == "__main__":
         path=save_path,
         prefix='classification_metadata',
         save_file_type='json',
-        include_version=False
+        include_version=False,
     )
 
+    # ============================================================
+    # 6. OPTIONAL VISUALISATION
+    # ============================================================
+    if args.visualize:
+        visualize_tense_distribution(
+            results_df=results_df,
+            save_path=save_path,
+            dataset_name=args.dataset_name,
+        )
+
     print("\n✓ Tense classification complete!")
-    print(f"Files saved to: {save_path}")
-    print(f"Future tense sentences    : {classification_metadata['future_tense_count']}")
-    print(f"Non-future tense sentences: {classification_metadata['non_future_tense_count']}")
-    print(f"Total sentences           : {classification_metadata['total_sentences_classified']}")
+    print(f"Files saved to          : {save_path}")
+    print(f"Prediction sentences    : {classification_metadata['prediction_count']}")
+    print(f"Non-Prediction sentences: {classification_metadata['non_prediction_count']}")
+    print(f"Total sentences         : {classification_metadata['total_sentences_classified']}")
