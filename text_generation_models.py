@@ -14,6 +14,7 @@ import torch
 import ipdb
 
 import pandas as pd
+from datetime import date
 
 from groq import Groq
 from tqdm import tqdm
@@ -35,7 +36,7 @@ class TextGenerationModelFactory(ABC):
         """In the init method (also called constructor), initialize our class with variables or attributes."""
         # Create instance variables or attributes
         # Standardized model parameters
-        self.temperature = 0.6
+        self.temperature = 0.8
         self.top_p = 0.9
         self.model_name = None
    
@@ -310,6 +311,9 @@ class TextGenerationModelFactory(ABC):
         df['Model Name'] = self.model_name
         df['API Name'] = self.api_name
         df['Batch ID'] = batch_id
+        df['Temperature'] = getattr(self, 'temperature', None)
+        df['Top P'] = getattr(self, 'top_p', None)
+        df['Generated At'] = date.today().isoformat()
         # print()
         # print(df)
         # ipdb.set_trace()
