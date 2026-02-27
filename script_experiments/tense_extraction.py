@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # 2. LOAD DATASET & VALIDATE COLUMNS
     # ============================================================
     df = load_dataset(base_data_path, args.dataset)
-    df = df.loc[:7, : ]
+    # df = df.loc[:7, : ]
     
     if args.text_column not in df.columns:
         print(f"\n❌ ERROR: Text column '{args.text_column}' not found in dataset")
