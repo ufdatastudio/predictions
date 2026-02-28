@@ -3,10 +3,8 @@ import os
 import re
 import sys
 import json
-
 import numpy as np
 import pandas as pd
-
 from datetime import datetime
 
 # Add project modules to path
@@ -62,6 +60,7 @@ def get_latest_seed_version(experiment_dir, base_seed):
     # Return folder with highest version
     latest_version, latest_folder = max(versioned_folders, key=lambda x: x[0])
     return latest_folder
+
 
 def collect_results(results_dir):
     """
@@ -139,6 +138,7 @@ def collect_results(results_dir):
     
     return experiments
 
+
 def average_experiment_results(experiment_data):
     """
     Average metrics across seeds, grouped by model.
@@ -160,15 +160,157 @@ def average_experiment_results(experiment_data):
     all_dfs = [item['data'] for item in experiment_data]
     combined_df = pd.concat(all_dfs, ignore_index=True)
     
-    # Group by model and compute mean/std
+    # Group by model and compute mean/std on numeric columns only
     numeric_cols = combined_df.select_dtypes(include=[np.number]).columns
     
     mean_df = combined_df.groupby('model')[numeric_cols].mean()
+    mean_df.loc[-1] = mean_df.mean()
+    mean_df = mean_df.rename(index={-1: 'mean_row'})
+    
     std_df = combined_df.groupby('model')[numeric_cols].std()
+    std_df.loc[-1] = std_df.std()
+    std_df = std_df.rename(index={-1: 'std_row'})
     
     n_seeds = len(all_dfs)
     
     return mean_df, std_df, n_seeds
+
+
+def compute_cross_dataset_margins(summaries):
+    """
+    Compute margins for same model across datasets
+    and accuracy distribution per dataset.
+    
+    Parameters
+    ----------
+    summaries : list
+        List of summary dicts from save_averaged_results()
+        Each dict contains: experiment, version, n_seeds, seed_info, mean, std
+    
+    Returns
+    -------
+    tuple
+        (model_margins_df, dataset_accuracy_df)
+        - model_margins_df: mean ± std per model across all 3 datasets
+        - dataset_accuracy_df: accuracy stats per dataset across all models
+    
+    Notes
+    -----
+    Identifies dataset type from experiment name:
+    - 'imbalanced' in name → imbalanced dataset
+    - 'oversampled' in name → oversampled dataset
+    - 'undersampled' in name → undersampled dataset
+    
+    Example for Perceptron accuracy:
+        Imbalanced:   0.8708
+        Oversampled:  0.8276
+        Undersampled: 0.7554
+        Mean: 0.8179 ± 0.0493
+    """
+    print(f"\n{'='*50}")
+    print("CROSS-DATASET MARGINS")
+    print(f"{'='*50}\n")
+    
+    # ============================================================
+    # ORGANIZE DATA BY DATASET TYPE
+    # ============================================================
+    dataset_means = {}
+    for summary in summaries:
+        exp_name = summary['experiment']
+        mean_df = summary['mean']
+        
+        # Identify dataset type from experiment name
+        if 'imbalanced' in exp_name:
+            dataset_type = 'imbalanced'
+        elif 'oversampled' in exp_name:
+            dataset_type = 'oversampled'
+        elif 'undersampled' in exp_name:
+            dataset_type = 'undersampled'
+        else:
+            dataset_type = exp_name  # Fallback to full name
+        
+        dataset_means[dataset_type] = mean_df
+    
+    print(f"Datasets found: {list(dataset_means.keys())}\n")
+    
+    # ============================================================
+    # SAME MODEL ACROSS DATASETS (MEAN ± STD)
+    # ============================================================
+    model_margins = []
+    
+    # Get all unique models (exclude mean_row)
+    all_models = set()
+    for mean_df in dataset_means.values():
+        all_models.update(mean_df.index.tolist())
+    all_models = sorted([m for m in all_models if m != 'mean_row'])
+    
+    for model in all_models:
+        row = {'model': model}
+        
+        # Collect metric values per dataset for this model
+        for dataset_type, mean_df in dataset_means.items():
+            if model in mean_df.index:
+                row[f'{dataset_type}_accuracy'] = mean_df.loc[model, 'accuracy']
+                row[f'{dataset_type}_f1_class_1'] = mean_df.loc[model, 'f1_class_1']
+                row[f'{dataset_type}_auc'] = mean_df.loc[model, 'auc']
+        
+        # Compute mean ± std across datasets for each metric
+        # e.g., Perceptron accuracy: mean(0.8708, 0.8276, 0.7554) = 0.8179 ± 0.0493
+        accuracy_vals = [row[f'{d}_accuracy'] for d in dataset_means.keys() if f'{d}_accuracy' in row]
+        f1_vals = [row[f'{d}_f1_class_1'] for d in dataset_means.keys() if f'{d}_f1_class_1' in row]
+        auc_vals = [row[f'{d}_auc'] for d in dataset_means.keys() if f'{d}_auc' in row]
+        
+        if accuracy_vals:
+            row['accuracy_mean_across_datasets'] = np.mean(accuracy_vals)
+            row['accuracy_std_across_datasets'] = np.std(accuracy_vals)
+            row['accuracy_margin'] = max(accuracy_vals) - min(accuracy_vals)
+        
+        if f1_vals:
+            row['f1_mean_across_datasets'] = np.mean(f1_vals)
+            row['f1_std_across_datasets'] = np.std(f1_vals)
+            row['f1_margin'] = max(f1_vals) - min(f1_vals)
+        
+        if auc_vals:
+            row['auc_mean_across_datasets'] = np.mean(auc_vals)
+            row['auc_std_across_datasets'] = np.std(auc_vals)
+            row['auc_margin'] = max(auc_vals) - min(auc_vals)
+        
+        model_margins.append(row)
+    
+    model_margins_df = pd.DataFrame(model_margins)
+    
+    print("Model margins across datasets:")
+    print(model_margins_df[['model', 'accuracy_mean_across_datasets', 'accuracy_std_across_datasets', 'accuracy_margin']])
+    
+    # ============================================================
+    # ACCURACY PER DATASET (ACROSS ALL MODELS)
+    # ============================================================
+    # e.g., Imbalanced: mean(0.8708, 0.9213, 0.9168, ...) across all 8 models
+    dataset_accuracy = []
+    
+    for dataset_type, mean_df in dataset_means.items():
+        # Exclude mean_row
+        model_only_df = mean_df[mean_df.index != 'mean_row']
+        
+        row = {
+            'dataset': dataset_type,
+            'accuracy_mean': model_only_df['accuracy'].mean(),
+            'accuracy_std': model_only_df['accuracy'].std(),
+            'accuracy_min': model_only_df['accuracy'].min(),
+            'accuracy_max': model_only_df['accuracy'].max(),
+            'accuracy_margin': model_only_df['accuracy'].max() - model_only_df['accuracy'].min(),
+            'best_model': model_only_df['accuracy'].idxmax(),
+            'worst_model': model_only_df['accuracy'].idxmin()
+        }
+        dataset_accuracy.append(row)
+    
+    dataset_accuracy_df = pd.DataFrame(dataset_accuracy)
+    
+    print("\nAccuracy per dataset (across all models):")
+    print(dataset_accuracy_df)
+    
+    return model_margins_df, dataset_accuracy_df
+
 
 def save_averaged_results(results_dir, experiments):
     """
@@ -215,23 +357,20 @@ def save_averaged_results(results_dir, experiments):
             print(f"\nMean metrics:\n{mean_df}")
             print(f"\nStd metrics:\n{std_df}")
             
-            # Save with versioning using DataProcessing
+            # Save mean and std with versioning
             DataProcessing.save_to_file(mean_df, summary_dir, f'{exp_name}_mean', 'csv', include_versioning=True)
             DataProcessing.save_to_file(std_df, summary_dir, f'{exp_name}_std', 'csv', include_versioning=True)
             
             # Create combined mean ± std format
             combined_df = mean_df.copy()
-
             # Reset index to make 'model' a column (if it's currently the index)
             if combined_df.index.name == 'model' or 'model' not in combined_df.columns:
                 combined_df = combined_df.reset_index()
-
             for col in combined_df.columns:
                 if col != 'model':  # Don't format the model name column
                     combined_df[col] = combined_df[col].apply(lambda x: f"{x:.4f}") + \
-                                    " ± " + \
-                                    std_df.reset_index()[col].apply(lambda x: f"{x:.4f}")
-
+                                       " ± " + \
+                                       std_df.reset_index()[col].apply(lambda x: f"{x:.4f}")
             DataProcessing.save_to_file(combined_df, summary_dir, f'{exp_name}_mean_std', 'csv', include_versioning=True)
             
             # Get the version number that was just used (from last save)
@@ -267,6 +406,7 @@ def save_averaged_results(results_dir, experiments):
     
     return all_summaries
 
+
 if __name__ == "__main__":
     """
     Average classification results across multiple seed runs.
@@ -274,6 +414,15 @@ if __name__ == "__main__":
     Usage
     -----
     python3 average_classification_results.py
+    
+    Notes
+    -----
+    - Automatically finds all experiments in classification_results/
+    - For each experiment, finds latest version of each seed
+    - Averages metrics across seeds
+    - Computes cross-dataset margins (same model across imbalanced/oversampled/undersampled)
+    - Computes accuracy per dataset across all models
+    - Saves mean, std, mean±std CSVs, metadata JSON, and margin CSVs
     """
     
     # ============================================================
@@ -307,7 +456,34 @@ if __name__ == "__main__":
     summaries = save_averaged_results(results_dir, experiments)
     
     # ============================================================
-    # 4. PIPELINE COMPLETE
+    # 4. COMPUTE CROSS-DATASET MARGINS
+    # ============================================================
+    if len(summaries) >= 2:
+        print("\n⚠️  Computing cross-dataset margins requires all 3 datasets.")
+        print("Proceeding with available datasets...\n")
+        
+        model_margins_df, dataset_accuracy_df = compute_cross_dataset_margins(summaries)
+        
+        # Save cross-dataset results with versioning
+        summary_dir = os.path.join(results_dir, 'averaged_results')
+        DataProcessing.save_to_file(
+            model_margins_df, summary_dir, 
+            'cross_dataset_model_margins', 'csv', 
+            include_versioning=True
+        )
+        DataProcessing.save_to_file(
+            dataset_accuracy_df, summary_dir, 
+            'cross_dataset_accuracy', 'csv', 
+            include_versioning=True
+        )
+        print(f"\n✓ Saved: cross_dataset_model_margins-v{{}}.csv")
+        print(f"✓ Saved: cross_dataset_accuracy-v{{}}.csv")
+    else:
+        print("\n⚠️  Need at least 2 experiments to compute cross-dataset margins.")
+        print("Run experiments for imbalanced, oversampled, and undersampled datasets first.\n")
+    
+    # ============================================================
+    # 5. PIPELINE COMPLETE
     # ============================================================
     print("\n" + "="*50)
     print("AVERAGING COMPLETE")
@@ -315,7 +491,10 @@ if __name__ == "__main__":
     print(f"Total experiments averaged: {len(summaries)}")
     print(f"Output location: {os.path.join(results_dir, 'averaged_results/')}")
     print("\nFiles created per experiment (versioned):")
-    print("  - {experiment}_mean-v{N}.csv")
-    print("  - {experiment}_std-v{N}.csv")
-    print("  - {experiment}_mean_std-v{N}.csv")
-    print("  - {experiment}_metadata-v{N}.json\n")
+    print("  - {{experiment}}_mean-v{{N}}.csv")
+    print("  - {{experiment}}_std-v{{N}}.csv")
+    print("  - {{experiment}}_mean_std-v{{N}}.csv")
+    print("  - {{experiment}}_metadata-v{{N}}.json")
+    print("\nCross-dataset files (versioned):")
+    print("  - cross_dataset_model_margins-v{{N}}.csv")
+    print("  - cross_dataset_accuracy-v{{N}}.csv\n")
