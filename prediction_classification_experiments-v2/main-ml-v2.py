@@ -15,7 +15,7 @@ sys.path.append(os.path.join(script_dir, '../'))
 
 from metrics import EvaluationMetric
 from data_processing import DataProcessing
-from data_visualizing import DataVisualizing
+from data_visualizing import DataPlotting, DataVisualizing
 from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
 
@@ -549,7 +549,7 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
         metrics_summary.append(metrics_row)
         
         # Save confusion matrix visualization
-        DataVisualizing.visualize_confusion_matrix(
+        DataPlotting.visualize_confusion_matrix(
             confusion_mat, 
             model_name, 
             save_path, 
