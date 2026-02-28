@@ -1,6 +1,6 @@
 class Prompts: 
 
-    def extract_projection_properties():
+    def extract_prediction_properties():
         system_identity_prompt = "You are a lingustic expert that specializes in identifying properties within a prediction statement."
     # prediction_requirements = PredictionProperties.get_requirements()
         task = """For each word within the sentence "label" as either a "no_label": 0, "source": 1, "target": 2, "date": 3, "outcome": 4. IMPORTANT: Keep multi-word entities together as single items in the list."""
