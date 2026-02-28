@@ -44,7 +44,6 @@ dependencies = [
     "sentence-transformers>=4.1.0",
     "setuptools>=80.7.1",
     "spacy>=3.8.5",
-    "en-core-web-lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.7.1/en_core_web_lg-3.7.1-py3-none-any.whl"],
     "statsmodels>=0.14.5",
     "tensorflow>=2.19.0",
     "tf-keras>=2.19.0",
@@ -52,6 +51,7 @@ dependencies = [
     "torchvision>=0.21.0",
     "tqdm>=4.67.1",
     "transformers>=4.51.3",
+    "xgboost>=3.2.0",
     "youtube-transcript-api>=1.2.2",
     "zstandard>=0.23.0",
 ]
