@@ -179,5 +179,8 @@ class SkLearnSVC(SkLearnModelFactory):
         return "Support Vector Machine"
     
     def train_model(self, X, y):
-        self.classifer = SVC(random_state=self.random_state)  # Has random_state parameter
-        self.classifer.fit(X, y)
+        self.classifer = SVC(kernel='linear', C=1, random_state=self.random_state)  # Has random_state parameter
+        return self.classifer.fit(X, y)
+
+    def get_score(self, X, y):
+        return self.classifer.score(X, y)
