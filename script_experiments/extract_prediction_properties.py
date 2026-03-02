@@ -226,15 +226,14 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     base_data_path = DataProcessing.load_base_data_path(script_dir)
     default_dataset = DataProcessing.load_single_synthetic_data(
-        script_dir, batch_idx=2, sep=',', return_as='path'
+        script_dir, batch_idx=1, sep=',', return_as='path'
     )
     
     parser = argparse.ArgumentParser(description='Extract prediction properties from sentences using LLMs')
     parser.add_argument('--dataset', default=default_dataset, 
                        help='Path to dataset relative to base data directory.')
-    parser.add_argument('--models', nargs='+', default='llama-3.1-8b-instant',
+    parser.add_argument('--models', nargs='+', default='openai/gpt-oss-120b',
                        help='Model name(s) to use.')
-    # Added arguments for flexible column names
     parser.add_argument('--text_column', type=str, default='Base Sentence',
                        help='Column name containing the text to analyze')
     args = parser.parse_args()
