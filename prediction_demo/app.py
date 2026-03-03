@@ -16,6 +16,8 @@ import pandas as pd
 import streamlit as st
 from loguru import logger
 from spacy import displacy
+from youtube_transcript_api import YouTubeTranscriptApi
+
 
 from prediction_demo.data.data_loader import get_data_stats, ENTITY_LABELS
 from prediction_demo.models.prediction_ner import PredictionNER
@@ -151,6 +153,10 @@ def inference_tab():
         "Goldman Sachs speculates that the operating cash flow at Microsoft will likely increase.",
         "The Federal Reserve expects inflation to decrease by next year.",
         "According to Apple, the projected revenue at Amazon will likely fall in Q4 2026.",
+        'By January 1st, 2037, Tesla will have been the first company with 1 million vehicles that are capable of SAE Level 4 autonomy on over 90% of public roads in the contiguous United States, with human-level safety or better, and this capability will be usable by the general public commercially.',
+        'No Republican will be President of the USA before December 30, 2039.',
+        'By the year 2030, there will be successful re-produced or remastered versions of 1990s "classic" movies which replace main characters with Meme Characters or amusing replacements of the original starring characters such as such as cats, other animals or non-human entities.',
+        'A manned mission to Mars will be underway or will have actually arrived there by the time Long Bets posts Prediction 1000.',
     ]
 
     selected_sample = st.selectbox(
@@ -614,21 +620,161 @@ def batch_processing_tab():
                 key="download-csv",
             )
 
+# ------------------------------------------------------------------
+# YouTube Video Processing Tab
+# ------------------------------------------------------------------
+def youtube_video_process_tab():
+    """Tab for processing a whole YouTube video transcript."""
+    st.header("YouTube Video Processing")
+
+    # -----------------------------
+    # 1️⃣  Video list that the user sees
+    # -----------------------------
+    video_options = [
+        (
+            "Immediate 2025 NCAA tournament Final Four and championship picks", 
+            "https://www.youtube.com/watch?v=-rjnvL9LL3U"
+            ),
+        (
+            "Full Preview & Picks: Patriots vs. Seahawks Super Bowl LX – Who wins the Lombardi Trophy?",
+            "https://www.youtube.com/watch?v=ZZN7BAYeOtc"
+            ),
+        (
+            "FIRST TAKE'S SUPER BOWL PICKS! The crew is going with…", 
+            "https://www.youtube.com/watch?v=mBK8o5orBbE"
+            ),
+        (
+            "NFL Predictions and Picks For Super Bowl LX [Patriots vs Seahawks] – Best Bets ✅",
+            "https://www.youtube.com/watch?v=LXPQrZV4Cfw"
+            ),
+        (
+            "Markets are at all-time highs but warning signs are emerging",
+            "https://www.youtube.com/watch?v=XGCab3_nCkA"
+        )
+    ]
+
+    # Dropdown options – include a “Custom input” placeholder
+    titles = [title for title, _ in video_options] + ["Custom input"]
+
+    # Let user pick a title
+    chosen_title = st.selectbox(
+        "YouTube Video",
+        options=titles,
+        index=0,
+        key="youtube_video_select",
+    )
+
+    # Resolve the actual URL: either from the list or from a free‑form text box
+    if chosen_title == "Custom input":
+        video_link = st.text_input(
+            "Enter full YouTube URL",
+            placeholder="https://www.youtube.com/watch?v=XXXXX",
+            key="youtube_link",
+        )
+    else:
+        # find the matching URL from the list
+        video_link = next(url for title, url in video_options if title == chosen_title)
+
+    # -------------------------------------------------------------
+    # 2️⃣  Extract the video ID
+    # -------------------------------------------------------------
+    def _extract_video_id(link: str) -> str | None:
+        if not link:
+            return None
+        parts = link.split("v=")
+        if len(parts) < 2:
+            return None
+        return parts[1].split("&")[0].split("?")[0] or None
+
+    video_id = _extract_video_id(video_link)
+
+    # -------------------------------------------------------------
+    # 3️⃣  Fetch transcript & classify
+    # -------------------------------------------------------------
+    if st.button("Fetch & Analyze", type="primary") and video_id:
+        # 3a️⃣  Pull transcript with the method you validated
+        with st.spinner("Downloading transcript…"):
+            try:
+                ytt_api = YouTubeTranscriptApi()
+                snippets = ytt_api.fetch(video_id)
+            except Exception as e:
+                st.error(f"Could not fetch transcript: {e}")
+                return
+
+        st.success(f"Transcript gathered – {len(snippets)} segments")
+        st.info(f"Example segment: {snippets[0]}")
+
+        # 3b️⃣  Convert to plain text
+        full_text = " ".join([seg.text for seg in snippets])
+
+        # 3c️⃣  Run the classifier
+        st.subheader("Classification")
+        ner_model = load_ner_model(None)          # picks the latest
+        classifier = PredictionClassifier(ner_model)
+        with st.spinner("Classifying…"):
+            result = classifier.classify(full_text)
+
+        # 3d️⃣  Show results (same layout as single‑example tab)
+        st.subheader("Overall Result")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric(
+                "Type",
+                result.prediction_type.value.replace("_", " ").title(),
+                delta=None,
+            )
+        with col2:
+            st.metric("Components Found", f"{result.components.component_count}/4")
+        with col3:
+            st.metric("Confidence", f"{result.confidence_score:.0%}")
+
+        st.subheader("Extracted Components")
+        comp_data = {
+            "Component": ["Source (p_s)", "Target (p_t)", "Date (p_d)", "Outcome (p_o)"],
+            "Value": [
+                result.components.source or "-",
+                result.components.target or "-",
+                result.components.date or "-",
+                result.components.outcome or "-",
+            ],
+            "Status": [
+                "Found" if result.components.source else "Missing",
+                "Found" if result.components.target else "Missing",
+                "Found" if result.components.date else "Missing",
+                "Found" if result.components.outcome else "Missing",
+            ],
+        }
+        st.table(pd.DataFrame(comp_data))
+
+        # 3e️⃣  Preview of the transcript
+        st.subheader("Transcript Preview")
+        st.text_area(
+            "Transcript",
+            value=full_text[:800] + ("…" if len(full_text) > 800 else ""),
+            height=150,
+            key="transcript_preview",
+        )
+
+        # 3f️⃣  Provide a nice link back to the original video
+        st.markdown(
+            f"[Watch on YouTube]({video_link})",
+            unsafe_allow_html=True,
+        )
 
 def main():
     """Main Streamlit application."""
     st.set_page_config(
-        page_title="Prediction NER Demo",
-        page_icon="🔮",
+        page_title="Demo: Text-Based Human Projection Properties Recognition",
+        page_icon="🔜",
         layout="wide",
     )
 
     init_session_state()
     setup_logging()
 
-    st.title("Prediction NER Demo")
+    st.title("Demo: Text-Based Human Projection Properties Recognition")
     st.markdown(
-        "Detect and classify prediction components in text using SpaCy NER models."
+        "Train your own models to detect and classify prediction components in text."
     )
 
     st.sidebar.header("About")
@@ -637,7 +783,7 @@ def main():
         **Prediction Components:**
         - **P_SOURCE** (p_s): Who makes the prediction
         - **P_TARGET** (p_t): What is being predicted about
-        - **P_DATE** (p_d): When it should come true
+        - **P_DATE** (p_d): When it was made and when it should come true
         - **P_OUTCOME** (p_o): The predicted outcome
 
         **Classification:**
@@ -657,25 +803,28 @@ def main():
             log_text = "\n".join(reversed(st.session_state.logs[-100:]))
             st.code(log_text, language="text")
 
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "Inference",
-        "Training",
-        "Evaluation",
-        "Batch Processing",
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "1. Train Model",
+        "2. Evaluate Model",
+        "3. Inference-Single Example",
+        "3. Inference-Batch Processing",
+        "4. Inference-Text from YouTube Video"
     ])
 
     with tab1:
-        inference_tab()
-
-    with tab2:
         training_tab()
+        
+    with tab2:
+       evaluation_tab()
 
     with tab3:
-        evaluation_tab()
+        inference_tab()
 
     with tab4:
         batch_processing_tab()
 
+    with tab5:
+        youtube_video_process_tab()
 
 if __name__ == "__main__":
     main()
