@@ -20,7 +20,7 @@ from typing import Dict, List
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
+from datetime import datetime
 
 from log_files import LogData
 from data_processing import DataProcessing
@@ -167,7 +167,7 @@ class TextGenerationModelFactory(ABC):
         )
         return response.choices[0].message.content
     
-    def generate_predictions(self, prompt_template: str, label: str, domain: str, batch_id: int) -> pd.DataFrame:
+    def generate_predictions(self, prompt_template: str, label: str, domain: str, batch_id: int, prediction_date: datetime) -> pd.DataFrame:
         """Generate a completion response and return as a DataFrame.
 
         Parameters:
@@ -184,6 +184,8 @@ class TextGenerationModelFactory(ABC):
         template_number: `int`
             The template number to use for the prediction. For non-prediction prompts, the template number is 0 and for prediction prompts, the template number is 1 to 5.
         
+        prediction_date: `datetime`
+            The date of which the prediction was created. 
         Returns:
         --------
         `pd.DataFrame`
@@ -209,6 +211,7 @@ class TextGenerationModelFactory(ABC):
         df['Model Name'] = self.model_name
         df['API Name'] = self.api_name
         df['Batch ID'] = batch_id
+        df['Prediction Date'] = prediction_date
         # print()
         # print(df)
         # ipdb.set_trace()
@@ -250,7 +253,7 @@ class TextGenerationModelFactory(ABC):
         logger.dataframe_to_csv(reformat_batch_predictions_df, save_from_df_name)
         logger.csv_to_log(save_from_df_name, save_from_csv_name)
 
-    def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label, save_path: str):
+    def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label, save_path: str, batch_prediction_date: datetime):
         """Generate a completion response and return as a DataFrame.
 
         Parameters:
@@ -269,6 +272,9 @@ class TextGenerationModelFactory(ABC):
 
         sentence_label: `int`
             The prediction label for the prediction. Either 0 (non-prediction) or 1 (prediction).
+        
+        batch_prediction_date: `datetime`
+            The date of which the prediction was created. 
 
         Returns:
         --------
@@ -289,7 +295,7 @@ class TextGenerationModelFactory(ABC):
                     print(f"{domain} --- {text_generation_model.__name__()} --- {text_generation_model.api_name}")
 
                     prompt_output = prompt_outputs[domain]
-                    model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain, batch_id=batch_idx)
+                    model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain, batch_id=batch_idx, prediction_date=batch_prediction_date)
 
                     batch_dfs.append(model_df)
                     batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
@@ -300,7 +306,7 @@ class TextGenerationModelFactory(ABC):
             # ipdb.set_trace()
 
             self.log_batch_df(reformat_batch_predictions_df, sentence_label, save_path)
-            # print(reformat_batch_predictions_df)
+            #print(reformat_batch_predictions_df)
 
             # Extend the main DataFrame list with the batch DataFrames
             all_batches_df.append(reformat_batch_predictions_df)
