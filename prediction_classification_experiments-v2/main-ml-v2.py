@@ -1,3 +1,5 @@
+# Before this, run python3 create_combined_dataset.py to create dataset
+
 import os
 import sys
 import joblib
@@ -611,7 +613,8 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     base_data_path = os.path.join(script_dir, '../data')
     
-    default_dataset = os.path.join(base_data_path, 'financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv')
+    default_dataset = os.path.join(base_data_path, 'combined_datasets/combined-full_synthetic-v1.csv')
+
     default_save_path = os.path.join(base_data_path, 'classification_results/')
     
     parser = argparse.ArgumentParser(
@@ -622,7 +625,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--dataset',
         default=default_dataset,
-        help='Path to dataset file. Default: fpb-maya-binary-imbalanced-96d-v1.csv'
+        help='Path to dataset file. Default: combined-full_synthetic-v1.csv'
     )
     # save_path
     parser.add_argument(
