@@ -73,11 +73,14 @@ def load_predictions_dataset(script_dir, sep=','):
     
     print(f"Shape: {predictions_df.shape}")
     print(f"Columns: {list(predictions_df.columns)}")
-    
-    if 'Domain' in predictions_df.columns:
-        print(f"\nDomain distribution:")
-        print(predictions_df['Domain'].value_counts())
-    
+
+    skip = ['Base Sentence']   # add any column names here
+
+    for col in predictions_df.columns:
+        if col not in skip:
+            print(f"\n=== {col} value counts ===")
+            print(predictions_df[col].value_counts())
+
     print(f"\nPreview:\n{predictions_df.head(3)}\n")
     
     return predictions_df
@@ -116,9 +119,12 @@ def load_non_predictions_dataset(script_dir, sep=','):
     print(f"Shape: {non_predictions_df.shape}")
     print(f"Columns: {list(non_predictions_df.columns)}")
     
-    if 'Domain' in non_predictions_df.columns:
-        print(f"\nDomain distribution:")
-        print(non_predictions_df['Domain'].value_counts())
+    skip = ['Base Sentence']   # add any column names here
+
+    for col in non_predictions_df.columns:
+        if col not in skip:
+            print(f"\n=== {col} value counts ===")
+            print(non_predictions_df[col].value_counts())
     
     print(f"\nPreview:\n{non_predictions_df.head(3)}\n")
     
@@ -586,4 +592,11 @@ if __name__ == "__main__":
         print(f"  Predictions (Label=1): {(final_df['Sentence Label']==1).sum()}")
         print(f"  Non-Predictions (Label=0): {(final_df['Sentence Label']==0).sum()}")
     
+    skip = ['Base Sentence']   # add any column names here
+
+    for col in final_df.columns:
+        if col not in skip:
+            print(f"\n=== {col} value counts ===")
+            print(final_df[col].value_counts())
+            
     print("\n" + "="*60 + "\n")
