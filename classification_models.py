@@ -126,7 +126,7 @@ class SkLearnRandomForestClassifier(SkLearnModelFactory):
         return "Random Forest"
     
     def train_model(self, X, y):
-        self.classifer = RandomForestClassifier(random_state=self.random_state, probability=True)
+        self.classifer = RandomForestClassifier(random_state=self.random_state)
         self.classifer.fit(X, y)
 
 class SkLearnGradientBoostingClassifier(SkLearnModelFactory):      
@@ -137,7 +137,7 @@ class SkLearnGradientBoostingClassifier(SkLearnModelFactory):
         return "Gradient Boosting Machine"
     
     def train_model(self, X, y):
-        self.classifer = GradientBoostingClassifier(random_state=self.random_state, probability=True)
+        self.classifer = GradientBoostingClassifier(random_state=self.random_state)
         self.classifer.fit(X, y)
 
 class CustomXGBClassifier(SkLearnModelFactory):      
