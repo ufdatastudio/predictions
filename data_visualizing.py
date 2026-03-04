@@ -345,3 +345,77 @@ class DataVisualizing:
             # Default: render both dependency and entity visualisations
             DataVisualizing.spacy_pos_dep(sentence, spacy_nlp_model)
             DataVisualizing.spacy_ner_ent(sentence, spacy_nlp_model)
+
+    def get_shap_plot(
+        shap_values,
+        plot_type: str = 'waterfall',
+        sample_idx: int = 0,
+        model_name: str = 'model',
+        save_path: str = None,
+        include_version: bool = False,
+        **kwargs
+    ) -> None:
+        """
+        Generate and save SHAP plots for model explainability.
+        
+        Parameters
+        ----------
+        shap_values : shap.Explanation
+            SHAP values from explainer(X)
+        plot_type : str
+            Type of SHAP plot: 'waterfall', 'beeswarm', 'bar', 'heatmap'
+            Default: 'waterfall'
+        sample_idx : int
+            Sample index for waterfall plot. Default: 0
+        model_name : str
+            Name of the model (used in filename). Default: 'model'
+        save_path : str, optional
+            Directory path to save the PNG file
+        include_version : bool, default False
+            If True, appends version suffix (-v1, -v2, …) to filename
+        **kwargs
+            Additional arguments passed to shap plot functions
+        
+        Notes
+        -----
+        plot_type options:
+        - 'waterfall': Single prediction explanation (uses sample_idx)
+        - 'beeswarm': Global feature importance across all samples
+        - 'bar': Mean absolute SHAP values per feature
+        - 'heatmap': SHAP values across all samples and features
+        
+        Returns
+        -------
+        None
+        """
+        import shap
+        
+        plt.figure()
+        
+        if plot_type == 'waterfall':
+            shap.plots.waterfall(shap_values[sample_idx], show=False, **kwargs)
+        elif plot_type == 'beeswarm':
+            shap.plots.beeswarm(shap_values, show=False, **kwargs)
+        elif plot_type == 'bar':
+            shap.plots.bar(shap_values, show=False, **kwargs)
+        elif plot_type == 'heatmap':
+            shap.plots.heatmap(shap_values, show=False, **kwargs)
+        else:
+            raise ValueError(
+                f"Unknown plot_type: '{plot_type}'. "
+                f"Choose from: 'waterfall', 'beeswarm', 'bar', 'heatmap'"
+            )
+        
+        plt.tight_layout()
+        
+        if save_path:
+            DataProcessing.save_to_file(
+                None,
+                save_path,
+                f'shap_{plot_type}_{model_name}',
+                'png',
+                include_version=include_version
+            )
+        
+        plt.show()
+        plt.close()

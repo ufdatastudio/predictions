@@ -37,6 +37,32 @@ class SkLearnModelFactory(ABC):
             return DataProcessing.array_to_df(predictions)
         return predictions
     
+    def predict_proba(self, X_test):
+        """
+        Predict class probabilities for X_test.
+        
+        Parameters
+        ----------
+        X_test : array-like
+            Test samples
+        
+        Returns
+        -------
+        np.ndarray
+            Probability estimates of shape (n_samples, n_classes)
+        
+        Notes
+        -----
+        Some models (LinearRegression, ElasticNet, RidgeClassifier) don't support
+        predict_proba. This method will raise an error for those models.
+        """
+        if not hasattr(self.classifer, 'predict_proba'):
+            raise AttributeError(
+                f"{self.__name__()} does not support predict_proba. "
+                f"LIME requires probability predictions."
+            )
+        return self.classifer.predict_proba(X_test)
+    
     @staticmethod
     def select_model(model_name: str, random_state=42):
         """Select a model with specified random state."""
@@ -67,7 +93,7 @@ class SkLearnSGDClassifier(SkLearnModelFactory):
         return "SDG Classifier"
     
     def train_model(self, X, y):
-        self.classifer = SGDClassifier(random_state=self.random_state)
+        self.classifer = SGDClassifier(random_state=self.random_state, loss='log_loss')
         self.classifer.fit(X, y)
 
 class SkLearnLogisticRegression(SkLearnModelFactory):      
@@ -100,7 +126,7 @@ class SkLearnRandomForestClassifier(SkLearnModelFactory):
         return "Random Forest"
     
     def train_model(self, X, y):
-        self.classifer = RandomForestClassifier(random_state=self.random_state)
+        self.classifer = RandomForestClassifier(random_state=self.random_state, probability=True)
         self.classifer.fit(X, y)
 
 class SkLearnGradientBoostingClassifier(SkLearnModelFactory):      
@@ -111,7 +137,7 @@ class SkLearnGradientBoostingClassifier(SkLearnModelFactory):
         return "Gradient Boosting Machine"
     
     def train_model(self, X, y):
-        self.classifer = GradientBoostingClassifier(random_state=self.random_state)
+        self.classifer = GradientBoostingClassifier(random_state=self.random_state, probability=True)
         self.classifer.fit(X, y)
 
 class CustomXGBClassifier(SkLearnModelFactory):      
@@ -122,7 +148,7 @@ class CustomXGBClassifier(SkLearnModelFactory):
         return "X Gradient Boosting Machine"
     
     def train_model(self, X, y):
-        self.classifer = XGBClassifier(random_state=self.random_state)
+        self.classifer = XGBClassifier(random_state=self.random_state, probability=True)
         self.classifer.fit(X, y)
 
 # Models that DON'T need random_state (deterministic):
@@ -179,7 +205,7 @@ class SkLearnSVC(SkLearnModelFactory):
         return "Support Vector Machine"
     
     def train_model(self, X, y):
-        self.classifer = SVC(kernel='linear', C=1, random_state=self.random_state)  # Has random_state parameter
+        self.classifer = SVC(kernel='linear', C=1, random_state=self.random_state,  probability=True)  # Has random_state parameter
         return self.classifer.fit(X, y)
 
     def get_score(self, X, y):
