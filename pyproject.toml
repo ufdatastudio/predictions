@@ -58,6 +58,7 @@ dependencies = [
     "youtube-transcript-api>=1.2.2",
     "zstandard>=0.23.0",
     "shap>=0.51.0",
+    "lime>=0.2.0.1",
 ]
 
 [tool.setuptools.packages.find]
