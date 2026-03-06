@@ -1,0 +1,66 @@
+{
+    "#predictions": 716,
+    "#observations": 1112,
+    "#predictions per domain": {
+        "sport": 136,
+        "finance": 116,
+        "health": 116,
+        "policy": 116,
+        "weather": 116,
+        "miscellaneous": 116
+    },
+    "#predictions per model name": {
+        "llama-3.3-70b-versatile": 192,
+        "gemma2-9b-it": 130,
+        "llama-3.1-70b-instruct": 72,
+        "llama-3.3-70b-instruct": 72,
+        "mistral-small-3.1": 72,
+        "mixtral-8x7b-instruct": 70,
+        "llama-3.1-8b-instruct": 36,
+        "mistral-7b-instruct": 36,
+        "llama-3.1-8b-instant": 36
+    },
+    "#predictions per api name": {
+        "NAVI_GATOR": 358,
+        "GROQ_CLOUD": 358
+    },
+    "#predictions per template #": {
+        "1": 124,
+        "2": 124,
+        "3": 124,
+        "4": 124,
+        "5": 123,
+        "6": 97
+    },
+    "#observations per domain": {
+        "sport": 218,
+        "finance": 180,
+        "health": 180,
+        "miscellaneous": 180,
+        "policy": 179,
+        "weather": 175
+    },
+    "#observations per model name": {
+        "llama-3.1-8b-instant": 348,
+        "gemma2-9b-it": 240,
+        "llama-3.3-70b-versatile": 108,
+        "llama-3.1-70b-instruct": 72,
+        "llama-3.3-70b-instruct": 72,
+        "llama-3.1-8b-instruct": 72,
+        "mistral-7b-instruct": 72,
+        "mistral-small-3.1": 72,
+        "mixtral-8x7b-instruct": 56
+    },
+    "#observations per api name": {
+        "GROQ_CLOUD": 696,
+        "NAVI_GATOR": 416
+    },
+    "#observations per template #": {
+        "1": 188,
+        "2": 185,
+        "3": 185,
+        "4": 185,
+        "5": 185,
+        "6": 184
+    }
+}
