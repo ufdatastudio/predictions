@@ -32,13 +32,14 @@ load_dotenv()  # Load environment variables from .env file
 class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
     
-    def __init__(self):
+    def __init__(self, temperature: float = 0.8, top_p: float = 0.9):
         """In the init method (also called constructor), initialize our class with variables or attributes."""
         # Create instance variables or attributes
         # Standardized model parameters
-        self.temperature = 0.8
-        self.top_p = 0.9
+        self.temperature = temperature
+        self.top_p = top_p
         self.model_name = None
+    
    
     def map_platform_to_api(self, platform_name: str):
         """
@@ -311,9 +312,10 @@ class TextGenerationModelFactory(ABC):
         df['Model Name'] = self.model_name
         df['API Name'] = self.api_name
         df['Batch ID'] = batch_id
-        df['Temperature'] = getattr(self, 'temperature', None)
-        df['Top P'] = getattr(self, 'top_p', None)
+        df['Temperature'] = self.temperature
+        df['Top P'] = self.top_p
         df['Generated At'] = date.today().isoformat()
+        df['Prompt Used'] = prompt_template
         # print()
         # print(df)
         # ipdb.set_trace()
@@ -350,9 +352,18 @@ class TextGenerationModelFactory(ABC):
         save_batch_name = f"batch_{n}-info.log"
         save_from_df_name = f"batch_{n}-from_df.csv"
         save_from_csv_name = f"batch_{n}-from_csv.log"
-    
+
+        df_to_save = reformat_batch_predictions_df.copy()
+        if "Prompt Used" in df_to_save.columns:
+            df_to_save["Prompt Used"] = (
+                df_to_save["Prompt Used"]
+                .astype(str)
+                .str.replace("\r\n", " ")
+                .str.replace("\n", " ")
+                .str.replace("\r", " ")
+            )
         logger = LogData(base_path, log_file_path, save_batch_directory, save_batch_name)
-        logger.dataframe_to_csv(reformat_batch_predictions_df, save_from_df_name)
+        logger.dataframe_to_csv(df_to_save, save_from_df_name)
         logger.csv_to_log(save_from_df_name, save_from_csv_name)
 
     def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label, save_path: str):
@@ -380,7 +391,12 @@ class TextGenerationModelFactory(ABC):
         `pd.DataFrame`
             The generated completion response formatted as a DataFrame.
     """
-
+        # Apply factory's temperature and top_p to all models for this run
+        for m in text_generation_models:
+            if hasattr(m, 'temperature'):
+                m.temperature = self.temperature
+            if hasattr(m, 'top_p'):
+                m.top_p = self.top_p
         all_batches_df = []   
         for batch_idx in tqdm(range(N_batches)):
             print(f"===================================== Batch {batch_idx} ===============================================")
