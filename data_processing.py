@@ -193,7 +193,7 @@ class DataProcessing:
         
         return joint_df
     
-    def reformat_df_with_template_number(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
+    def reformat_df_with_template_number(df: pd.DataFrame, prediction_templates: list, col_name: str) -> pd.DataFrame:
         """Reformat the DataFrame with the template number
         
         Parameters:
@@ -211,6 +211,7 @@ class DataProcessing:
         """
         
         template_numbers = []
+        template_texts = []
         reformat_predictions = []
         indices_to_keep = []
 
@@ -222,26 +223,32 @@ class DataProcessing:
                 indices_to_keep.append(idx)
             elif first_word == "T1:":
                 template_numbers.append(1)
+                template_texts.append(prediction_templates[0])
                 reformat_predictions.append(prediction[4:])
                 indices_to_keep.append(idx)
             elif first_word == "T2:":
                 template_numbers.append(2)
+                template_texts.append(prediction_templates[1])
                 reformat_predictions.append(prediction[4:])
                 indices_to_keep.append(idx)
             elif first_word == "T3:":
                 template_numbers.append(3)
+                template_texts.append(prediction_templates[2])
                 reformat_predictions.append(prediction[4:])
                 indices_to_keep.append(idx)
             elif first_word == "T4:":
                 template_numbers.append(4)
+                template_texts.append(prediction_templates[3])
                 reformat_predictions.append(prediction[4:])
                 indices_to_keep.append(idx)
             elif first_word == "T5:":
                 template_numbers.append(5)
+                template_texts.append(prediction_templates[4])
                 reformat_predictions.append(prediction[4:])
                 indices_to_keep.append(idx)
             elif first_word == "T6:":
                 template_numbers.append(6)
+                template_texts.append(prediction_templates[5])
                 reformat_predictions.append(prediction[4:])
                 indices_to_keep.append(idx)
             else:
@@ -250,6 +257,7 @@ class DataProcessing:
         new_df = df.iloc[indices_to_keep].copy()
         new_df[col_name] = reformat_predictions
         new_df['Template Number'] = template_numbers
+        new_df['Template Text'] = template_texts
         return new_df
     
     def df_to_list(df: pd.DataFrame, col: str = None, type_of_df: str = "Standard") -> list:

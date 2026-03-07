@@ -368,7 +368,7 @@ class TextGenerationModelFactory(ABC):
         logger.dataframe_to_csv(df_to_save, save_from_df_name)
         logger.csv_to_log(save_from_df_name, save_from_csv_name)
 
-    def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label, save_path: str, batch_prediction_date: datetime):
+    def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label, save_path: str, batch_prediction_date: datetime, prediction_templates: list):
         """Generate a completion response and return as a DataFrame.
 
         Parameters:
@@ -419,7 +419,7 @@ class TextGenerationModelFactory(ABC):
 
                     batch_dfs.append(model_df)
                     batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
-                    reformat_batch_predictions_df = DataProcessing.reformat_df_with_template_number(batch_predictions_df, col_name="Base Sentence")
+                    reformat_batch_predictions_df = DataProcessing.reformat_df_with_template_number(batch_predictions_df, prediction_templates, col_name="Base Sentence")
                 print()
 
                 # print(f"NEW DOMAIN: {domain}")
