@@ -1,5 +1,4 @@
 # Before this, run python3 create_combined_dataset.py to create dataset
-
 import os
 import sys
 import random
@@ -7,97 +6,49 @@ import joblib
 import argparse
 import matplotlib
 matplotlib.use('Agg')  # Prevent GUI windows from opening
-
 import numpy as np
 import pandas as pd
-
-import matplotlib.pyplot as plt
-
 from datetime import datetime
-
-from sklearn.model_selection import LearningCurveDisplay, learning_curve
 
 # Get the current working directory of the script
 script_dir = os.getcwd()
 # Add the parent directory to the system path
 sys.path.append(os.path.join(script_dir, '../'))
-
 from metrics import EvaluationMetric
 from data_processing import DataProcessing
-from data_visualizing import DataPlotting, DataVisualizing
+from data_visualizing import DataPlotting
 from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
 from explainability import Explainability
 
+
 def create_output_directory(args, experiment_name):
-    """
-    Create output directory with collision detection and user choice.
-    
-    Parameters
-    ----------
-    args : argparse.Namespace
-        Parsed command line arguments containing save_path and seed
-    experiment_name : str
-        Name of the experiment (e.g., 'undersampled_96d-v4_2026-02-17')
-    
-    Returns
-    -------
-    str
-        Full path to output directory
-    
-    Notes
-    -----
-    If directory exists, prompts user to:
-    - overwrite: Replace existing results
-    - version: Create versioned seed folder (seed42_v1, seed42_v2, etc.)
-    - cancel: Exit without changes
-    """
-    # Create folder hierarchy: experiment_name/seed{N}/
+    """Create output directory with collision detection."""
     seed_folder = f"seed{args.seed}"
     output_dir = os.path.join(args.save_path, experiment_name, seed_folder)
     
-    # Check if this exact experiment+seed already exists
     if os.path.exists(output_dir) and os.listdir(output_dir):
         print(f"\n{'='*60}")
         print(f"⚠️  OUTPUT DIRECTORY ALREADY EXISTS")
         print(f"{'='*60}")
         print(f"Directory: {output_dir}")
-        print(f"\nThis means seed {args.seed} was already run for experiment '{experiment_name}'")
+        print(f"\nGenerating random seed...")
         random_seed = random.randint(0, 40)
-        print(f"\nGenerate another seed randomly: {random_seed}")
+        print(f"New seed: {random_seed}")
         print(f"{'='*60}")
         seed_folder = f"seed{random_seed}"
         output_dir = os.path.join(args.save_path, experiment_name, seed_folder)
-    # Create directory (either new or confirmed overwrite)
-    os.makedirs(output_dir, exist_ok=True)
     
+    os.makedirs(output_dir, exist_ok=True)
     return output_dir
 
+
 def load_dataset(script_dir, dataset_path):
-    """
-    Load dataset from file path.
-    
-    Parameters
-    ----------
-    script_dir : str
-        Current script directory
-    dataset_path : str
-        Relative or absolute path to dataset file
-    
-    Returns
-    -------
-    pd.DataFrame
-        Loaded dataset
-    
-    Notes
-    -----
-    Prints dataset shape and preview to terminal for verification.
-    """
+    """Load dataset from file path."""
     print("\n" + "="*50)
     print("LOAD DATASET")
     print("="*50)
     
-    # Handle relative vs absolute paths
     if not os.path.isabs(dataset_path):
         data_path = os.path.join(script_dir, dataset_path)
     else:
@@ -110,49 +61,23 @@ def load_dataset(script_dir, dataset_path):
     
     return df
 
+
 def get_which_dataset(df, dataset_name):
-    """
-    Filter combined dataset based on author type.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Full dataset with 'Author Type' column
-    dataset_name : str
-        One of: 'synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank'
-    
-    Returns
-    -------
-    pd.DataFrame
-        Filtered dataset
-    
-    Notes
-    -----
-    This function is specifically for the combined synthetic + fin_phrasebank dataset.
-    - 'synthetic_fin_phrasebank': Returns full dataset (both sources)
-    - 'synthetic': Filters to Author Type == 0
-    - 'fin_phrasebank': Filters to Author Type == 1
-    
-    Raises error if 'Author Type' column doesn't exist, as it's required for filtering.
-    """
+    """Filter combined dataset based on author type."""
     print("\n" + "="*50)
     print("FILTER COMBINED DATASET")
     print("="*50)
     print(f"Dataset selection: {dataset_name}")
     
-    # Check if 'Author Type' column exists
     if 'Author Type' not in df.columns:
         raise ValueError(
             f"'Author Type' column required for dataset filtering but not found.\n"
-            f"Available columns: {list(df.columns)}\n"
-            f"This filter only works with the combined synthetic + fin_phrasebank dataset."
+            f"Available columns: {list(df.columns)}"
         )
     
-    # Show distribution before filtering
     print(f"\nAuthor Type distribution (before filtering):")
     print(df['Author Type'].value_counts())
     
-    # Apply filtering based on dataset_name
     if dataset_name == "synthetic_fin_phrasebank":
         result_df = df
         print("\nNo filtering applied - using full combined dataset")
@@ -176,20 +101,9 @@ def get_which_dataset(df, dataset_name):
     
     return result_df
 
+
 def shuffle_dataset(df, seed):
-    """
-    Shuffle dataset rows.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataset
-    
-    Returns
-    -------
-    pd.DataFrame
-        Shuffled dataset
-    """
+    """Shuffle dataset rows."""
     print("\n" + "="*50)
     print("SHUFFLE DATASET")
     print("="*50)
@@ -200,28 +114,9 @@ def shuffle_dataset(df, seed):
     
     return shuffled_df
 
+
 def extract_sentence_embeddings(df, text_column='Base Sentence'):
-    """
-    Extract sentence embeddings using SpaCy.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Dataset with text column
-    text_column : str
-        Name of column containing sentences
-    
-    Returns
-    -------
-    pd.DataFrame
-        Dataset with added embedding column
-    str
-        Name of embeddings column
-    
-    Notes
-    -----
-    Adds column '{text_column} Embedding' to dataframe
-    """
+    """Extract sentence embeddings using SpaCy."""
     print("\n" + "="*50)
     print("EXTRACT SENTENCE EMBEDDINGS (SpaCy)")
     print("="*50)
@@ -232,7 +127,6 @@ def extract_sentence_embeddings(df, text_column='Base Sentence'):
     
     embeddings_col_name = f'{text_column} Embedding'
     
-    # Show sample embeddings
     for idx, row in embeddings_df.iterrows():
         if idx < 3:
             text = row[text_column]
@@ -246,27 +140,9 @@ def extract_sentence_embeddings(df, text_column='Base Sentence'):
     
     return embeddings_df, embeddings_col_name
 
+
 def split_train_test(df, val_size=None, seed=42, stratify_by='Sentence Label'):
-    """
-    Split dataset into train/test or train/val/test sets with stratification.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Dataset with embeddings and labels
-    val_size : float, default=None
-        Fraction for validation set (if None, only train/test split)
-    seed : int, default=42
-        Random seed for reproducibility
-    stratify_by : str, default='Sentence Label'
-        Column name to stratify split on
-    
-    Returns
-    -------
-    tuple
-        If val_size is None: (X_train_df, X_test_df, y_train_df, y_test_df)
-        If val_size set: (X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df)
-    """
+    """Split dataset into train/test or train/val/test sets."""
     cols_with_labels = df.loc[:, [stratify_by]]
     
     if val_size is None:
@@ -319,49 +195,27 @@ def split_train_test(df, val_size=None, seed=42, stratify_by='Sentence Label'):
         
         return X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df
 
-def save_test_sets(X_test_df, y_test_df, save_path, include_version):
-    """
-    Save test sets to disk for later use with LLMs.
-    
-    Parameters
-    ----------
-    X_test_df : pd.DataFrame
-        Test features
-    y_test_df : pd.DataFrame
-        Test labels
-    save_path : str
-        Directory path to save files
-    """
+
+def save_test_sets(X_test_df, y_test_df, save_path):
+    """Save test sets to disk for later use."""
     print("\n" + "="*50)
     print("SAVE TEST SETS")
     print("="*50)
     
-    DataProcessing.save_to_file(X_test_df, save_path, 'x_test_set', 'csv', include_version=include_version)
-    DataProcessing.save_to_file(y_test_df, save_path, 'y_sentence_test_df', 'csv', include_version=include_version)
+    DataProcessing.save_to_file(X_test_df, save_path, 'x_test_set', 'csv', include_version=False)
+    DataProcessing.save_to_file(y_test_df, save_path, 'y_sentence_test_df', 'csv', include_version=False)
     
     print(f"✓ Saved X_test to: {os.path.join(save_path, 'x_test_set.csv')}")
     print(f"✓ Saved y_test to: {os.path.join(save_path, 'y_sentence_test_df.csv')}\n")
 
+
 def build_models(factory, model_names, seed=42):
-    """
-    Initialize ML models from factory.
-    
-    Parameters
-    ----------
-    factory : class
-        Model factory class (e.g., SkLearnModelFactory)
-    model_names : list of str
-        List of model names to instantiate
-    
-    Returns
-    -------
-    dict
-        {model_name: model_instance}
-    """
+    """Initialize ML models from factory."""
     models = {}
     for name in model_names:
         models[name] = factory.select_model(name, random_state=seed)
     return models
+
 
 def train_and_predict_models(
     ml_model_names,
@@ -371,50 +225,20 @@ def train_and_predict_models(
     embeddings_col_name,
     label_name,
     model_checkpoint_path,
-    output_dir,
-    explainability,
     seed,
-    text_col_name="Base Sentence",
     X_val_df=None,
     y_val_df=None
 ):
     """
-    Train multiple ML models and generate predictions on test set.
-    Optionally monitors validation performance and saves learning curves.
-    
-    Parameters
-    ----------
-    ml_model_names : list of str
-        Names of models to train
-    X_train_df : pd.DataFrame
-        Training features with embeddings
-    y_train_df : pd.DataFrame
-        Training labels
-    X_test_df : pd.DataFrame
-        Test features with embeddings
-    embeddings_col_name : str
-        Name of embeddings column
-    label_name : str
-        Name of label column being predicted
-    model_checkpoint_path : str
-        Directory to save trained models
-    output_dir : str
-        Directory to save learning curve data
-    explainability : bool
-        Whether to generate SHAP/LIME explanations
-    seed : int
-        Random seed
-    text_col_name : str, default="Base Sentence"
-        Name of text column for LIME
-    X_val_df : pd.DataFrame, default=None
-        Validation features (optional)
-    y_val_df : pd.DataFrame, default=None
-        Validation labels (optional)
+    Train models and generate predictions.
     
     Returns
     -------
-    dict
-        {model_name: predictions_array}
+    tuple
+        (predictions_dict, train_val_metrics_dict, trained_models_dict)
+        - predictions_dict: {model_name: predictions_array}
+        - train_val_metrics_dict: {model_name: {'train_accuracy': float, 'val_accuracy': float}}
+        - trained_models_dict: {model_name: model_instance}
     """
     print("\n" + "="*50)
     print("TRAIN & PREDICT MODELS")
@@ -422,7 +246,7 @@ def train_and_predict_models(
     print(f"Label: {label_name}")
     print(f"Models: {len(ml_model_names)}")
     
-    get_ml_models = build_models(SkLearnModelFactory, ml_model_names, seed=seed)
+    ml_models = build_models(SkLearnModelFactory, ml_model_names, seed=seed)
     
     X_train_list = X_train_df[embeddings_col_name].to_list()    
     y_train_list = y_train_df.values.ravel()
@@ -440,45 +264,31 @@ def train_and_predict_models(
     print(f"Test size: {len(X_test_list)}\n")
     
     predictions = {}
-    for model_name, ml_model in get_ml_models.items():
+    train_val_metrics = {}
+    
+    for model_name, ml_model in ml_models.items():
         print(f"Training {ml_model.get_model_name()}...")
+        
         # Train model
         ml_model.train_model(X_train_list, y_train_list)
         
-        # Save learning curve data if validation set provided
-        if X_val_list is not None:
-            learning_data = {
-                'model': model_name,
-                'train_accuracy': ml_model.get_score(X_train_list, y_train_list),
-                'val_accuracy': ml_model.get_score(X_val_list, y_val_list)
-            }
-            
-            # Save to CSV for later plotting
-            learning_file = os.path.join(output_dir, f'learning_metrics_{model_name}.csv')
-            pd.DataFrame([learning_data]).to_csv(learning_file, index=False)
-            print(f"  Train accuracy: {learning_data['train_accuracy']:.4f}")
-            print(f"  Val accuracy: {learning_data['val_accuracy']:.4f}")
+        # Compute train/val accuracy
+        train_acc = ml_model.get_score(X_train_list, y_train_list)
+        val_acc = None
         
-        # Explainability
-        if explainability:
-            Explainability.explain_model(
-                X_train_df=X_train_df,
-                embeddings_col_name=embeddings_col_name,
-                ml_model=ml_model,
-                model_name=model_name,
-                save_path=output_dir,
-                include_version=False
-            )
-            Explainability.explain_text_with_lime(
-                X_train_df=X_train_df,
-                text_col_name=text_col_name,
-                embeddings_col_name=embeddings_col_name,
-                ml_model=ml_model,
-                model_name=model_name,
-                save_path=output_dir,
-                num_samples=3,
-                num_features=10
-            )
+        if X_val_list is not None:
+            val_acc = ml_model.get_score(X_val_list, y_val_list)
+            print(f"  Train accuracy: {train_acc:.4f}")
+            print(f"  Val accuracy: {val_acc:.4f}")
+        else:
+            print(f"  Train accuracy: {train_acc:.4f}")
+        
+        # Store metrics
+        train_val_metrics[model_name] = {
+            'train_accuracy': train_acc,
+            'val_accuracy': val_acc
+        }
+        
         # Generate predictions
         ml_model_predictions = ml_model.predict(X_test_list)
         predictions[model_name] = ml_model_predictions
@@ -490,24 +300,11 @@ def train_and_predict_models(
         print(f"  ✓ Saved checkpoint: {checkpoint_file}")
     
     print()
-    return predictions
+    return predictions, train_val_metrics, ml_models
+
 
 def create_results_dataframe(X_test_df, predictions_dict):
-    """
-    Combine test data with model predictions.
-    
-    Parameters
-    ----------
-    X_test_df : pd.DataFrame
-        Test features
-    predictions_dict : dict
-        {model_name: predictions_array}
-    
-    Returns
-    -------
-    pd.DataFrame
-        Test data with added prediction columns for each model
-    """
+    """Combine test data with model predictions."""
     print("\n" + "="*50)
     print("CREATE RESULTS DATAFRAME")
     print("="*50)
@@ -523,9 +320,16 @@ def create_results_dataframe(X_test_df, predictions_dict):
     
     return results_df
 
-def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name: str, save_path: str):
+
+def evaluate_models(
+    predictions_dict,
+    y_test_df,
+    label_name,
+    save_path,
+    train_val_metrics_dict
+):
     """
-    Evaluate all model predictions and generate classification reports.
+    Evaluate all model predictions and save unified metrics.
     
     Parameters
     ----------
@@ -537,18 +341,13 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
         Name of label column
     save_path : str
         Directory path to save visualizations
+    train_val_metrics_dict : dict
+        {model_name: {'train_accuracy': float, 'val_accuracy': float}}
     
     Returns
     -------
     tuple
         (eval_reports_df, confusion_matrices, auc_scores)
-        - eval_reports_df: DataFrame with classification metrics
-        - confusion_matrices: dict of {model_name: confusion_matrix_array}
-        - auc_scores: dict of {model_name: auc_score}
-    
-    Notes
-    -----
-    Prints classification report for each model and saves confusion matrix visualizations.
     """
     print("\n" + "="*50)
     print("EVALUATION RESULTS")
@@ -565,8 +364,6 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
     
     for model_name, predictions in predictions_dict.items():
         print(f"### Model: {model_name} ###")
-        # print(f"### Actual Labels: {actual_labels} ###")
-        # print(f"### Predictions: {predictions.values} ###")
         
         # Classification report
         eval_report = get_metrics.eval_classification_report(actual_labels, predictions)
@@ -582,10 +379,17 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
         auc_scores[model_name] = auc_score
         print(f"AUC Score: {auc_score:.4f}\n")
         
-        # For averaging
+        # Get train/val metrics
+        train_val_data = train_val_metrics_dict.get(model_name, {})
+        train_acc = train_val_data.get('train_accuracy', None)
+        val_acc = train_val_data.get('val_accuracy', None)
+        
+        # Build unified metrics row
         metrics_row = {
             'model': model_name,
-            'accuracy': eval_report.get('accuracy', None),
+            'train_accuracy': train_acc,
+            'val_accuracy': val_acc,
+            'test_accuracy': eval_report.get('accuracy', None),
             'precision_class_0': eval_report.get('0', {}).get('precision', None),
             'precision_class_1': eval_report.get('1', {}).get('precision', None),
             'recall_class_0': eval_report.get('0', {}).get('recall', None),
@@ -603,10 +407,11 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
             save_path, 
             include_version=False
         )
-        print(f"✓ Saved confusion matrix visualization: confusion_matrix_{model_name}.png\n")
+        print(f"✓ Saved confusion matrix: confusion_matrix_{model_name}.png\n")
     
     eval_reports_df = pd.DataFrame(eval_reports)
     
+    # Save unified metrics summary
     metrics_summary_df = pd.DataFrame(metrics_summary)
     metrics_file = os.path.join(save_path, 'metrics_summary.csv')
     metrics_summary_df.to_csv(metrics_file, index=False)
@@ -621,35 +426,64 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
     return eval_reports_df, confusion_matrices, auc_scores
 
 
+def explain_models(
+    trained_models_dict,
+    X_train_df,
+    embeddings_col_name,
+    text_col_name,
+    save_path
+):
+    """
+    Generate SHAP and LIME explanations for trained models.
+    
+    Parameters
+    ----------
+    trained_models_dict : dict
+        {model_name: trained_model_instance}
+    X_train_df : pd.DataFrame
+        Training features
+    embeddings_col_name : str
+        Name of embeddings column
+    text_col_name : str
+        Name of text column
+    save_path : str
+        Directory to save explanations
+    """
+    print("\n" + "="*50)
+    print("MODEL EXPLAINABILITY")
+    print("="*50)
+    
+    for model_name, ml_model in trained_models_dict.items():
+        print(f"\nExplaining {model_name}...")
+        
+        # SHAP explainability
+        Explainability.explain_model(
+            X_train_df=X_train_df,
+            embeddings_col_name=embeddings_col_name,
+            ml_model=ml_model,
+            model_name=model_name,
+            save_path=save_path,
+            include_version=False
+        )
+        
+        # LIME explainability
+        Explainability.explain_text_with_lime(
+            X_train_df=X_train_df,
+            text_col_name=text_col_name,
+            embeddings_col_name=embeddings_col_name,
+            ml_model=ml_model,
+            model_name=model_name,
+            save_path=save_path,
+            num_samples=3,
+            num_features=10
+        )
+        
+        print(f"  ✓ Explanations saved for {model_name}")
+    
+    print("\n✓ All model explanations complete\n")
+
+
 if __name__ == "__main__":
-    """
-    Train ML classifiers for prediction sentence classification.
-    
-    Usage Examples
-    --------------
-    # Default dataset (combined synthetic + financial phrasebank)
-    python3 ml_classifiers.py
-    
-    # Custom single file
-    python3 ml_classifiers.py --dataset ../data/my_data.csv
-    
-    # Custom seed
-    python3 ml_classifiers.py --seed 33
-    
-    # Filter to synthetic only
-    python3 ml_classifiers.py --dataset_type synthetic
-    
-    # Specify custom column names
-    python3 ml_classifiers.py --text_column "Sentence" --label_column "Label"
-    
-    # Full example with custom dataset
-    python3 ml_classifiers.py \
-        --dataset ../data/my_data.csv \
-        --text_column "Text" \
-        --label_column "Class" \
-        --save_path ../data/results/
-    """
-    
     print("\n" + "="*50)
     print("ML CLASSIFIER PIPELINE")
     print("="*50)
@@ -661,99 +495,44 @@ if __name__ == "__main__":
     base_data_path = os.path.join(script_dir, '../data')
     
     default_dataset = os.path.join(base_data_path, 'combined_datasets/combined-full_synthetic-v1.csv')
-
     default_save_path = os.path.join(base_data_path, 'classification_results/')
     
     parser = argparse.ArgumentParser(
         description='Train ML classifiers for prediction sentence classification'
     )
     
-    # dataset
-    parser.add_argument(
-        '--dataset',
-        default=default_dataset,
-        help='Path to dataset file. Default: combined-full_synthetic-v1.csv'
-    )
-    # save_path
-    parser.add_argument(
-        '--save_path',
-        default=default_save_path,
-        help='Directory to save results and checkpoints. Default: ../data/classification_results/'
-    )
-    # dataset_type
-    parser.add_argument(
-        '--dataset_type',
-        default=None,
-        choices=['synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank'],
-        help='Filter combined dataset by source. Only applies to combined synthetic + fin_phrasebank dataset. '
-            'Options: synthetic_fin_phrasebank (both), synthetic (only synthetic), fin_phrasebank (only fin_phrasebank). '
-            'Default: None (no filtering, use dataset as-is)'
-    )
-    # text_column
-    parser.add_argument(
-        '--text_column',
-        default='Base Sentence',
-        help='Name of column containing text to classify. Default: "Base Sentence"'
-    )
-    # label_column
-    parser.add_argument(
-        '--label_column',
-        default='Sentence Label',
-        help='Name of column containing classification labels. Default: "Sentence Label"'
-    )
-    # explainability
-    parser.add_argument(
-        '--explainability',
-        action='store_true',
-        help='Explainability: shap and lime'
-    )
-    # seed
-    parser.add_argument(
-        '--seed',
-        type=int,
-        default=42,
-        help='Random seed for reproducibility. Default: 42'
-    )
-    # validation set size
-    parser.add_argument(
-        '--val_size',
-        type=float,
-        default=None,
-        help='Validation set size (0-1). If None, no validation set. Default: None'
-    )
+    parser.add_argument('--dataset', default=default_dataset, help='Path to dataset file')
+    parser.add_argument('--save_path', default=default_save_path, help='Directory to save results')
+    parser.add_argument('--dataset_type', default=None, 
+                       choices=['synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank'],
+                       help='Filter combined dataset by source')
+    parser.add_argument('--text_column', default='Base Sentence', help='Text column name')
+    parser.add_argument('--label_column', default='Sentence Label', help='Label column name')
+    parser.add_argument('--explainability', action='store_true', help='Generate SHAP/LIME explanations')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed')
+    parser.add_argument('--val_size', type=float, default=None, help='Validation set size (0-1)')
     
     args = parser.parse_args()
     
     # ============================================================
-    # 2. EXPERIMENT PRE-PROCESSING
+    # 2. EXPERIMENT SETUP
     # ============================================================
-    # Get current date for experiment versioning
     current_date = datetime.now().strftime('%Y-%m-%d')
-
-    # Extract base dataset name (with version) from filename
     dataset_filename = os.path.basename(args.dataset)
     dataset_base = os.path.splitext(dataset_filename)[0]
-
-    # Determine experiment base name based on filtering
+    
     if args.dataset_type and args.dataset_type != 'synthetic_fin_phrasebank':
         experiment_base = args.dataset_type
     else:
         experiment_base = dataset_base
-
-    # Simple experiment name: base + date (no auto-increment)
+    
     experiment_name = f"{experiment_base}_{current_date}"
-
-    # Create output directory with collision detection
     output_dir = create_output_directory(args, experiment_name)
-
+    
     print(f"\nExperiment: {experiment_name}")
     print(f"Seed: {args.seed}")
     print(f"Output directory: {output_dir}\n")
     
-    # Define model names
-    # Need to make an arg, s.t. 
-        #  we/user can specify model(s) of interests
-        # to reduce runtime by running all models if all models aren't of interest
     ml_model_names = [
         'perceptron',
         'sgd_classifier',
@@ -765,131 +544,81 @@ if __name__ == "__main__":
         'support_vector_machine_classifier',
         'x_gradient_boosting_classifier'
     ]
-    # ml_model_names = ['support_vector_machine_classifier']
     
     # ============================================================
-    # 3. LOAD DATASET
+    # 3. LOAD & PREPARE DATA
     # ============================================================
-    print("="*50)
-    print("DATASET LOADING")
-    print("="*50)
-    print(f"Loading dataset: {args.dataset}")
-    
     df = load_dataset(script_dir, args.dataset)
     
-    print("\n✓ Dataset loaded successfully!")
-    print(f"Shape: {df.shape}")
-    print(f"Columns: {list(df.columns)}\n")
-    
-    print(f"Dataset type filter: {args.dataset_type}")
-    print(f"Text column: '{args.text_column}'")
-    print(f"Label column: '{args.label_column}'")
-    print(f"Random seed: {args.seed}")
-    print(f"Date: {current_date}\n")
-    
-    # ============================================================
-    # 4. VALIDATE DATASET COLUMNS
-    # ============================================================
-    if args.text_column not in df.columns:
-        print(f"\n❌ ERROR: Text column '{args.text_column}' not found in dataset")
+    if args.text_column not in df.columns or args.label_column not in df.columns:
+        print(f"\n❌ ERROR: Required columns not found")
         print(f"Available columns: {list(df.columns)}")
         sys.exit(1)
     
-    if args.label_column not in df.columns:
-        print(f"\n❌ ERROR: Label column '{args.label_column}' not found in dataset")
-        print(f"Available columns: {list(df.columns)}")
-        sys.exit(1)
-    
-    # ============================================================
-    # 5. APPLY DATASET FILTERING (IF SPECIFIED)
-    # ============================================================
     if args.dataset_type in ['synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank']:
-        print(f"Applying filter: {args.dataset_type}")
         df = get_which_dataset(df, args.dataset_type)
-    else:
-        print("No dataset filtering applied - using loaded dataset as-is")
-        print(f"Dataset shape: {df.shape}\n")
     
-    # ============================================================
-    # 6. SHUFFLE DATASET
-    # ============================================================
     shuffled_df = shuffle_dataset(df, seed=args.seed)
-    
-    # ============================================================
-    # 7. EXTRACT SENTENCE EMBEDDINGS
-    # ============================================================
     embeddings_df, embeddings_col_name = extract_sentence_embeddings(
         shuffled_df, text_column=args.text_column
     )
     
     # ============================================================
-    # 8. SPLIT TRAIN/VAL/TEST OR TRAIN/TEST SETS
+    # 4. SPLIT DATA
     # ============================================================
     if args.val_size is not None:
-        # 3-way split
         X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df = split_train_test(
             embeddings_df, val_size=args.val_size, seed=args.seed, stratify_by=args.label_column
         )
     else:
-        # 2-way split
         X_train_df, X_test_df, y_train_df, y_test_df = split_train_test(
             embeddings_df, val_size=None, seed=args.seed, stratify_by=args.label_column
         )
         X_val_df = None
         y_val_df = None
-        
-    # ============================================================
-    # 9. SAVE TEST SETS (FOR LLM EXPERIMENTS)
-    # ============================================================
-    save_test_sets(X_test_df, 
-                   y_test_df, 
-                   output_dir, 
-                   include_version=False  # Protected by experiment/seed folder structure
-                   )
+    
+    save_test_sets(X_test_df, y_test_df, output_dir)
     
     # ============================================================
-    # 10. TRAIN MODELS & GENERATE MODEL PREDICTIONS (y_hat)
+    # 5. TRAIN MODELS
     # ============================================================
-    # Create model checkpoint directory inside seed folder
     model_checkpoint_path = os.path.join(output_dir, 'model_checkpoints')
     os.makedirs(model_checkpoint_path, exist_ok=True)
     
-    predictions = train_and_predict_models(
+    predictions, train_val_metrics, trained_models = train_and_predict_models(
         ml_model_names, X_train_df, y_train_df, X_test_df,
         embeddings_col_name, args.label_column, model_checkpoint_path,
-        output_dir=output_dir,
-        explainability=args.explainability,
-        seed=args.seed,
-        text_col_name=args.text_column,
-        X_val_df=X_val_df,
-        y_val_df=y_val_df
+        seed=args.seed, X_val_df=X_val_df, y_val_df=y_val_df
     )
-    # ============================================================
-    # 11. POST-PROCESS
-    # ============================================================
-    # Rows are sentences and columns are models with cells being 1/0
-    results_df = create_results_dataframe(X_test_df, predictions)
     
-    # Save without versioning (protected by folder hierarchy)
+    # ============================================================
+    # 6. EVALUATE & SAVE RESULTS
+    # ============================================================
+    results_df = create_results_dataframe(X_test_df, predictions)
     results_file = os.path.join(output_dir, 'ml_classifiers.csv')
     results_df.to_csv(results_file, index=False)
     print(f"✓ Saved results to: {results_file}")
     
-    # ============================================================
-    # 12. EVALUATE MODELS & SAVE METRICS
-    # ============================================================
     eval_df, confusion_matrices, auc_scores = evaluate_models(
-        predictions, y_test_df, args.label_column, output_dir
+        predictions, y_test_df, args.label_column, output_dir, train_val_metrics
     )
     
     # ============================================================
-    # 13. PIPELINE COMPLETE
+    # 7. EXPLAINABILITY (OPTIONAL)
+    # ============================================================
+    if args.explainability:
+        explain_models(
+            trained_models, X_train_df, embeddings_col_name,
+            args.text_column, output_dir
+        )
+    
+    # ============================================================
+    # 8. COMPLETE
     # ============================================================
     print("\n" + "="*50)
     print("PIPELINE COMPLETE")
     print("="*50)
     print(f"Experiment: {experiment_name}")
-    # print(f"Seed: {args.seed}")
     print(f"Results shape: {results_df.shape}")
     print(f"Models evaluated: {len(predictions)}")
     print(f"\n✓ All outputs saved to: {output_dir}\n")
