@@ -63,6 +63,10 @@ class SkLearnModelFactory(ABC):
             )
         return self.classifer.predict_proba(X_test)
     
+    def get_score(self, X, y):
+        """Mean accuracy."""
+        return self.classifer.score(X, y)
+
     @staticmethod
     def select_model(model_name: str, random_state=42):
         """Select a model with specified random state."""

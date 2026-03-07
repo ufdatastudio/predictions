@@ -11,7 +11,11 @@ matplotlib.use('Agg')  # Prevent GUI windows from opening
 import numpy as np
 import pandas as pd
 
+import matplotlib.pyplot as plt
+
 from datetime import datetime
+
+from sklearn.model_selection import LearningCurveDisplay, learning_curve
 
 # Get the current working directory of the script
 script_dir = os.getcwd()
@@ -242,51 +246,78 @@ def extract_sentence_embeddings(df, text_column='Base Sentence'):
     
     return embeddings_df, embeddings_col_name
 
-def split_train_test(df, embeddings_col_name, seed=42, stratify_by='Sentence Label'):
+def split_train_test(df, val_size=None, seed=42, stratify_by='Sentence Label'):
     """
-    Split dataset into train and test sets with stratification.
+    Split dataset into train/test or train/val/test sets with stratification.
     
     Parameters
     ----------
     df : pd.DataFrame
         Dataset with embeddings and labels
-    embeddings_col_name : str
-        Name of column containing embeddings
-    stratify_by : str
+    val_size : float, default=None
+        Fraction for validation set (if None, only train/test split)
+    seed : int, default=42
+        Random seed for reproducibility
+    stratify_by : str, default='Sentence Label'
         Column name to stratify split on
     
     Returns
     -------
     tuple
-        (X_train_df, X_test_df, y_train_df, y_test_df)
-    
-    Notes
-    -----
-    Stratification preserves the original dataset ratio when splitting.
-    Example: If 920/1000 are non-predictions, train/test maintain ~92% non-predictions.
+        If val_size is None: (X_train_df, X_test_df, y_train_df, y_test_df)
+        If val_size set: (X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df)
     """
-    print("\n" + "="*50)
-    print("SPLIT TRAIN/TEST DATA")
-    print("="*50)
-    print(f"Stratifying by: {stratify_by}")
-    
     cols_with_labels = df.loc[:, [stratify_by]]
-    data_splits = DataProcessing.split_data(
-        df, cols_with_labels, stratify=True, random_state=seed, stratify_by=stratify_by
-    )
     
-    X_train_df, X_test_df, y_train_df, y_test_df = data_splits
+    if val_size is None:
+        print("\n" + "="*50)
+        print("SPLIT TRAIN/TEST DATA")
+        print("="*50)
+        print(f"Stratifying by: {stratify_by}")
+        
+        X_train_df, X_test_df, y_train_df, y_test_df = DataProcessing.split_data(
+            df, cols_with_labels, 
+            test_size=0.2,
+            val_size=None,
+            random_state=seed, 
+            stratify_by=stratify_by
+        )
+        
+        print("\n{:<25} {:>10}".format("Dataset", "Count"))
+        print("-" * 37)
+        print("{:<25} {:>10}".format("X_train", len(X_train_df)))
+        print("{:<25} {:>10}".format("X_test", len(X_test_df)))
+        print("{:<25} {:>10}".format("y_train", len(y_train_df)))
+        print("{:<25} {:>10}".format("y_test", len(y_test_df)))
+        print()
+        
+        return X_train_df, X_test_df, y_train_df, y_test_df
     
-    # Print split statistics
-    print("\n{:<25} {:>10}".format("Dataset", "Count"))
-    print("-" * 37)
-    print("{:<25} {:>10}".format("X_train", len(X_train_df)))
-    print("{:<25} {:>10}".format("X_test", len(X_test_df)))
-    print("{:<25} {:>10}".format("y_train", len(y_train_df)))
-    print("{:<25} {:>10}".format("y_test", len(y_test_df)))
-    print()
-    
-    return X_train_df, X_test_df, y_train_df, y_test_df
+    else:
+        print("\n" + "="*50)
+        print("SPLIT TRAIN/VAL/TEST DATA")
+        print("="*50)
+        print(f"Stratifying by: {stratify_by}")
+        
+        X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df = DataProcessing.split_data(
+            df, cols_with_labels,
+            test_size=0.2,
+            val_size=val_size,
+            random_state=seed,
+            stratify_by=stratify_by
+        )
+        
+        print("\n{:<25} {:>10}".format("Dataset", "Count"))
+        print("-" * 37)
+        print("{:<25} {:>10}".format("X_train", len(X_train_df)))
+        print("{:<25} {:>10}".format("X_val", len(X_val_df)))
+        print("{:<25} {:>10}".format("X_test", len(X_test_df)))
+        print("{:<25} {:>10}".format("y_train", len(y_train_df)))
+        print("{:<25} {:>10}".format("y_val", len(y_val_df)))
+        print("{:<25} {:>10}".format("y_test", len(y_test_df)))
+        print()
+        
+        return X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df
 
 def save_test_sets(X_test_df, y_test_df, save_path, include_version):
     """
@@ -332,20 +363,24 @@ def build_models(factory, model_names, seed=42):
         models[name] = factory.select_model(name, random_state=seed)
     return models
 
-def train_and_predict_models(ml_model_names,
-                             X_train_df,
-                             y_train_df, 
-                             X_test_df,
-                             embeddings_col_name,
-                             label_name,
-                             model_checkpoint_path,
-                             output_dir,
-                             explainability,
-                             seed,
-                             text_col_name = "Base Sentence"
+def train_and_predict_models(
+    ml_model_names,
+    X_train_df,
+    y_train_df,
+    X_test_df,
+    embeddings_col_name,
+    label_name,
+    model_checkpoint_path,
+    output_dir,
+    explainability,
+    seed,
+    text_col_name="Base Sentence",
+    X_val_df=None,
+    y_val_df=None
 ):
     """
     Train multiple ML models and generate predictions on test set.
+    Optionally monitors validation performance and saves learning curves.
     
     Parameters
     ----------
@@ -363,15 +398,23 @@ def train_and_predict_models(ml_model_names,
         Name of label column being predicted
     model_checkpoint_path : str
         Directory to save trained models
+    output_dir : str
+        Directory to save learning curve data
+    explainability : bool
+        Whether to generate SHAP/LIME explanations
+    seed : int
+        Random seed
+    text_col_name : str, default="Base Sentence"
+        Name of text column for LIME
+    X_val_df : pd.DataFrame, default=None
+        Validation features (optional)
+    y_val_df : pd.DataFrame, default=None
+        Validation labels (optional)
     
     Returns
     -------
     dict
         {model_name: predictions_array}
-    
-    Notes
-    -----
-    Saves each trained model to disk as: model_checkpoint-{model_name}-{label_name}.pkl
     """
     print("\n" + "="*50)
     print("TRAIN & PREDICT MODELS")
@@ -379,23 +422,45 @@ def train_and_predict_models(ml_model_names,
     print(f"Label: {label_name}")
     print(f"Models: {len(ml_model_names)}")
     
-    ml_models = build_models(SkLearnModelFactory, ml_model_names, seed=seed)
+    get_ml_models = build_models(SkLearnModelFactory, ml_model_names, seed=seed)
     
-    X_train_list = X_train_df[embeddings_col_name].to_list()
-    y_train_list = y_train_df.to_list()
+    X_train_list = X_train_df[embeddings_col_name].to_list()    
+    y_train_list = y_train_df.values.ravel()
     X_test_list = X_test_df[embeddings_col_name].to_list()
+    
+    # Prepare validation data if provided
+    X_val_list = None
+    y_val_list = None
+    if X_val_df is not None and y_val_df is not None:
+        X_val_list = X_val_df[embeddings_col_name].to_list()
+        y_val_list = y_val_df.values.ravel()
+        print(f"Validation set: {len(X_val_list)} samples")
     
     print(f"\nTrain size: {len(X_train_list)}")
     print(f"Test size: {len(X_test_list)}\n")
     
     predictions = {}
-    
-    for model_name, ml_model in ml_models.items():
+    for model_name, ml_model in get_ml_models.items():
         print(f"Training {ml_model.get_model_name()}...")
+        # Train model
         ml_model.train_model(X_train_list, y_train_list)
-
+        
+        # Save learning curve data if validation set provided
+        if X_val_list is not None:
+            learning_data = {
+                'model': model_name,
+                'train_accuracy': ml_model.get_score(X_train_list, y_train_list),
+                'val_accuracy': ml_model.get_score(X_val_list, y_val_list)
+            }
+            
+            # Save to CSV for later plotting
+            learning_file = os.path.join(output_dir, f'learning_metrics_{model_name}.csv')
+            pd.DataFrame([learning_data]).to_csv(learning_file, index=False)
+            print(f"  Train accuracy: {learning_data['train_accuracy']:.4f}")
+            print(f"  Val accuracy: {learning_data['val_accuracy']:.4f}")
+        
+        # Explainability
         if explainability:
-            # SHAP explainability
             Explainability.explain_model(
                 X_train_df=X_train_df,
                 embeddings_col_name=embeddings_col_name,
@@ -404,8 +469,6 @@ def train_and_predict_models(ml_model_names,
                 save_path=output_dir,
                 include_version=False
             )
-
-            # ADD THIS: LIME explainability (text features)
             Explainability.explain_text_with_lime(
                 X_train_df=X_train_df,
                 text_col_name=text_col_name,
@@ -413,10 +476,10 @@ def train_and_predict_models(ml_model_names,
                 ml_model=ml_model,
                 model_name=model_name,
                 save_path=output_dir,
-                num_samples=3,  # Explain first 3 training samples
-                num_features=10  # Show top 10 words
+                num_samples=3,
+                num_features=10
             )
-
+        # Generate predictions
         ml_model_predictions = ml_model.predict(X_test_list)
         predictions[model_name] = ml_model_predictions
         
@@ -502,8 +565,8 @@ def evaluate_models(predictions_dict: dict, y_test_df: pd.DataFrame, label_name:
     
     for model_name, predictions in predictions_dict.items():
         print(f"### Model: {model_name} ###")
-        print(f"### Actual Labels: {actual_labels} ###")
-        print(f"### Predictions: {predictions.values} ###")
+        # print(f"### Actual Labels: {actual_labels} ###")
+        # print(f"### Predictions: {predictions.values} ###")
         
         # Classification report
         eval_report = get_metrics.eval_classification_report(actual_labels, predictions)
@@ -651,6 +714,13 @@ if __name__ == "__main__":
         default=42,
         help='Random seed for reproducibility. Default: 42'
     )
+    # validation set size
+    parser.add_argument(
+        '--val_size',
+        type=float,
+        default=None,
+        help='Validation set size (0-1). If None, no validation set. Default: None'
+    )
     
     args = parser.parse_args()
     
@@ -753,12 +823,21 @@ if __name__ == "__main__":
     )
     
     # ============================================================
-    # 8. SPLIT TRAIN/TEST SETS
+    # 8. SPLIT TRAIN/VAL/TEST OR TRAIN/TEST SETS
     # ============================================================
-    X_train_df, X_test_df, y_train_df, y_test_df = split_train_test(
-        embeddings_df, embeddings_col_name, seed=args.seed, stratify_by=args.label_column
-    )
-    
+    if args.val_size is not None:
+        # 3-way split
+        X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df = split_train_test(
+            embeddings_df, val_size=args.val_size, seed=args.seed, stratify_by=args.label_column
+        )
+    else:
+        # 2-way split
+        X_train_df, X_test_df, y_train_df, y_test_df = split_train_test(
+            embeddings_df, val_size=None, seed=args.seed, stratify_by=args.label_column
+        )
+        X_val_df = None
+        y_val_df = None
+        
     # ============================================================
     # 9. SAVE TEST SETS (FOR LLM EXPERIMENTS)
     # ============================================================
@@ -781,9 +860,10 @@ if __name__ == "__main__":
         output_dir=output_dir,
         explainability=args.explainability,
         seed=args.seed,
-        text_col_name=args.text_column
+        text_col_name=args.text_column,
+        X_val_df=X_val_df,
+        y_val_df=y_val_df
     )
-    
     # ============================================================
     # 11. POST-PROCESS
     # ============================================================

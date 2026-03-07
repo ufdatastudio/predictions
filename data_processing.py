@@ -27,105 +27,77 @@ class DataProcessing:
         df = df.sample(frac=1, random_state=random_state).reset_index(drop=True)
         return df
     
-    def split_data(
-        vectorized_features,
-        cols_with_labels: pd.DataFrame,
-        test_size: float = 0.2,
-        random_state: int = 42,
-        stratify: bool = False,
-        stratify_by=None  # column name (str) or positional index (int); default None
-    ):
+    def split_data(features, labels_df, test_size=0.2, val_size=None, 
+                random_state=42, stratify_by=None):
         """
-        Split features and one or more label columns into train/test sets.
-
+        Split features and labels into train/test or train/val/test sets.
+        
         Parameters
         ----------
-        vectorized_features : pd.DataFrame or np.ndarray or sparse matrix
-            Row-aligned features.
-
-        cols_with_labels : pd.DataFrame
-            One or more label columns (e.g., ['Sentence Label'], or ['Sentence Label', 'Author Type']).
-
+        features : pd.DataFrame or np.ndarray
+            Features to split
+        labels_df : pd.DataFrame
+            Label columns (e.g., ['Sentence Label', 'Author Type'])
         test_size : float, default=0.2
-            Fraction of the dataset to include in the test split.
-
+            Fraction for test set
+        val_size : float, default=None
+            Fraction for validation set (if None, only train/test split)
         random_state : int, default=42
-            RNG seed for reproducibility.
-
-        stratify : bool, default=False
-            If True, preserve the class proportions of the specified `stratify_by` label
-            in both train and test sets.
-
-        stratify_by : str or int, default=None
-            Column name (preferred) or positional index in `cols_with_labels` to use for stratification.
-            If None and `stratify=True`, defaults to the first label column (index 0).
-            If `stratify=False`, this is ignored.
-            If there exists multi-variate wrt columns,
-                - **Me:** Can still choose the one that's imbalanced more and the not as much imbalanced columns will split based on the one that's the most imbalance.
-                - **Copilot:** Stratify on the column with the greatest imbalance or the one most critical for model performance. This ensures that rare classes in that column are preserved across train and test sets. Other label columns will split based on the same indices, which may slightly alter their original ratios.
-
+            Random seed for reproducibility
+        stratify_by : str, default=None
+            Column name to stratify on (e.g., 'Author Type')
+            If None, no stratification is used
+        
         Returns
         -------
         tuple
-            If 1 label column:
-                (X_train, X_test, y1_train, y1_test)
-            If 2+ label columns:
-                (X_train, X_test, y1_train, y1_test, y2_train, y2_test, ...)
+            If val_size is None: (X_train, X_test, y_train, y_test)
+            If val_size is set: (X_train, X_val, X_test, y_train, y_val, y_test)
+        
+        Examples
+        --------
+        # 2-way split with stratification
+        X_train, X_test, y_train, y_test = split_data(
+            features, labels, stratify_by='Author Type'
+        )
+        
+        # 3-way split (60% train, 20% val, 20% test)
+        X_train, X_val, X_test, y_train, y_val, y_test = split_data(
+            features, labels, val_size=0.2, stratify_by='Author Type'
+        )
         """
-        # Validate label columns
-        n_label_cols = cols_with_labels.shape[1]
-        if n_label_cols == 0:
-            raise ValueError("cols_with_labels must contain at least one label column.")
-
-        label_series_list = []
-        for i in range(n_label_cols):
-            label_series_list.append(cols_with_labels.iloc[:, i])
-
-        # Determine stratification target if requested
-        stratify_target = None
-        if stratify:
-            # is None, then automatically select first
-            if stratify_by is None:
-                stratify_target = label_series_list[0]
-            # is int, index labels to get which one
-            elif isinstance(stratify_by, int):
-                if not (0 <= stratify_by < n_label_cols):
-                    raise ValueError(f"stratify_by index must be in [0, {n_label_cols-1}]")
-                stratify_target = label_series_list[stratify_by]
-            # is string, index labels to get which one
-            elif isinstance(stratify_by, str):
-                if stratify_by not in cols_with_labels.columns:
-                    raise ValueError(f"'{stratify_by}' not found in cols_with_labels columns: "
-                                    f"{list(cols_with_labels.columns)}")
-                stratify_target = cols_with_labels[stratify_by]
-            else:
-                raise TypeError("stratify_by must be None, an int (column index), or a str (column name).")
-
-        # Perform the split, with fallback if stratification is infeasible
-        try:
-            splits = train_test_split(
-                vectorized_features,
-                *label_series_list,
-                test_size=test_size,
+        stratify = labels_df[stratify_by] if stratify_by else None
+        
+        # No validation set - simple 2-way split
+        if val_size is None:
+            return train_test_split(
+                features, labels_df, 
+                test_size=test_size, 
                 random_state=random_state,
-                stratify=stratify_target
+                stratify=stratify
             )
-        except ValueError as e:
-            # Common causes: a class too small to appear in both splits; test_size too large for minor class
-            print(
-                f"[WARN] Stratified split failed: {e}\n"
-                f"Falling back to non-stratified split. Consider reducing test_size, "
-                f"ensuring every class has sufficient samples, or disabling stratification."
-            )
-            splits = train_test_split(
-                vectorized_features,
-                *label_series_list,
-                test_size=test_size,
-                random_state=random_state,
-                stratify=None
-            )
-
-        return splits
+        
+        # With validation set - two splits
+        # Split 1: Remove test set
+        X_temp, X_test, y_temp, y_test = train_test_split(
+            features, labels_df,
+            test_size=test_size,
+            random_state=random_state,
+            stratify=stratify
+        )
+        
+        # Split 2: Split remaining into train and val
+        val_size_adjusted = val_size / (1 - test_size)
+        stratify_temp = y_temp[stratify_by] if stratify_by else None
+        
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_temp, y_temp,
+            test_size=val_size_adjusted,
+            random_state=random_state,
+            stratify=stratify_temp
+        )
+        
+        return X_train, X_val, X_test, y_train, y_val, y_test
 
     def join_predictions_with_labels(df: pd.DataFrame, true_labels: pd.Series, y_predictions: pd.Series, model) -> pd.DataFrame:
         """Join the predictions with the true labels DF
@@ -743,7 +715,7 @@ class DataProcessing:
 
     def load_from_file(path: str, 
                        file_type: str = 'csv', 
-                       sep = "\t", 
+                       sep = ",", 
                        encoding = 'utf-8'
                        ):
         """Load data from directory
