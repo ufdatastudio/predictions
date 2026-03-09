@@ -714,28 +714,35 @@ class DataProcessing:
             raise ValueError(f"Unsupported file type: {save_file_type}. Choose from [json, csv, png]")
 
     def load_from_file(path: str, 
-                       file_type: str = 'csv', 
-                       sep = ",", 
-                       encoding = 'utf-8'
-                       ):
+                    file_type: str = 'csv', 
+                    sep = ",", 
+                    encoding = 'utf-8',
+                    **kwargs
+                    ):
         """Load data from directory
         
         Parameters
         ----------
         path : str
             Directory path where the file will be loaded from.
-        save_file_type : str
+        file_type : str
             File types such as json, csv, etc
-
+        sep : str
+            Delimiter for CSV files
+        encoding : str
+            File encoding
+        **kwargs
+            Additional keyword arguments passed to pd.read_csv()
+            (e.g., header=None, names=['col1', 'col2'], dtype=...)
+        
         Returns
         -------
-        None
-            Saves the file to disk and prints the file path.
-
+        pd.DataFrame
+            Loaded dataframe
         """
         
         if file_type == 'csv': 
-            df = pd.read_csv(path, sep=sep, encoding=encoding)
+            df = pd.read_csv(path, sep=sep, encoding=encoding, **kwargs)
             return df
         else:
             return 'Did not properly load'
