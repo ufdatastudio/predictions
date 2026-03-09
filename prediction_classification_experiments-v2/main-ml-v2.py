@@ -141,7 +141,7 @@ def extract_sentence_embeddings(df, text_column='Base Sentence'):
     return embeddings_df, embeddings_col_name
 
 
-def split_train_test(df, val_size=None, seed=42, stratify_by='Sentence Label'):
+def split_train_test(df, val_size=None, seed=7, stratify_by='Sentence Label'):
     """Split dataset into train/test or train/val/test sets."""
     cols_with_labels = df.loc[:, [stratify_by]]
     
@@ -209,7 +209,7 @@ def save_test_sets(X_test_df, y_test_df, save_path):
     print(f"✓ Saved y_test to: {os.path.join(save_path, 'y_sentence_test_df.csv')}\n")
 
 
-def build_models(factory, model_names, seed=42):
+def build_models(factory, model_names, seed=7):
     """Initialize ML models from factory."""
     models = {}
     for name in model_names:
@@ -225,7 +225,7 @@ def train_and_predict_models(
     embeddings_col_name,
     label_name,
     model_checkpoint_path,
-    seed,
+    seed=7,
     X_val_df=None,
     y_val_df=None
 ):
@@ -426,7 +426,7 @@ def evaluate_models(
     return eval_reports_df, confusion_matrices, auc_scores
 
 
-def explain_models(
+def generate_all_explanations(
     trained_models_dict,
     X_train_df,
     embeddings_col_name,
@@ -435,24 +435,16 @@ def explain_models(
 ):
     """
     Generate SHAP and LIME explanations for trained models.
-    
-    Parameters
-    ----------
-    trained_models_dict : dict
-        {model_name: trained_model_instance}
-    X_train_df : pd.DataFrame
-        Training features
-    embeddings_col_name : str
-        Name of embeddings column
-    text_col_name : str
-        Name of text column
-    save_path : str
-        Directory to save explanations
     """
     print("\n" + "="*50)
     print("MODEL EXPLAINABILITY")
     print("="*50)
     
+    # Remove the old comparison file if it exists so we don't append to a previous run
+    comparison_file = os.path.join(save_path, 'lime_comparison_all_models.html')
+    if os.path.exists(comparison_file):
+        os.remove(comparison_file)
+
     for model_name, ml_model in trained_models_dict.items():
         print(f"\nExplaining {model_name}...")
         
@@ -475,13 +467,24 @@ def explain_models(
             model_name=model_name,
             save_path=save_path,
             num_samples=3,
-            num_features=10
+            num_features=10 
+        )
+        
+        # LIME explainability comparison (appending one by one)
+        Explainability.add_to_lime_comparison(
+            X_train_df=X_train_df,
+            text_col_name=text_col_name,
+            ml_model=ml_model,
+            model_name=model_name,
+            save_path=save_path,
+            sample_idx=0,
+            num_features=10,
+            num_samples=50
         )
         
         print(f"  ✓ Explanations saved for {model_name}")
-    
+        
     print("\n✓ All model explanations complete\n")
-
 
 if __name__ == "__main__":
     print("\n" + "="*50)
@@ -509,7 +512,7 @@ if __name__ == "__main__":
     parser.add_argument('--text_column', default='Base Sentence', help='Text column name')
     parser.add_argument('--label_column', default='Sentence Label', help='Label column name')
     parser.add_argument('--explainability', action='store_true', help='Generate SHAP/LIME explanations')
-    parser.add_argument('--seed', type=int, default=42, help='Random seed')
+    parser.add_argument('--seed', type=int, default=7, help='Random seed')
     parser.add_argument('--val_size', type=float, default=None, help='Validation set size (0-1)')
     
     args = parser.parse_args()
@@ -607,11 +610,19 @@ if __name__ == "__main__":
     # 7. EXPLAINABILITY (OPTIONAL)
     # ============================================================
     if args.explainability:
-        explain_models(
-            trained_models, X_train_df, embeddings_col_name,
-            args.text_column, output_dir
+        # explain_models(
+        #     trained_models, X_train_df, embeddings_col_name,
+        #     args.text_column, output_dir
+        # )
+
+        generate_all_explanations(
+            trained_models_dict=trained_models,
+            X_train_df=X_train_df, # Replace with your actual dataframe variable
+            embeddings_col_name=embeddings_col_name,
+            text_col_name=args.text_column,
+            save_path=output_dir
         )
-    
+            
     # ============================================================
     # 8. COMPLETE
     # ============================================================
