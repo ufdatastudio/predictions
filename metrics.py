@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 from statsmodels.stats.inter_rater import cohens_kappa, fleiss_kappa
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, confusion_matrix, roc_curve, auc, roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, confusion_matrix, roc_curve, auc, roc_auc_score, average_precision_score
 
 
 from classification_models import SkLearnModelFactory
@@ -156,5 +156,8 @@ class EvaluationMetric:
     def get_confusion_matrix(self, y_true, y_prediction):
         return confusion_matrix(y_true, y_prediction)
     
-    def get_auc(self, y_true, y_prediction):
+    def get_roc_auc(self, y_true, y_prediction):
         return roc_auc_score(y_true, y_prediction)
+    
+    def get_pr_auc(self, y_true, y_prediction):
+        return average_precision_score(y_true, y_prediction)

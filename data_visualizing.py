@@ -8,6 +8,7 @@ from spacy import displacy
 from spacy.tokens import Doc
 from IPython.display import HTML, display
 from data_processing import DataProcessing
+from sklearn.metrics import RocCurveDisplay, PrecisionRecallDisplay
 
 
 class DataPlotting:
@@ -419,3 +420,13 @@ class DataVisualizing:
         
         plt.show()
         plt.close()
+    
+    def roc_curve(model, X_test, y_test):
+        RocCurveDisplay.from_estimator(model, X_test, y_test)
+        plt.title("ROC Curve")
+        plt.show()
+
+    def pr_curve(model, X_test, y_test):
+        RocCurveDisplay.from_estimator(model, X_test, y_test)
+        plt.title("Precision-Recall Curve")
+        plt.show()
