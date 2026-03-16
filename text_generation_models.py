@@ -126,6 +126,7 @@ class TextGenerationModelFactory(ABC):
         #     return DeepSeekProverV2TextGenerationModel()
         else:
             raise ValueError(f"Unknown class name: {model_name}")
+    
     @classmethod
     def create_instances(self, model_names=None):
         """
@@ -314,10 +315,15 @@ class TextGenerationModelFactory(ABC):
         df['Model Name'] = self.model_name
         df['API Name'] = self.api_name
         df['Batch ID'] = batch_id
-        df['Prediction Date'] = prediction_date
         df['Temperature'] = self.temperature
         df['Top P'] = self.top_p
         df['Prompt Used'] = prompt_template
+        df['Source'] = 1
+        df['Target'] = 1
+        df['Prediction Date'] = 1
+        df['Generation Date'] = prediction_date
+        df['Outcome'] = 1
+        df['Raw Text'] = raw_text
         # print()
         # print(df)
         # ipdb.set_trace()
