@@ -14,25 +14,26 @@ from classification_models import SkLearnModelFactory
 
 class EvaluationMetric:
 
-    def eval_accuracy(self, y_true, y_prediction):
+# CLASSIFICATION
+    def eval_accuracy(y_true, y_prediction):
         return accuracy_score(y_true, y_prediction)
 
-    def eval_precision(self, y_true, y_prediction):
+    def eval_precision(y_true, y_prediction):
         return precision_score(y_true, y_prediction)
 
-    def eval_recall(self, y_true, y_prediction):
+    def eval_recall(y_true, y_prediction):
         return recall_score(y_true, y_prediction)
 
-    def eval_f1_score(self, y_true, y_prediction):
+    def eval_f1_score(y_true, y_prediction):
         return f1_score(y_true, y_prediction)
     
-    def custom_evaluation_metrics(self, y_true, y_prediction):
+    def custom_evaluation_metrics(y_true, y_prediction):
         """Evaluate the model using accuracy and precision"""
 
-        accuracy = self.eval_accuracy(y_true, y_prediction)
-        precision = self.eval_precision(y_true, y_prediction)
-        recall = self.eval_recall(y_true, y_prediction)
-        f1 = self.eval_f1_score(y_true, y_prediction)
+        accuracy = EvaluationMetric.eval_accuracy(y_true, y_prediction)
+        precision = EvaluationMetric.eval_precision(y_true, y_prediction)
+        recall = EvaluationMetric.eval_recall(y_true, y_prediction)
+        f1 = EvaluationMetric.eval_f1_score(y_true, y_prediction)
 
         metrics_dict = {
             'Accuracy': accuracy,
@@ -43,11 +44,55 @@ class EvaluationMetric:
 
         return metrics_dict
 
-    def eval_classification_report(self, y_true, y_prediction):
+    def eval_classification_report(y_true, y_prediction):
         print(classification_report(y_true, y_prediction))
 
         return classification_report(y_true, y_prediction,  output_dict=True)
     
+    def get_confusion_matrix(y_true, y_prediction):
+        return confusion_matrix(y_true, y_prediction)
+    
+    def get_roc_auc(y_true, y_prediction):
+        return roc_auc_score(y_true, y_prediction)
+    
+    def get_pr_auc(y_true, y_prediction):
+        return average_precision_score(y_true, y_prediction)
+
+    def train_and_evaluate_model(model_name, X_train, y_train, X_test, y_test):
+        """
+        Train and evaluate a model.
+        
+        Parameters:
+        -----------
+        model_name: `str`
+            The name of the model to be trained and evaluated.
+        X_train: `pd.DataFrame`
+            The training features.
+        y_train: `pd.Series`
+            The training labels.
+        X_test: `pd.DataFrame`
+            The test features.
+        y_test: `pd.Series`
+            The test labels.
+        
+        Returns:
+        --------
+        dict
+            A dictionary containing the model name and its evaluation metrics.
+        pd.Series
+            The predictions made by the model.
+        """
+        model = SkLearnModelFactory.select_model(model_name)
+        model.train_model(X_train, y_train)
+        predictions = model.predict(X_test)
+        
+
+        metrics = EvaluationMetric.custom_evaluation_metrics(y_true=y_test, y_prediction=predictions)
+        metrics['Model'] = model.get_model_name()
+        
+        return metrics, predictions
+   
+# AGREEMENT
     def get_cohens_kappa(self, df, rater_1_col_name, rater_2_col_name):
         frequency_table = pd.crosstab(df[rater_1_col_name], df[rater_2_col_name])
         return cohens_kappa(frequency_table)
@@ -105,40 +150,7 @@ class EvaluationMetric:
     
         return pd.DataFrame(cohens_kappa_scores)
 
-    def train_and_evaluate_model(model_name, X_train, y_train, X_test, y_test):
-        """
-        Train and evaluate a model.
-        
-        Parameters:
-        -----------
-        model_name: `str`
-            The name of the model to be trained and evaluated.
-        X_train: `pd.DataFrame`
-            The training features.
-        y_train: `pd.Series`
-            The training labels.
-        X_test: `pd.DataFrame`
-            The test features.
-        y_test: `pd.Series`
-            The test labels.
-        
-        Returns:
-        --------
-        dict
-            A dictionary containing the model name and its evaluation metrics.
-        pd.Series
-            The predictions made by the model.
-        """
-        model = SkLearnModelFactory.select_model(model_name)
-        model.train_model(X_train, y_train)
-        predictions = model.predict(X_test)
-        
-
-        metrics = EvaluationMetric.custom_evaluation_metrics(y_true=y_test, y_prediction=predictions)
-        metrics['Model'] = model.get_model_name()
-        
-        return metrics, predictions
-    
+# EMBEDDINGS
     def get_cosine_similarity(prediction_embeddings: np.array, observation_embeddings: np.array) -> list:
         assert len(prediction_embeddings) == len(observation_embeddings)
 
@@ -152,12 +164,3 @@ class EvaluationMetric:
             model_scores.append(cos_sim)
         
         return model_scores
-
-    def get_confusion_matrix(self, y_true, y_prediction):
-        return confusion_matrix(y_true, y_prediction)
-    
-    def get_roc_auc(self, y_true, y_prediction):
-        return roc_auc_score(y_true, y_prediction)
-    
-    def get_pr_auc(self, y_true, y_prediction):
-        return average_precision_score(y_true, y_prediction)

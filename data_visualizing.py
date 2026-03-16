@@ -10,9 +10,8 @@ from IPython.display import HTML, display
 from data_processing import DataProcessing
 from sklearn.metrics import RocCurveDisplay, PrecisionRecallDisplay
 
-
-class DataPlotting:
-    """A class to plot data."""
+class DataVisualizing:
+    """A class to visualize spaCy NLP outputs."""
 
     def plot_class_distribution(
         df: pd.DataFrame,
@@ -237,20 +236,20 @@ class DataPlotting:
         plt.tight_layout()
         plt.show()
 
-    def visualize_confusion_matrix(
-        confusion_mat: np.ndarray,
-        model_name: str,
-        save_path: str,
-        class_names: list = ['Non-Prediction', 'Prediction'],
-        include_version: bool = False,
-    ) -> None:
+    def confusion_matrix(
+            model_name: str,
+            confusion_mat: np.ndarray,
+            save_path: str,
+            class_names: list = ['Non-Prediction', 'Prediction'],
+            include_version: bool = False
+            ) -> None:
         """
         Parameters
         ----------
-        confusion_mat : np.ndarray
-            2x2 confusion matrix.
         model_name : str
             Name of the model (used in title and filename).
+        confusion_mat : np.ndarray
+            2x2 confusion matrix.
         save_path : str
             Directory path to save the PNG file.
         class_names : list, default ['Non-Prediction', 'Prediction']
@@ -294,10 +293,88 @@ class DataPlotting:
 
         plt.show()
 
+    def roc_curve(
+            model_name: str,
+            model: str,
+            X_test: np.ndarray,
+            y_test: str,
+            save_path: str,
+            include_version: bool = False
+            ) -> None:
+        """
+        Parameters
+        ----------
+        model_name : str
+            Name of the model (used in title and filename).
+        save_path : str
+            Directory path to save the PNG file.
+        include_version : bool, default False
+            If True, appends a version suffix (-v1, -v2, …) to the filename.
 
-class DataVisualizing:
-    """A class to visualize spaCy NLP outputs."""
+        Notes
+        -----
+        Saves a colored heatmap of the confusion matrix.
 
+        Returns
+        -------
+        None
+        """
+        plt.figure(figsize=(8, 6))
+
+        RocCurveDisplay.from_estimator(model.classifer, X_test, y_test)
+        plt.title("ROC Curve")
+
+        DataProcessing.save_to_file(
+            None,
+            save_path,
+            f'roc_curve_{model_name}',
+            'png',
+            include_version=include_version,
+        )
+
+        plt.show()
+
+    def pr_curve(
+            model_name: str,
+            model: str,
+            X_test: np.ndarray,
+            y_test: str,
+            save_path: str,
+            include_version: bool = False
+            ) -> None:
+        """
+        Parameters
+        ----------
+        model_name : str
+            Name of the model (used in title and filename).
+        save_path : str
+            Directory path to save the PNG file.
+        include_version : bool, default False
+            If True, appends a version suffix (-v1, -v2, …) to the filename.
+
+        Notes
+        -----
+        Saves a colored heatmap of the confusion matrix.
+
+        Returns
+        -------
+        None
+        """
+        plt.figure(figsize=(8, 6))
+
+        PrecisionRecallDisplay.from_estimator(model.classifer, X_test, y_test)
+        plt.title("Precision-Recall Curve")
+
+        DataProcessing.save_to_file(
+            None,
+            save_path,
+            f'pr_curve_{model_name}',
+            'png',
+            include_version=include_version,
+        )
+
+        plt.show()   
+    
     def _ensure_doc(text_or_doc: Union[str, Doc], nlp) -> Doc:
         """Return a spaCy Doc – parse if string, pass through if already a Doc."""
         return nlp(text_or_doc) if isinstance(text_or_doc, str) else text_or_doc
@@ -420,13 +497,3 @@ class DataVisualizing:
         
         plt.show()
         plt.close()
-    
-    def roc_curve(model, X_test, y_test):
-        RocCurveDisplay.from_estimator(model, X_test, y_test)
-        plt.title("ROC Curve")
-        plt.show()
-
-    def pr_curve(model, X_test, y_test):
-        RocCurveDisplay.from_estimator(model, X_test, y_test)
-        plt.title("Precision-Recall Curve")
-        plt.show()

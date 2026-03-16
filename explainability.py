@@ -14,7 +14,7 @@ script_dir = os.getcwd()
 # Add the parent directory to the system path
 sys.path.append(os.path.join(script_dir, '../'))
 
-from data_visualizing import DataPlotting, DataVisualizing
+from data_visualizing import DataVisualizing
 from feature_extraction import SpacyFeatureExtraction
 
 class Explainability:
