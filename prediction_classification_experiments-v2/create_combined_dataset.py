@@ -208,6 +208,84 @@ def load_financial_phrasebank_dataset(script_dir, sep=',', encoding='latin'):
     
     return fpb_df
 
+def load_chronicle2050_dataset(script_dir, sep=',', encoding='latin'):
+    """
+    Load and process chronicle2050 dataset.
+    
+    Parameters
+    ----------
+    script_dir : str
+        Current script directory
+    sep : str
+        CSV separator character
+    encoding : str
+        File encoding
+    
+    Returns
+    -------
+    pd.DataFrame
+        Processed chronicle2050 dataset with binary labels
+    
+    Notes
+    -----
+    Dataset source: [link]
+    Contains _ statements from longbets, GPT, NY Times news, etc.
+    
+    Processing steps:
+    1. Load annotated financial phrasebank data
+    2. Drop rows without labels
+    3. Convert text labels to binary (PREDICTION=1, other=0)
+    4. Rename columns to match standard format
+    """
+    print("\n" + "="*60)
+    print("LOAD CHRONICLE2050 DATASET")
+    print("="*60)
+    
+    base_data_path = DataProcessing.load_base_data_path(script_dir)
+    fpb_path = os.path.join(
+        base_data_path, 
+        'chronicle2050/data.csv'
+    )
+    
+    print(f"Loading from: {fpb_path}")
+    
+    fpb_df = DataProcessing.load_from_file(fpb_path, 'csv', sep=sep, encoding=encoding)
+    print(f"Loaded shape: {fpb_df.shape}")
+    
+    # Drop rows without labels
+    original_len = len(fpb_df)
+    fpb_df.dropna(inplace=True)
+    dropped_count = original_len - len(fpb_df)
+    if dropped_count > 0:
+        print(f"✓ Dropped {dropped_count} rows without labels")
+    
+    # Convert text labels to binary
+    print("\nConverting text labels to binary...")
+    fpb_df = DataProcessing.match_text_label_to_int(
+        fpb_df,
+        text_label_col_name='maya_label',
+        target_label='PREDICTION'
+    )
+    
+    # Rename columns to standard format
+    fpb_df.rename(
+        columns={
+            "sentence": "Base Sentence",
+            "label": "Sentence Label"
+        },
+        inplace=True
+    )
+    
+    print(f"Final shape: {fpb_df.shape}")
+    print(f"Columns: {list(fpb_df.columns)}")
+    
+    print(f"\nLabel distribution:")
+    print(fpb_df['Sentence Label'].value_counts())
+    
+    print(f"\nPreview:\n{fpb_df.head(3)}\n")
+    
+    return fpb_df
+
 def filter_by_domain(df, domain_name):
     """
     Filter dataset by domain column.
@@ -414,7 +492,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--datasets',
         nargs='+',
-        choices=['predictions', 'non_predictions', 'financial_phrasebank'],
+        choices=['predictions', 'non_predictions', 'financial_phrasebank', 'chronicle2050'],
         default=['predictions', 'non_predictions'],
         help='Datasets to combine. Default: all synthetic only'
     )
@@ -514,6 +592,14 @@ if __name__ == "__main__":
     
     # --- Load Financial Phrasebank ---
     if 'financial_phrasebank' in args.datasets:
+        fpb_df = load_financial_phrasebank_dataset(script_dir)
+        
+        datasets_to_combine.append(fpb_df)
+        dataset_names.append("Financial Phrasebank")
+    
+
+    # --- Load Financial Phrasebank ---
+    if 'chronicle2050' in args.datasets:
         fpb_df = load_financial_phrasebank_dataset(script_dir)
         
         datasets_to_combine.append(fpb_df)
