@@ -82,6 +82,7 @@ class DataVisualizing:
             )
 
         plt.show()
+        plt.close()
 
     def plot_balancedness(
         X: np.ndarray,
@@ -149,6 +150,7 @@ class DataVisualizing:
 
         plt.tight_layout()
         plt.show()
+        plt.close()
 
     def plot_balancedness_before_after(
         df_before: pd.DataFrame,
@@ -235,6 +237,7 @@ class DataVisualizing:
 
         plt.tight_layout()
         plt.show()
+        plt.close()
 
     def confusion_matrix(
             model_name: str,
@@ -292,6 +295,7 @@ class DataVisualizing:
         )
 
         plt.show()
+        plt.close()
 
     def roc_curve(
             model_name: str,
@@ -333,6 +337,7 @@ class DataVisualizing:
         )
 
         plt.show()
+        plt.close()
 
     def pr_curve(
             model_name: str,
@@ -373,57 +378,9 @@ class DataVisualizing:
             include_version=include_version,
         )
 
-        plt.show()   
+        plt.show()
+        plt.close()
     
-    def _ensure_doc(text_or_doc: Union[str, Doc], nlp) -> Doc:
-        """Return a spaCy Doc – parse if string, pass through if already a Doc."""
-        return nlp(text_or_doc) if isinstance(text_or_doc, str) else text_or_doc
-
-    def spacy_pos_dep(sentence: Union[str, Doc], spacy_nlp_model) -> None:
-        """Render the dependency parse for a sentence."""
-        doc = DataVisualizing._ensure_doc(sentence, spacy_nlp_model)
-        html = displacy.render(doc, style='dep', jupyter=False)
-        display(HTML(html))
-
-    def spacy_ner_ent(sentence: Union[str, Doc], spacy_nlp_model) -> None:
-        """Render the named-entity visualisation for a sentence."""
-        doc = DataVisualizing._ensure_doc(sentence, spacy_nlp_model)
-        html = displacy.render(doc, style='ent', jupyter=False)
-        display(HTML(html))
-
-    def spacy_dep_ent(
-        sentence: Union[str, Doc],
-        spacy_nlp_model,
-        mode: str = 'both',
-    ) -> None:
-        """
-        Parameters
-        ----------
-        sentence : str or Doc
-            Input sentence or spaCy Doc.
-        spacy_nlp_model : spacy.Language
-            Loaded spaCy model.
-        mode : {'pos_dep', 'ner_ent', 'both'}, default 'both'
-            Which visualisation to render.
-
-        Notes
-        -----
-        Thin dispatcher that calls the appropriate renderer(s).
-
-        Returns
-        -------
-        None
-        """
-        mode = mode.lower()
-        if mode == 'pos_dep':
-            DataVisualizing.spacy_pos_dep(sentence, spacy_nlp_model)
-        elif mode == 'ner_ent':
-            DataVisualizing.spacy_ner_ent(sentence, spacy_nlp_model)
-        else:
-            # Default: render both dependency and entity visualisations
-            DataVisualizing.spacy_pos_dep(sentence, spacy_nlp_model)
-            DataVisualizing.spacy_ner_ent(sentence, spacy_nlp_model)
-
     def get_shap_plot(
         shap_values,
         plot_type: str = 'waterfall',
@@ -497,3 +454,52 @@ class DataVisualizing:
         
         plt.show()
         plt.close()
+
+    def _ensure_doc(text_or_doc: Union[str, Doc], nlp) -> Doc:
+        """Return a spaCy Doc – parse if string, pass through if already a Doc."""
+        return nlp(text_or_doc) if isinstance(text_or_doc, str) else text_or_doc
+
+    def spacy_pos_dep(sentence: Union[str, Doc], spacy_nlp_model) -> None:
+        """Render the dependency parse for a sentence."""
+        doc = DataVisualizing._ensure_doc(sentence, spacy_nlp_model)
+        html = displacy.render(doc, style='dep', jupyter=False)
+        display(HTML(html))
+
+    def spacy_ner_ent(sentence: Union[str, Doc], spacy_nlp_model) -> None:
+        """Render the named-entity visualisation for a sentence."""
+        doc = DataVisualizing._ensure_doc(sentence, spacy_nlp_model)
+        html = displacy.render(doc, style='ent', jupyter=False)
+        display(HTML(html))
+
+    def spacy_dep_ent(
+        sentence: Union[str, Doc],
+        spacy_nlp_model,
+        mode: str = 'both',
+    ) -> None:
+        """
+        Parameters
+        ----------
+        sentence : str or Doc
+            Input sentence or spaCy Doc.
+        spacy_nlp_model : spacy.Language
+            Loaded spaCy model.
+        mode : {'pos_dep', 'ner_ent', 'both'}, default 'both'
+            Which visualisation to render.
+
+        Notes
+        -----
+        Thin dispatcher that calls the appropriate renderer(s).
+
+        Returns
+        -------
+        None
+        """
+        mode = mode.lower()
+        if mode == 'pos_dep':
+            DataVisualizing.spacy_pos_dep(sentence, spacy_nlp_model)
+        elif mode == 'ner_ent':
+            DataVisualizing.spacy_ner_ent(sentence, spacy_nlp_model)
+        else:
+            # Default: render both dependency and entity visualisations
+            DataVisualizing.spacy_pos_dep(sentence, spacy_nlp_model)
+            DataVisualizing.spacy_ner_ent(sentence, spacy_nlp_model)
