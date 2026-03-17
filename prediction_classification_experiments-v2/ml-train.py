@@ -16,6 +16,7 @@ from datetime import datetime
 script_dir = os.getcwd()
 # Add the parent directory to the system path
 sys.path.append(os.path.join(script_dir, '../'))
+
 from metrics import EvaluationMetric
 from data_processing import DataProcessing
 from data_visualizing import DataVisualizing
@@ -23,10 +24,12 @@ from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
 from explainability import Explainability
 
+
 def create_output_directory(args, experiment_name):
-    """Create unique output directory with timestamp."""
-    timestamp = datetime.now().strftime('%H-%M-%S') # get seconds so we can distinguish runs and seed #s
-    experiment_folder = f"{experiment_name}_{timestamp}"
+    """Create unique output directory with date and seed."""
+    # experiment_name already includes the date from the main execution block
+    # timestamp = datetime.now().strftime('%H-%M-%S') # get seconds so we can distinguish runs and seed #s
+    experiment_folder = experiment_name
     seed_folder = f"seed{args.seed}"
     output_dir = os.path.join(args.save_path, experiment_folder, seed_folder)
     
@@ -37,9 +40,9 @@ def create_output_directory(args, experiment_name):
 
 def load_dataset(script_dir, dataset_path):
     """Load dataset from file path."""
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("LOAD DATASET")
-    print("="*50)
+    print("="*40)
     
     if not os.path.isabs(dataset_path):
         data_path = os.path.join(script_dir, dataset_path)
@@ -55,9 +58,9 @@ def load_dataset(script_dir, dataset_path):
 
 def get_which_dataset(df, dataset_name):
     """Filter combined dataset based on author type."""
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("FILTER COMBINED DATASET")
-    print("="*50)
+    print("="*40)
     print(f"Dataset selection: {dataset_name}")
     
     if 'Author Type' not in df.columns:
@@ -94,9 +97,9 @@ def get_which_dataset(df, dataset_name):
 
 def shuffle_dataset(df, seed):
     """Shuffle dataset rows."""
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("SHUFFLE DATASET")
-    print("="*50)
+    print("="*40)
     
     shuffled_df = DataProcessing.shuffle_df(df, random_state=seed)
     print(f"Shape: {shuffled_df.shape}")
@@ -106,9 +109,9 @@ def shuffle_dataset(df, seed):
 
 def extract_sentence_embeddings(df, text_column='Base Sentence'):
     """Extract sentence embeddings using SpaCy."""
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("EXTRACT SENTENCE EMBEDDINGS (SpaCy)")
-    print("="*50)
+    print("="*40)
     print(f"Using text column: '{text_column}'")
     
     spacy_fe = SpacyFeatureExtraction(df, text_column)
@@ -134,9 +137,9 @@ def split_train_test(df, seed, val_size=None, stratify_by='Sentence Label'):
     cols_with_labels = df.loc[:, [stratify_by]]
     
     if val_size is None:
-        print("\n" + "="*50)
+        print("\n" + "="*40)
         print("SPLIT TRAIN/TEST DATA")
-        print("="*50)
+        print("="*40)
         print(f"Stratifying by: {stratify_by}")
         
         X_train_df, X_test_df, y_train_df, y_test_df = DataProcessing.split_data(
@@ -158,9 +161,9 @@ def split_train_test(df, seed, val_size=None, stratify_by='Sentence Label'):
         return X_train_df, X_test_df, y_train_df, y_test_df
     
     else:
-        print("\n" + "="*50)
+        print("\n" + "="*40)
         print("SPLIT TRAIN/VAL/TEST DATA")
-        print("="*50)
+        print("="*40)
         print(f"Stratifying by: {stratify_by}")
         
         X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df = DataProcessing.split_data(
@@ -185,9 +188,9 @@ def split_train_test(df, seed, val_size=None, stratify_by='Sentence Label'):
 
 def save_test_sets(X_test_df, y_test_df, save_path):
     """Save test sets to disk for later use."""
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("SAVE TEST SETS")
-    print("="*50)
+    print("="*40)
     
     DataProcessing.save_to_file(X_test_df, save_path, 'x_test_set', 'csv', include_version=False)
     DataProcessing.save_to_file(y_test_df, save_path, 'y_sentence_test_df', 'csv', include_version=False)
@@ -225,9 +228,9 @@ def train_and_predict_models(
         - train_val_metrics_dict: {model_name: {'train_accuracy': float, 'val_accuracy': float}}
         - trained_models_dict: {model_name: model_instance}
     """
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("TRAIN & PREDICT MODELS")
-    print("="*50)
+    print("="*40)
     print(f"Label: {label_name}")
     print(f"Models: {len(ml_model_names)}")
     
@@ -289,9 +292,9 @@ def train_and_predict_models(
 
 def create_results_dataframe(X_test_df, trained_models_with_predictions_dict):
     """Combine test data with model predictions."""
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("CREATE RESULTS DATAFRAME")
-    print("="*50)
+    print("="*40)
     
     results_df = X_test_df.copy()
     
@@ -336,9 +339,9 @@ def evaluate_models(
     tuple
         (eval_reports_df, confusion_matrices, auc_scores)
     """
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("EVALUATION RESULTS")
-    print("="*50)
+    print("="*40)
     print(f"Label: {label_name}\n")
     
     # x_test_labels = X_test_df[label_name]
@@ -436,9 +439,9 @@ def evaluate_models(
     metrics_summary_df.to_csv(metrics_file, index=False)
     print(f"✓ Saved metrics summary to: {metrics_file}")
     
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("METRICS SUMMARY (LaTeX)")
-    print("="*50)
+    print("="*40)
     print(eval_reports_df.to_latex())
     print()
     
@@ -454,9 +457,9 @@ def generate_all_explanations(
     """
     Generate SHAP and LIME explanations for trained models.
     """
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("MODEL EXPLAINABILITY")
-    print("="*50)
+    print("="*40)
     
     # Remove the old comparison file if it exists so we don't append to a previous run
     comparison_file = os.path.join(save_path, 'lime_comparison_all_models.html')
@@ -509,6 +512,8 @@ def generate_all_explanations(
 if __name__ == "__main__":
 
     """
+    usage: 
+
     # E1: Train on synthetic, test on FPB + C2050
     python train.py --dataset combined_datasets/combined-full_synthetic-v1.csv --no_test_split --val_size 0.2 \
                 --test_datasets financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv chronicle2050/data.csv
@@ -522,15 +527,15 @@ if __name__ == "__main__":
     """
 
 
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("ML CLASSIFIER PIPELINE")
-    print("="*50)
+    print("="*40)
     
     # ============================================================
     # 1. CONFIGURATION
     # ============================================================
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    base_data_path = os.path.join(script_dir, '../data')
+    # script_dir = os.path.dirname(os.path.abspath(__file__))
+    base_data_path = DataProcessing.load_base_data_path(script_dir)
     
     default_dataset = os.path.join(base_data_path, 'combined_datasets/combined-full_synthetic-v1.csv')
     default_save_path = os.path.join(base_data_path, 'classification_results/')
@@ -608,6 +613,21 @@ if __name__ == "__main__":
     embeddings_df, embeddings_col_name = extract_sentence_embeddings(
         shuffled_df, text_column=args.text_column
     )
+
+    # ============================================================
+    # 3.5 VISUALIZE DATASET DISTRIBUTION
+    # ============================================================
+    print("\n" + "="*40)
+    print("VISUALIZING DATASET DISTRIBUTION")
+    print("="*40)
+    
+    DataVisualizing.plot_class_distribution(
+        df=shuffled_df,
+        label_col=args.label_column,
+        title=f'Class Distribution - {experiment_base}',
+        save_path=output_dir
+    )
+    print(f"✓ Saved class distribution plot to: {output_dir}\n")
     
     # ============================================================
     # 4. SPLIT DATA
@@ -616,9 +636,9 @@ if __name__ == "__main__":
     # Determine split strategy
     if args.no_test_split:
         # For cross-domain evaluation (E1-E6): only train/val split
-        print("\n" + "="*50)
+        print("\n" + "="*40)
         print("TRAIN/VAL SPLIT (No Test Set)")
-        print("="*50)
+        print("="*40)
         print("Using full dataset for training (will test on external datasets)")
         
         if args.val_size is not None:
@@ -666,14 +686,71 @@ if __name__ == "__main__":
         save_test_sets(X_test_df, y_test_df, output_dir)
 
     # ============================================================
+    # 4.5 SAVE SPLIT SIZES
+    # ============================================================
+    split_sizes = {
+        'Split': ['Train', 'Validation', 'Test'],
+        'Size': [
+            len(X_train_df) if X_train_df is not None else 0,
+            len(X_val_df) if X_val_df is not None else 0,
+            len(X_test_df) if X_test_df is not None else 0
+        ]
+    }
+    split_sizes_df = pd.DataFrame(split_sizes)
+    
+    print("Saving dataset split sizes...")
+    DataProcessing.save_to_file(
+        data=split_sizes_df,
+        path=output_dir,
+        prefix='dataset_split_sizes',
+        save_file_type='csv',
+        include_version=False
+    )
+
+    # ============================================================
+    # 4.6 VISUALIZE SPLIT DISTRIBUTIONS
+    # ============================================================
+    print("\n" + "="*40)
+    print("VISUALIZING SPLIT DISTRIBUTIONS")
+    print("="*40)
+
+    if y_train_df is not None and not y_train_df.empty:
+        DataVisualizing.plot_class_distribution(
+            df=y_train_df,
+            label_col=args.label_column,
+            title=f'Train Set Distribution',
+            save_path=output_dir
+        )
+        print("✓ Saved Train distribution plot")
+
+    if y_val_df is not None and not y_val_df.empty:
+        DataVisualizing.plot_class_distribution(
+            df=y_val_df,
+            label_col=args.label_column,
+            title=f'Validation Set Distribution',
+            save_path=output_dir
+        )
+        print("✓ Saved Validation distribution plot")
+
+    if y_test_df is not None and not y_test_df.empty:
+        DataVisualizing.plot_class_distribution(
+            df=y_test_df,
+            label_col=args.label_column,
+            title=f'Test Set Distribution',
+            save_path=output_dir
+        )
+        print("✓ Saved Test distribution plot")
+    print()
+
+    # ============================================================
     # 5. TRAIN MODELS
     # ============================================================
     model_checkpoint_path = os.path.join(output_dir, 'model_checkpoints')
     os.makedirs(model_checkpoint_path, exist_ok=True)
 
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("TRAINING PHASE")
-    print("="*50)
+    print("="*40)
 
     # Train models (predictions on in-domain test if exists, otherwise None)
     if X_test_df is not None:
@@ -727,9 +804,9 @@ if __name__ == "__main__":
     # 6. EVALUATE ON IN-DOMAIN TEST SET (if exists)
     # ============================================================
     if X_test_df is not None and y_test_df is not None:
-        print("\n" + "="*50)
+        print("\n" + "="*40)
         print("IN-DOMAIN TEST EVALUATION")
-        print("="*50)
+        print("="*40)
         
         results_df = create_results_dataframe(X_test_df, trained_models_with_predictions_dict)
         results_file = os.path.join(output_dir, 'ml_classifiers_in_domain.csv')
@@ -746,18 +823,18 @@ if __name__ == "__main__":
     # 7. EVALUATE ON CROSS-DOMAIN TEST SETS (if provided)
     # ============================================================
     if args.test_datasets:
-        print("\n" + "="*50)
+        print("\n" + "="*40)
         print("CROSS-DOMAIN TEST EVALUATION")
-        print("="*50)
+        print("="*40)
         print(f"External test datasets: {len(args.test_datasets)}")
         
         for test_dataset_path in args.test_datasets:
             # Extract dataset name from path
             test_dataset_name = os.path.splitext(os.path.basename(test_dataset_path))[0]
             
-            print(f"\n{'='*50}")
+            print(f"\n{'='*40}")
             print(f"Testing on: {test_dataset_name}")
-            print(f"{'='*50}")
+            print(f"{'='*40}")
             
             # Load external test dataset
             external_test_df = load_dataset(script_dir, test_dataset_path)
@@ -831,9 +908,9 @@ if __name__ == "__main__":
     # ============================================================
     # 9. COMPLETE
     # ============================================================
-    print("\n" + "="*50)
+    print("\n" + "="*40)
     print("PIPELINE COMPLETE")
-    print("="*50)
+    print("="*40)
     print(f"Experiment: {experiment_name}")
     print(f"Training data: {experiment_base}")
     if args.test_datasets:
