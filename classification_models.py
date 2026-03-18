@@ -98,7 +98,8 @@ class SkLearnSGDClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = SGDClassifier(random_state=self.random_state, loss='log_loss')
-        return self.classifer.fit(X, y)
+        self.classifer.fit(X, y)
+        return self
 
 class SkLearnLogisticRegression(SkLearnModelFactory):      
     def __init__(self, random_state):
@@ -109,7 +110,8 @@ class SkLearnLogisticRegression(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = LogisticRegression(random_state=self.random_state, max_iter=1000)
-        return self.classifer.fit(X, y)
+        self.classifer.fit(X, y)
+        return self
 
 class SkLearnDecisionTreeClassifier(SkLearnModelFactory):      
     def __init__(self, random_state):
@@ -120,7 +122,8 @@ class SkLearnDecisionTreeClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = DecisionTreeClassifier(random_state=self.random_state)
-        return self.classifer.fit(X, y)
+        self.classifer.fit(X, y)
+        return self
 
 class SkLearnRandomForestClassifier(SkLearnModelFactory):      
     def __init__(self, random_state):
@@ -131,7 +134,8 @@ class SkLearnRandomForestClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = RandomForestClassifier(random_state=self.random_state)
-        return self.classifer.fit(X, y)
+        self.classifer.fit(X, y)
+        return self
 
 class SkLearnGradientBoostingClassifier(SkLearnModelFactory):      
     def __init__(self, random_state):
@@ -142,7 +146,8 @@ class SkLearnGradientBoostingClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = GradientBoostingClassifier(random_state=self.random_state)
-        return self.classifer.fit(X, y)
+        self.classifer.fit(X, y)
+        return self
 
 class CustomXGBClassifier(SkLearnModelFactory):      
     def __init__(self, random_state):
@@ -153,7 +158,8 @@ class CustomXGBClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = XGBClassifier(random_state=self.random_state, probability=True)
-        return self.classifer.fit(X, y)
+        self.classifer.fit(X, y)
+        return self
 
 # Models that DON'T need random_state (deterministic):
 class SkLearnPerceptronModel(SkLearnModelFactory):      
@@ -165,7 +171,8 @@ class SkLearnPerceptronModel(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = Perceptron(random_state=self.random_state)  # Has random_state parameter
-        return self.classifer.fit(X, y)
+        self.classifer.fit(X, y)
+        return self
 
 class SkLearnRidgeClassifier(SkLearnModelFactory):      
     def __init__(self, random_state):
@@ -176,7 +183,8 @@ class SkLearnRidgeClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = RidgeClassifier(random_state=self.random_state)  # Has random_state parameter
-        return self.classifer.fit(X, y)
+        self.classifer.fit(X, y)
+        return self
 
 # LinearRegression and ElasticNet - keep as-is (deterministic, no random_state param)
 class SkLearnLinearRegression(SkLearnModelFactory):      
@@ -188,7 +196,8 @@ class SkLearnLinearRegression(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = LinearRegression()  # No random_state parameter
-        return self.classifer.fit(X, y)
+        self.classifer.fit(X, y)
+        return self
 
 class SkLearnElasticNet(SkLearnModelFactory):      
     def __init__(self, random_state):
@@ -199,7 +208,8 @@ class SkLearnElasticNet(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = ElasticNet(random_state=self.random_state)
-        return self.classifer.fit(X, y)
+        self.classifer.fit(X, y)
+        return self
 
 class SkLearnSVC(SkLearnModelFactory):      
     def __init__(self, random_state):
@@ -210,7 +220,5 @@ class SkLearnSVC(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = SVC(kernel='linear', C=1, random_state=self.random_state,  probability=True)
-        return self.classifer.fit(X, y)
-
-    def get_score(self, X, y):
-        return self.classifer.score(X, y)
+        self.classifer.fit(X, y)
+        return self
