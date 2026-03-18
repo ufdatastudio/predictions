@@ -23,7 +23,7 @@ class SkLearnModelFactory(ABC):
     def get_model_name(self):
         return self.__name__()
     
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         self.classifer = None
         self.random_state = random_state
     
@@ -68,7 +68,7 @@ class SkLearnModelFactory(ABC):
         return self.classifer.score(X, y)
 
     @staticmethod
-    def select_model(model_name: str, random_state=42):
+    def select_model(model_name: str, random_state):
         """Select a model with specified random state."""
         models = {
             "perceptron": SkLearnPerceptronModel(random_state),
@@ -90,7 +90,7 @@ class SkLearnModelFactory(ABC):
 
 # Models that NEED random_state:
 class SkLearnSGDClassifier(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
@@ -98,10 +98,10 @@ class SkLearnSGDClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = SGDClassifier(random_state=self.random_state, loss='log_loss')
-        self.classifer.fit(X, y)
+        return self.classifer.fit(X, y)
 
 class SkLearnLogisticRegression(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
@@ -109,10 +109,10 @@ class SkLearnLogisticRegression(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = LogisticRegression(random_state=self.random_state, max_iter=1000)
-        self.classifer.fit(X, y)
+        return self.classifer.fit(X, y)
 
 class SkLearnDecisionTreeClassifier(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
@@ -120,10 +120,10 @@ class SkLearnDecisionTreeClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = DecisionTreeClassifier(random_state=self.random_state)
-        self.classifer.fit(X, y)
+        return self.classifer.fit(X, y)
 
 class SkLearnRandomForestClassifier(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
@@ -131,10 +131,10 @@ class SkLearnRandomForestClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = RandomForestClassifier(random_state=self.random_state)
-        self.classifer.fit(X, y)
+        return self.classifer.fit(X, y)
 
 class SkLearnGradientBoostingClassifier(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
@@ -142,10 +142,10 @@ class SkLearnGradientBoostingClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = GradientBoostingClassifier(random_state=self.random_state)
-        self.classifer.fit(X, y)
+        return self.classifer.fit(X, y)
 
 class CustomXGBClassifier(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
@@ -153,11 +153,11 @@ class CustomXGBClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = XGBClassifier(random_state=self.random_state, probability=True)
-        self.classifer.fit(X, y)
+        return self.classifer.fit(X, y)
 
 # Models that DON'T need random_state (deterministic):
 class SkLearnPerceptronModel(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
@@ -165,10 +165,10 @@ class SkLearnPerceptronModel(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = Perceptron(random_state=self.random_state)  # Has random_state parameter
-        self.classifer.fit(X, y)
+        return self.classifer.fit(X, y)
 
 class SkLearnRidgeClassifier(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
@@ -176,11 +176,11 @@ class SkLearnRidgeClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = RidgeClassifier(random_state=self.random_state)  # Has random_state parameter
-        self.classifer.fit(X, y)
+        return self.classifer.fit(X, y)
 
 # LinearRegression and ElasticNet - keep as-is (deterministic, no random_state param)
 class SkLearnLinearRegression(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
@@ -188,28 +188,28 @@ class SkLearnLinearRegression(SkLearnModelFactory):
     
     def train_model(self, X, y):
         self.classifer = LinearRegression()  # No random_state parameter
-        self.classifer.fit(X, y)
+        return self.classifer.fit(X, y)
 
 class SkLearnElasticNet(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
         return "Elastic Net"
     
     def train_model(self, X, y):
-        self.classifer = ElasticNet(random_state=self.random_state)  # Has random_state parameter
-        self.classifer.fit(X, y)
+        self.classifer = ElasticNet(random_state=self.random_state)
+        return self.classifer.fit(X, y)
 
 class SkLearnSVC(SkLearnModelFactory):      
-    def __init__(self, random_state=42):
+    def __init__(self, random_state):
         super().__init__(random_state)
     
     def __name__(self):
         return "Support Vector Machine"
     
     def train_model(self, X, y):
-        self.classifer = SVC(kernel='linear', C=1, random_state=self.random_state,  probability=True)  # Has random_state parameter
+        self.classifer = SVC(kernel='linear', C=1, random_state=self.random_state,  probability=True)
         return self.classifer.fit(X, y)
 
     def get_score(self, X, y):

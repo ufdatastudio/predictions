@@ -119,16 +119,18 @@ def extract_sentence_embeddings(df, text_column='Base Sentence'):
     
     embeddings_col_name = f'{text_column} Embedding'
     
-    for idx, row in embeddings_df.iterrows():
-        if idx < 3:
-            text = row[text_column]
-            embedding = row[embeddings_col_name]
-            print(f"\nSample {idx}:")
-            print(f"  Sentence [:100]: {text[:100]}...")
-            print(f"  Embedding shape: {embedding.shape}")
-            print(f"  Embedding subset [:6]: {embedding[:6]}")
-    
-    print(f"\n✓ Embeddings extracted: {embeddings_df.shape}\n")
+    # Replaces your current loop in extract_sentence_embeddings:
+    for i, (idx, row) in enumerate(embeddings_df.head(3).iterrows()):
+        text = row[text_column]
+        embedding = row[embeddings_col_name]
+        
+        # Force into a numpy array so .shape is guaranteed to work
+        import numpy as np
+        emb_array = np.array(embedding)
+        
+        print(f"\nSample {i}:")
+        print(f"  Sentence [:100]: {str(text)[:100]}...")
+        print(f"  Embedding shape: {emb_array.shape}")
     
     return embeddings_df, embeddings_col_name
 
@@ -233,62 +235,76 @@ def train_and_predict_models(
     print("="*40)
     print(f"Label: {label_name}")
     print(f"Models: {len(ml_model_names)}")
+
+    trained_models_with_predictions = {}
+    train_val_metrics = {}
     
-    ml_models = build_models(SkLearnModelFactory, ml_model_names, seed=seed)
-    
-    X_train_list = X_train_df[embeddings_col_name].to_list()    
+    models = build_models(SkLearnModelFactory, ml_model_names, seed=seed)
+
+    # Prepare train data
+    X_train_list = X_train_df[embeddings_col_name].to_list()
     y_train_list = y_train_df.values.ravel()
-    X_test_list = X_test_df[embeddings_col_name].to_list()
-    
+
     # Prepare validation data if provided
-    X_val_list = None
-    y_val_list = None
+    # No in-domain test set, just train models without predictions
+    # We'll generate predictions later on external datasets
+    # Ex: synthetic only, so split with train/val and no test.
     if X_val_df is not None and y_val_df is not None:
         X_val_list = X_val_df[embeddings_col_name].to_list()
         y_val_list = y_val_df.values.ravel()
-        print(f"Validation set: {len(X_val_list)} samples")
-    
-    print(f"\nTrain size: {len(X_train_list)}")
-    print(f"Test size: {len(X_test_list)}\n")
-    
-    predictions = {}
-    train_val_metrics = {}
-    
-    for model_name, ml_model in ml_models.items():
-        print(f"Training {ml_model.get_model_name()}...")
-        
-        # Train model
-        ml_model.train_model(X_train_list, y_train_list)
-        
-        # Compute train/val accuracy
-        train_acc = ml_model.get_score(X_train_list, y_train_list)
+    else:
+        X_val_list = None
+        y_val_list = None
         val_acc = None
+
+    # Prepare test data if provided
+    # Train models (predictions on in-domain test if exists, otherwise None)
+    # Ex: synthetic + fpb + chronicle2050, we train/test or train/val/test
+    # Ex: train only on synthetic, test on fpb + chronicle2050
+    if X_test_df is not None:    
+        X_test_list = X_test_df[embeddings_col_name].to_list()
+    else:
+        X_test_list = None
         
+    print(f"\nTrain size: {len(X_train_list)}")
+    print(f"Validation set: {len(X_val_list) if X_val_list is not None else 0}")
+    print(f"Test size: {len(X_test_list) if X_test_list is not None else 0}\n")
+    
+    # Training
+    for model_name, model in models.items():
+        print(f"Training {model.get_model_name()}...")
+    
+        # Train model
+        trained_model = model.train_model(X_train_list, y_train_list)
+        
+        # Compute train accuracy
+        train_acc = trained_model.get_score(X_train_list, y_train_list)
+        
+        # Compute validation accuracy if data is provided
         if X_val_list is not None:
-            val_acc = ml_model.get_score(X_val_list, y_val_list)
-            print(f"  Train accuracy: {train_acc:.4f}")
-            print(f"  Val accuracy: {val_acc:.4f}")
-        else:
-            print(f"  Train accuracy: {train_acc:.4f}")
+            val_acc = trained_model.get_score(X_val_list, y_val_list)
         
         # Store metrics
         train_val_metrics[model_name] = {
             'train_accuracy': train_acc,
             'val_accuracy': val_acc
         }
+        print(f"Accuracy: {train_val_metrics[model_name]}")
         
-        # Generate predictions
-        ml_model_predictions = ml_model.predict(X_test_list)
-        predictions[model_name] = (ml_model, ml_model_predictions)
-        
-        # Save model checkpoint
+        if X_test_list is not None:
+            # Generate predictions
+            model_predictions = trained_model.predict(X_test_list)
+            trained_models_with_predictions[model_name] = (trained_model, model_predictions)
+        else:
+            # Still save the model so external datasets can evaluate it later
+            trained_models_with_predictions[model_name] = trained_model
+            
         checkpoint_file = f"model_checkpoint-{model_name}-{label_name}.pkl"
         checkpoint_path = os.path.join(model_checkpoint_path, checkpoint_file)
-        joblib.dump(ml_model, checkpoint_path)
+        joblib.dump(trained_model, checkpoint_path)
         print(f"  ✓ Saved checkpoint: {checkpoint_file}")
-    
-    print()
-    return predictions, train_val_metrics
+        
+    return trained_models_with_predictions, train_val_metrics
 
 def create_results_dataframe(X_test_df, trained_models_with_predictions_dict):
     """Combine test data with model predictions."""
@@ -748,57 +764,12 @@ if __name__ == "__main__":
     model_checkpoint_path = os.path.join(output_dir, 'model_checkpoints')
     os.makedirs(model_checkpoint_path, exist_ok=True)
 
-    print("\n" + "="*40)
-    print("TRAINING PHASE")
-    print("="*40)
-
-    # Train models (predictions on in-domain test if exists, otherwise None)
-    if X_test_df is not None:
-        trained_models_with_predictions_dict, train_val_metrics = train_and_predict_models(
-            ml_model_names, X_train_df, y_train_df, X_test_df,
-            embeddings_col_name, args.label_column, model_checkpoint_path,
-            seed=args.seed, X_val_df=X_val_df, y_val_df=y_val_df
-        )
-    else:
-        # No in-domain test set, just train models without predictions
-        # We'll generate predictions later on external datasets
-        trained_models_dict = {}
-        train_val_metrics = {}
-        
-        ml_models = build_models(SkLearnModelFactory, ml_model_names, seed=args.seed)
-        X_train_list = X_train_df[embeddings_col_name].to_list()
-        y_train_list = y_train_df.values.ravel()
-        
-        if X_val_df is not None:
-            X_val_list = X_val_df[embeddings_col_name].to_list()
-            y_val_list = y_val_df.values.ravel()
-        
-        for model_name, ml_model in ml_models.items():
-            print(f"Training {ml_model.get_model_name()}...")
-            ml_model.train_model(X_train_list, y_train_list)
-            
-            train_acc = ml_model.get_score(X_train_list, y_train_list)
-            val_acc = None
-            if X_val_df is not None:
-                val_acc = ml_model.get_score(X_val_list, y_val_list)
-                print(f"  Train accuracy: {train_acc:.4f}, Val accuracy: {val_acc:.4f}")
-            else:
-                print(f"  Train accuracy: {train_acc:.4f}")
-            
-            train_val_metrics[model_name] = {
-                'train_accuracy': train_acc,
-                'val_accuracy': val_acc
-            }
-            
-            trained_models_dict[model_name] = ml_model
-            
-            # Save checkpoint
-            checkpoint_file = f"model_checkpoint-{model_name}-{args.label_column}.pkl"
-            checkpoint_path = os.path.join(model_checkpoint_path, checkpoint_file)
-            joblib.dump(ml_model, checkpoint_path)
-            print(f"  ✓ Saved checkpoint: {checkpoint_file}")
-        
-        trained_models_with_predictions_dict = trained_models_dict
+    # NOTE: within below, we check if val_df and test_df is None
+    trained_models_with_predictions_dict, train_val_metrics = train_and_predict_models(
+        ml_model_names, X_train_df, y_train_df, X_test_df,
+        embeddings_col_name, args.label_column, model_checkpoint_path,
+        seed=args.seed, X_val_df=X_val_df, y_val_df=y_val_df
+    )
 
     # ============================================================
     # 6. EVALUATE ON IN-DOMAIN TEST SET (if exists)
