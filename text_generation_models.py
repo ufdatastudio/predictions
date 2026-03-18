@@ -270,7 +270,43 @@ class TextGenerationModelFactory(ABC):
             top_p=self.top_p,
         )
         return response.choices[0].message.content
-    
+
+    def _extract_predictions(self, raw_text: str) -> pd.DataFrame:
+        """
+        Parse the LLM response and give you a DataFrame whose columns are already
+        renamed to the semantic names you asked for.
+        """
+        cleaned = raw_text.strip()
+
+        # If the assistant returned a JSON array, just load it.
+        if cleaned.startswith('[') and cleaned.endswith(']'):
+            raw = json.loads(cleaned)
+        else:                     # else: one JSON object per line
+            raw = []
+            for line in cleaned.splitlines():
+                line = line.strip()
+                if line:
+                    try:
+                        raw.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass          # bad line → ignore silently
+
+        df = pd.DataFrame(raw)
+
+        # Rename the columns to the names you want in the final model
+        df = df.rename(columns={
+            'p_s':  'Source',          # <p_s>
+            'p_t':  'Target',          # <p_t>
+            'p_d':  'Prediction Date', # <p_d>
+            'p_o':  'Outcome',         # <p_o>
+            'p_a':  'Attribute',       # <p_a>
+            'p_m':  'Metric',          # <p_m>
+            'p_sl': 'Slope',           # <p_sl>
+            'T1':   'Base Sentence'         # sentence with the template number
+        })
+
+        return df
+
     def generate_predictions(self, prompt_template: str, label: str, domain: str, batch_id: int, prediction_date: datetime) -> pd.DataFrame:
         """Generate a completion response and return as a DataFrame.
 
@@ -295,21 +331,21 @@ class TextGenerationModelFactory(ABC):
         `pd.DataFrame`
             The generated completion response formatted as a DataFrame.
         """
-        # Generate the raw prediction text
-        # print(f"\n  prompt_template: \n{prompt_template}\n\n")
+        # 1. Ask the LLM for a JSON‑encoded prediction
+        prompt_template = (
+            f"{prompt_template}\n\n"
+            f"Respond ONLY with **valid JSON** in this exact format:\n"
+            f'{{"p_s": __, "p_t": __, "p_d": __, "p_o": __, "p_a": __, "p_m": __, "p_sl": __, "T1": __}}\n'
+            f"No markdown, no comments, no extra lines."
+        )
+
+        print(prompt_template)          # <-- inspect or log what you’re sending
         raw_text = self.chat_completion([self.user(prompt_template)])
-        # print(f"    {self.model_name} + {domain} generates: {raw_text}")
-        print(f"generates:\n{raw_text}")
+        print(raw_text)
+
+        df = self._extract_predictions(raw_text)
+        print(df)
         
-        
-        # Parse the raw text into structured data (assuming a consistent format)
-        predictions = []
-        for line in raw_text.split("\n"):
-            if line.strip():  # Skip empty lines
-                predictions.append(line.strip())
-        
-        # Convert to DataFrame
-        df = pd.DataFrame(predictions, columns=['Base Sentence'])
         df['Sentence Label'] = label
         df['Domain'] = domain
         df['Model Name'] = self.model_name
@@ -318,10 +354,10 @@ class TextGenerationModelFactory(ABC):
         df['Temperature'] = self.temperature
         df['Top P'] = self.top_p
         df['Prompt Used'] = prompt_template
-        df['Source'] = 1
-        df['Target'] = 1
-        df['Prediction Date'] = 1
-        df['Generation Date'] = prediction_date
+        # df["Source"] = df["Source"]          # already set, kept for clarity
+        # df["Target"] = df["Target"]          # likewise
+        df["Raw Text"] = raw_text
+        df["Generation Date"] = prediction_date
         df['Outcome'] = 1
         df['Raw Text'] = raw_text
         # print()
@@ -422,6 +458,7 @@ class TextGenerationModelFactory(ABC):
 
                     prompt_output = prompt_outputs[domain]
                     model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain, batch_id=batch_idx, prediction_date=batch_prediction_date)
+                    print("\n\n", model_df)
 
                     batch_dfs.append(model_df)
                     batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
