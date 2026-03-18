@@ -168,6 +168,7 @@ def load_financial_phrasebank_dataset(script_dir, sep=',', encoding='latin'):
         base_data_path, 
         'financial_phrase_bank/annotators/maya_annotations-financial_phrasebank_statements-v3-final.csv'
     )
+    # fpb-maya-binary-imbalanced-96d-v1.csv
     
     print(f"Loading from: {fpb_path}")
     
@@ -207,6 +208,61 @@ def load_financial_phrasebank_dataset(script_dir, sep=',', encoding='latin'):
     print(f"\nPreview:\n{fpb_df.head(3)}\n")
     
     return fpb_df
+
+def load_chronicle2050_dataset(script_dir, sep=',', encoding='latin'):
+    """
+    Load and process chronicle2050 dataset.
+    
+    Parameters
+    ----------
+    script_dir : str
+        Current script directory
+    sep : str
+        CSV separator character
+    encoding : str
+        File encoding
+    
+    Returns
+    -------
+    pd.DataFrame
+        Processed chronicle2050 dataset with binary labels
+    
+    Notes
+    -----
+    Dataset source: [link]
+    Contains _ statements from longbets, GPT, NY Times news, etc.
+    
+    Processing steps:
+    1. Load annotated financial phrasebank data
+    2. Drop rows without labels
+    3. Convert text labels to binary (PREDICTION=1, other=0)
+    4. Rename columns to match standard format
+    """
+    print("\n" + "="*60)
+    print("LOAD CHRONICLE2050 DATASET")
+    print("="*60)
+    
+    base_data_path = DataProcessing.load_base_data_path(script_dir)
+    chronicle2050_path = os.path.join(
+        base_data_path, 
+        'chronicle2050/chronicle2050-renamed_cols.csv'
+    )
+    
+    print(f"Loading from: {chronicle2050_path}")
+    
+    chronicle2050_df = DataProcessing.load_from_file(chronicle2050_path, 'csv', sep=sep, encoding=encoding)
+    print(f"Loaded shape: {chronicle2050_df.shape}")
+    
+    print(f"Final shape: {chronicle2050_df.shape}")
+    print(f"Columns: {list(chronicle2050_df.columns)}")
+    
+    print(f"\nLabel distribution:")
+    print(chronicle2050_df['Sentence Label'].value_counts())
+    
+    print(f"\nPreview:\n{chronicle2050_df.head(7)}\n")
+    print(f"\nPreview:\n{chronicle2050_df.tail(7)}\n")
+    
+    return chronicle2050_df
 
 def filter_by_domain(df, domain_name):
     """
@@ -414,7 +470,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--datasets',
         nargs='+',
-        choices=['predictions', 'non_predictions', 'financial_phrasebank'],
+        choices=['predictions', 'non_predictions', 'financial_phrasebank', 'chronicle2050'],
         default=['predictions', 'non_predictions'],
         help='Datasets to combine. Default: all synthetic only'
     )
@@ -518,6 +574,14 @@ if __name__ == "__main__":
         
         datasets_to_combine.append(fpb_df)
         dataset_names.append("Financial Phrasebank")
+    
+
+    # --- Load Financial Phrasebank ---
+    if 'chronicle2050' in args.datasets:
+        chronicle2050_df = load_chronicle2050_dataset(script_dir)
+        
+        datasets_to_combine.append(chronicle2050_df)
+        dataset_names.append("Chronicle2050")
     
     # ============================================================
     # 4. VALIDATE DATASET SELECTION
