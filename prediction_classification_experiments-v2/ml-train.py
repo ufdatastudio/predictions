@@ -179,12 +179,14 @@ def split_train_test(df, seed, val_size=None, stratify_by='Sentence Label'):
         print()
         
         return X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df
-def build_models(factory, model_names, seed):
+
+def build_models(factory, model_names, seed, reweight_class):
     """Initialize ML models from factory."""
     models = {}
     for name in model_names:
-        models[name] = factory.select_model(name, random_state=seed)
+        models[name] = factory.select_model(name, random_state=seed, class_weight=reweight_class)
     return models
+
 def train_and_predict_models(
     ml_model_names,
     X_train_df,
@@ -194,6 +196,7 @@ def train_and_predict_models(
     label_name,
     model_checkpoint_path,
     seed,
+    reweight_class,
     X_val_df=None,
     y_val_df=None
 ):
@@ -216,7 +219,7 @@ def train_and_predict_models(
     trained_models_with_predictions = {}
     train_val_metrics = {}
     
-    models = build_models(SkLearnModelFactory, ml_model_names, seed=seed)
+    models = build_models(SkLearnModelFactory, ml_model_names, seed=seed, reweight_class=reweight_class)
     # Prepare train data
     X_train_list = X_train_df[embeddings_col_name].to_list()
     y_train_list = y_train_df.values.ravel()
@@ -658,6 +661,8 @@ if __name__ == "__main__":
                         help='Paths to external test datasets for cross-domain evaluation.'
                         'Models will be evaluated on each dataset separately.'
                         )
+    parser.add_argument('--reweight_class', default=None, 
+                        help="Penalize model for imbalanced datasets. Use 'balanced' to apply class weights.")
     
     args = parser.parse_args()
     
@@ -798,7 +803,7 @@ if __name__ == "__main__":
     trained_models_with_predictions_dict, train_val_metrics = train_and_predict_models(
         ml_model_names, X_train_df, y_train_df, X_test_df,
         embeddings_col_name, args.label_column, model_checkpoint_path,
-        seed=args.seed, X_val_df=X_val_df, y_val_df=y_val_df
+        seed=args.seed, reweight_class=args.reweight_class, X_val_df=X_val_df, y_val_df=y_val_df
     )
     # ============================================================
     # 6. EVALUATE ON IN-DOMAIN TEST SET (if exists)
