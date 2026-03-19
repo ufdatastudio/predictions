@@ -54,15 +54,9 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
     if mode == 'single':
         if not target_experiment:
             raise ValueError("--experiment required for mode='single'")
-        
         experiment_dirs = [target_experiment]
         print(f"Target experiment: {target_experiment}\n")
-        
-        exp_path = os.path.join(results_dir, target_experiment)
-        if not os.path.exists(exp_path) or not os.path.isdir(exp_path):
-            raise ValueError(f"Experiment directory not found: {exp_path}")
-    
-    else:  # mode == 'cross_dataset'
+    else:  
         experiment_dirs = []
         for item in os.listdir(results_dir):
             item_path = os.path.join(results_dir, item)
@@ -70,77 +64,45 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
                 if re.search(r'\d{4}-\d{2}-\d{2}', item):
                     if filter_experiments is None or item in filter_experiments:
                         experiment_dirs.append(item)
-        
-        print(f"Found {len(experiment_dirs)} experiment directories")
-        if filter_experiments:
-            print(f"Filtered to specified experiments")
-        else:
-            print("(processing all)")
-        print()
     
     for exp_dir_name in sorted(experiment_dirs):
         exp_dir_path = os.path.join(results_dir, exp_dir_name)
-        print(f"Processing: {exp_dir_name}")
+        seed_folders = [f for f in os.listdir(exp_dir_path) if f.startswith('seed')]
         
-        seed_folders = os.listdir(exp_dir_path)
-        unique_seeds = set()
-        
-        for folder in seed_folders:
-            if folder.startswith('seed') and os.path.isdir(os.path.join(exp_dir_path, folder)):
-                base_seed = folder.split('_')[0].replace('seed', '')
-                try:
-                    unique_seeds.add(int(base_seed))
-                except ValueError:
-                    continue
-        
-        print(f"  Found unique seeds: {sorted(unique_seeds)}")
-        
-        for seed in sorted(unique_seeds):
-            latest_folder = get_latest_seed_version(exp_dir_path, seed)
+        for seed_folder in seed_folders:
+            seed = int(re.search(r'\d+', seed_folder).group())
+            seed_folder_path = os.path.join(exp_dir_path, seed_folder)
             
-            if latest_folder:
-                seed_folder_path = os.path.join(exp_dir_path, latest_folder)
-                subfolders_found = False
-                
-                # Check for in-domain or external metric summaries
-                for subfolder in os.listdir(seed_folder_path):
-                    if subfolder == 'in_domain' or subfolder.startswith('external_'):
-                        potential_csv = os.path.join(seed_folder_path, subfolder, 'ml_metrics_summary.csv')
-                        if os.path.exists(potential_csv):
-                            subfolders_found = True
-                            
-                            # Create a unique key linking Training Set to Test Set
-                            eval_key = f"{exp_dir_name}__TEST__{subfolder}"
-                            
-                            if eval_key not in experiments:
-                                experiments[eval_key] = []
-                            
-                            df = DataProcessing.load_from_file(potential_csv, 'csv', sep=',')
-                            experiments[eval_key].append({
-                                'seed': seed,
-                                'folder': latest_folder,
-                                'data': df
-                            })
-                            print(f"    ✓ Loaded: {latest_folder}/{subfolder}/ml_metrics_summary.csv")
-                            
-                # Fallback to old path structure just in case
-                if not subfolders_found:
-                    csv_file = os.path.join(seed_folder_path, 'metrics_summary.csv')
-                    if os.path.exists(csv_file):
-                        if exp_dir_name not in experiments:
-                            experiments[exp_dir_name] = []
-                        
-                        df = DataProcessing.load_from_file(csv_file, 'csv', sep=',')
-                        experiments[exp_dir_name].append({
-                            'seed': seed,
-                            'folder': latest_folder,
-                            'data': df
-                        })
-                        print(f"    ✓ Loaded: {latest_folder}/metrics_summary.csv")
+            # Walk through all directories inside the seed folder
+            for root, dirs, files in os.walk(seed_folder_path):
+                if 'ml_metrics_summary.csv' in files:
+                    csv_path = os.path.join(root, 'ml_metrics_summary.csv')
+                    
+                    # Figure out if this is in_domain or external
+                    rel_path = os.path.relpath(root, seed_folder_path)
+                    
+                    # Clean the path to group folds together! 
+                    # If path is cross_domain_fold_1/external_dataset_A -> make it external_dataset_A
+                    # If path is in_domain_fold_1 -> make it in_domain
+                    if 'external_' in rel_path:
+                        test_set_name = [p for p in rel_path.split(os.sep) if p.startswith('external_')][0]
+                    elif 'in_domain' in rel_path:
+                        test_set_name = 'in_domain'
                     else:
-                        print(f"    ✗ Missing metrics summary in: {latest_folder}")
-        print()
-    
+                        continue
+                        
+                    eval_key = f"{exp_dir_name}__TEST__{test_set_name}"
+                    
+                    if eval_key not in experiments:
+                        experiments[eval_key] = []
+                    
+                    df = DataProcessing.load_from_file(csv_path, 'csv', sep=',')
+                    experiments[eval_key].append({
+                        'seed': seed,
+                        'folder': rel_path,
+                        'data': df
+                    })
+                    print(f"    ✓ Loaded: {seed_folder}/{rel_path}/ml_metrics_summary.csv")
     return experiments
 
 def average_experiment_results(experiment_data):

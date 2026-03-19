@@ -10,6 +10,7 @@ warnings.filterwarnings("ignore")
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from typing import Dict, Any, Optional
 # Get the current working directory of the script
 script_dir = os.getcwd()
 # Add the parent directory to the system path
@@ -35,6 +36,7 @@ def create_output_directory(args, experiment_name):
     print(f"✓ Seed directory: {seed_dir}")
     
     return experiment_dir, seed_dir
+
 def load_dataset(script_dir, dataset_path):
     """Load dataset from file path."""
     print("\n" + "="*40)
@@ -50,8 +52,11 @@ def load_dataset(script_dir, dataset_path):
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
     print(f"Shape: {df.shape}")
     print(f"\nPreview:\n{df.head(7)}\n")
+
+    df = df.sample(n=300, random_state=42) 
     
     return df
+
 def get_which_dataset(df, dataset_name):
     """Filter combined dataset based on author type."""
     print("\n" + "="*40)
@@ -90,6 +95,7 @@ def get_which_dataset(df, dataset_name):
     print()
     
     return result_df
+
 def shuffle_dataset(df, seed):
     """Shuffle dataset rows."""
     print("\n" + "="*40)
@@ -101,6 +107,7 @@ def shuffle_dataset(df, seed):
     print(f"\nPreview:\n{shuffled_df.head(7)}\n")
     
     return shuffled_df
+
 def extract_sentence_embeddings(df, text_column='Base Sentence'):
     """Extract sentence embeddings using SpaCy."""
     print("\n" + "="*40)
@@ -114,71 +121,162 @@ def extract_sentence_embeddings(df, text_column='Base Sentence'):
     embeddings_col_name = f'{text_column} Embedding'
     
     # Replaces your current loop in extract_sentence_embeddings:
-    for i, (idx, row) in enumerate(embeddings_df.head(3).iterrows()):
-        text = row[text_column]
-        embedding = row[embeddings_col_name]
+    # for i, (idx, row) in enumerate(embeddings_df.head(3).iterrows()):
+    #     text = row[text_column]
+    #     embedding = row[embeddings_col_name]
         
         # Force into a numpy array so .shape is guaranteed to work
-        emb_array = np.array(embedding)
+        # emb_array = np.array(embedding)
         
-        print(f"\nSample {i}:")
-        print(f"  Sentence [:100]: {str(text)[:100]}...")
-        print(f"  Embedding shape: {emb_array.shape}")
+        # print(f"\nSample {i}:")
+        # print(f"  Sentence [:100]: {str(text)[:100]}...")
+        # print(f"  Embedding shape: {emb_array.shape}")
     
     return embeddings_df, embeddings_col_name
-def split_train_test(df, seed, val_size=None, stratify_by='Sentence Label'):
-    """Split dataset into train/test or train/val/test sets."""
-    cols_with_labels = df.loc[:, [stratify_by]]
-    
-    if val_size is None:
-        print("\n" + "="*40)
-        print("SPLIT TRAIN/TEST DATA")
-        print("="*40)
-        print(f"Stratifying by: {stratify_by}")
-        
-        X_train_df, X_test_df, y_train_df, y_test_df = DataProcessing.split_data(
-            df, cols_with_labels, 
-            test_size=0.2,
-            val_size=None,
-            random_state=seed, 
-            stratify_by=stratify_by
-        )
-        
-        print("\n{:<25} {:>10}".format("Dataset", "Count"))
-        print("-" * 37)
-        print("{:<25} {:>10}".format("X_train", len(X_train_df)))
-        print("{:<25} {:>10}".format("X_test", len(X_test_df)))
-        print("{:<25} {:>10}".format("y_train", len(y_train_df)))
-        print("{:<25} {:>10}".format("y_test", len(y_test_df)))
-        print()
-        
-        return X_train_df, X_test_df, y_train_df, y_test_df
-    
-    else:
-        print("\n" + "="*40)
-        print("SPLIT TRAIN/VAL/TEST DATA")
-        print("="*40)
-        print(f"Stratifying by: {stratify_by}")
-        
-        X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df = DataProcessing.split_data(
-            df, cols_with_labels,
-            test_size=0.2,
-            val_size=val_size,
+
+def split_train_test(
+    df: pd.DataFrame, 
+    test_size: Optional[float] = None,
+    val_size: Optional[float] = None,
+    seed: int = 42, 
+    stratify_kfold: Optional[int] = None, 
+    stratify_by: str = 'Sentence Label'
+) -> Dict[str, Any]:
+    """
+    Notes:
+        Perform data splits with optional stratified K-Fold, returning a dictionary so the caller
+        doesn't need to juggle different tuple sizes.
+
+        Behavior (priority order):
+        1) If `stratify_kfold` is set (>0):
+                - If `test_size` > 0: first split off a held-out test set, then run K-Fold on the remaining training data.
+                - If `test_size` == 0 or None: run K-Fold on the full data.
+                - Returns:
+                    {
+                    "folds": List[Tuple[X_train, X_val, y_train, y_val]],
+                    "X_test": (optional, if test_size > 0),
+                    "y_test": (optional, if test_size > 0)
+                    }
+        2) Else if both `test_size` and `val_size`:
+                - Train/Val/Test split and returns:
+                    {
+                    "X_train", "X_val", "X_test",
+                    "y_train", "y_val", "y_test"
+                    }
+        3) Else if `test_size` only:
+                - Train/Test split and returns:
+                    {
+                    "X_train", "X_test",
+                    "y_train", "y_test"
+                    }
+        4) Else if `val_size` only:
+                - Train/Val split and returns:
+                    {
+                    "X_train", "X_val",
+                    "y_train", "y_val"
+                    }
+        5) Else:
+                - No split; returns:
+                    {
+                    "X": features (df without label column),
+                    "y": labels (df[[stratify_by]])
+                    }
+    Returns:
+        Dict[str, Any]: Splits dictionary as documented above.
+    """
+
+    # Normalize numeric inputs
+    vs = float(val_size) if val_size else 0.0
+    ts = float(test_size) if test_size else 0.0
+    k = int(stratify_kfold) if stratify_kfold else 0
+
+    # Basic validations
+    if ts < 0 or ts >= 1:
+        raise ValueError("`test_size` must be in [0, 1), so 0 <= x < 1.")
+    if vs < 0 or vs >= 1:
+        raise ValueError("`val_size` must be in [0, 1), so 0 <= x < 1.")
+    if k < 0:
+        raise ValueError("`stratify_kfold` must be >= 0.")
+
+    # If not doing K-Fold, ensure the sum constraint (train/val/test only)
+    if k == 0 and (ts + vs) >= 1:
+        raise ValueError("`test_size + val_size` must be < 1 when not using K-Fold.")
+
+    # Prepare labels
+    if stratify_by not in df.columns:
+        raise KeyError(f"`stratify_by` column '{stratify_by}' not found in DataFrame.")
+    y_df = df[[stratify_by]]
+
+    # =========================================
+    # 1) K-FOLD (Train/Val only, no internal test)
+    # =========================================
+    if k > 0:
+        all_folds = DataProcessing.split_data(
+            features_df=df,
+            labels_df=y_df,
             random_state=seed,
+            stratify_kfold=k,
             stratify_by=stratify_by
         )
-        
-        print("\n{:<25} {:>10}".format("Dataset", "Count"))
-        print("-" * 37)
-        print("{:<25} {:>10}".format("X_train", len(X_train_df)))
-        print("{:<25} {:>10}".format("X_val", len(X_val_df)))
-        print("{:<25} {:>10}".format("X_test", len(X_test_df)))
-        print("{:<25} {:>10}".format("y_train", len(y_train_df)))
-        print("{:<25} {:>10}".format("y_val", len(y_val_df)))
-        print("{:<25} {:>10}".format("y_test", len(y_test_df)))
-        print()
-        
-        return X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df
+        return {"folds": all_folds}
+
+    # =========================================
+    # 2) TRAIN / VAL / TEST
+    # =========================================
+    if ts > 0 and vs > 0:
+        X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df = DataProcessing.split_data(
+            features_df=df,
+            labels_df=y_df,
+            random_state=seed,
+            val_size=vs,
+            test_size=ts,
+            stratify_by=stratify_by
+        )
+        return {
+            "X_train": X_train_df, "X_val": X_val_df, "X_test": X_test_df,
+            "y_train": y_train_df, "y_val": y_val_df, "y_test": y_test_df
+        }
+
+    # =========================================
+    # 3) TRAIN / TEST
+    # =========================================
+    if ts > 0:
+        X_train_df, X_test_df, y_train_df, y_test_df = DataProcessing.split_data(
+            features_df=df,
+            labels_df=y_df,
+            random_state=seed,
+            test_size=ts,
+            stratify_by=stratify_by
+        )
+        return {
+            "X_train": X_train_df, "X_test": X_test_df,
+            "y_train": y_train_df, "y_test": y_test_df
+        }
+
+    # =========================================
+    # 4) TRAIN / VAL (No internal test set)
+    # =========================================
+    if vs > 0:
+        X_train_df, X_val_df, y_train_df, y_val_df = DataProcessing.split_data(
+            features_df=df,
+            labels_df=y_df,
+            random_state=seed,
+            val_size=None,
+            train_size=vs,
+            stratify_by=stratify_by
+        )
+        return {
+            "X_train": X_train_df, "X_val": X_val_df,
+            "y_train": y_train_df, "y_val": y_val_df
+        }
+
+    # =========================================
+    # 5) NO SPLIT — return full features/labels
+    # =========================================
+    # Remove the label column from X if present
+    X_full = df.drop(columns=[stratify_by]) if stratify_by in df.columns else df.copy()
+    return {"X": X_full, "y": y_df}
+    
 
 def build_models(factory, model_names, seed, reweight_class):
     """Initialize ML models from factory."""
@@ -282,6 +380,7 @@ def train_and_predict_models(
         print(f"  ✓ Saved checkpoint: {checkpoint_file}")
         
     return trained_models_with_predictions, train_val_metrics
+
 def create_results_dataframe(X_test_df, trained_models_with_predictions_dict):
     """Combine test data with model predictions."""
     print("\n" + "="*40)
@@ -299,6 +398,7 @@ def create_results_dataframe(X_test_df, trained_models_with_predictions_dict):
     print(f"\nPreview:\n{results_df.head(3)}\n")
     
     return results_df
+
 def evaluate_models(
     trained_models_with_predictions_dict,
     X_test_df,
@@ -429,6 +529,7 @@ def evaluate_models(
     print()
     
     return metrics_summary_df
+
 def evaluate_and_save_results(
     trained_models_with_predictions_dict, 
     X_test_df, 
@@ -475,6 +576,7 @@ def evaluate_and_save_results(
         include_version=False,
         )
     print(f"✓ Saved metrics summary to: {os.path.join(eval_save_path, 'ml_metrics_summary.csv')}")
+
 def evaluate_external_datasets(
     test_dataset_paths,
     trained_models_with_predictions_dict,
@@ -552,6 +654,7 @@ def evaluate_external_datasets(
             train_val_metrics=train_val_metrics,
             seed=seed
         )
+
 def generate_all_explanations(
     trained_models_with_predictions_dict,
     X_train_df,
@@ -665,6 +768,8 @@ if __name__ == "__main__":
                         help="Penalize model for imbalanced datasets. Use 'balanced' to apply class weights.")
     parser.add_argument('--experiment_suffix', default='', 
                     help="Optional string to append to the output folder name (e.g., '-weighted')")
+    parser.add_argument('--stratified_kfold', default=None,
+                        help='Maintains class proportions in each fold. Import for imbalanced data.')
     
     args = parser.parse_args()
     
@@ -717,128 +822,136 @@ if __name__ == "__main__":
     if args.dataset_type in ['synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank']:
         df = get_which_dataset(df, args.dataset_type)
     
-    shuffled_df = shuffle_dataset(df, seed=args.seed)
-    embeddings_df, embeddings_col_name = extract_sentence_embeddings(
-        shuffled_df, text_column=args.text_column
-    )
+    if args.stratified_kfold is None:
+        shuffled_df = shuffle_dataset(df, seed=args.seed)
+        embeddings_df, embeddings_col_name = extract_sentence_embeddings(
+            shuffled_df, 
+            text_column=args.text_column
+        )
+    else:
+        embeddings_df, embeddings_col_name = extract_sentence_embeddings(
+            df, 
+            text_column=args.text_column
+        )
     # ============================================================
     # 4. SPLIT DATA
     # ============================================================
-    # Determine split strategy
-    if args.no_test_split:
-        # For cross-domain evaluation (E1-E6): only train/val split
-        print("\n" + "="*40)
-        print("TRAIN/VAL SPLIT (No Test Set)")
-        print("="*40)
-        print("Using full dataset for training (will test on external datasets)")
-        
-        if args.val_size is not None:
-            # Train/val split with specified val_size
-            X_train_df, X_val_df, y_train_df, y_val_df = DataProcessing.split_data(
-                embeddings_df, 
-                embeddings_df[[args.label_column]],
-                test_size=args.val_size,  # val_size used as test_size in this context
-                val_size=None,
-                random_state=args.seed,
-                stratify_by=args.label_column
-            )
-        else:
-            # No validation set: use all data for training
-            X_train_df = embeddings_df
-            y_train_df = embeddings_df[[args.label_column]]
-            X_val_df = None
-            y_val_df = None
-        
-        X_test_df = None
-        y_test_df = None
-        
-        print(f"\nTrain size: {len(X_train_df)}")
-        if X_val_df is not None:
-            print(f"Val size: {len(X_val_df)}")
-        print("Test size: 0 (will use external datasets)\n")
-    else:
-        # Standard split with test set (E7)
-        if args.val_size is not None:
-            # Train/val/test split
-            X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df = split_train_test(
-                embeddings_df, seed=args.seed, val_size=args.val_size, stratify_by=args.label_column
-            )
-        else:
-            # Train/test split (no validation)
-            X_train_df, X_test_df, y_train_df, y_test_df = split_train_test(
-                embeddings_df, val_size=None, seed=args.seed, stratify_by=args.label_column
-            )
-            X_val_df = None
-            y_val_df = None
-    # Save test sets if they exist (for reproducibility)
-    if X_test_df is not None and y_test_df is not None:
-        print(X_test_df)
-        DataProcessing.save_to_file(X_test_df, seed_dir, 'x_test_set', 'csv', include_version=False)
-        print(f"✓ Saved X_test to: {os.path.join(seed_dir, 'x_test_set.csv')}")
-        DataProcessing.save_to_file(y_test_df, seed_dir, 'y_test_set', 'csv', include_version=False)
-        print(f"✓ Saved y_test to: {os.path.join(seed_dir, 'y_test_set.csv')}")
-    # ============================================================
-    # 4.5 SAVE SPLIT SIZES
-    # ============================================================
-    split_sizes = {
-        'Split': ['Train', 'Validation', 'Test'],
-        'Size': [
-            len(X_train_df) if X_train_df is not None else 0,
-            len(X_val_df) if X_val_df is not None else 0,
-            len(X_test_df) if X_test_df is not None else 0
-        ]
-    }
-    split_sizes_df = pd.DataFrame(split_sizes)
-    
-    print("Saving dataset split sizes...")
-    DataProcessing.save_to_file(
-        data=split_sizes_df,
-        path=seed_dir,
-        prefix='dataset_split_sizes',
-        save_file_type='csv',
-        include_version=False
+    splits = split_train_test(
+        df=embeddings_df, 
+        test_size=0.0 if args.no_test_split else 0.2,
+        val_size=args.val_size,
+        seed=args.seed, 
+        stratify_kfold=args.stratified_kfold,
+        stratify_by=args.label_column
     )
-    # ============================================================
-    # 5. TRAIN MODELS
-    # ============================================================
+        
+    # Safely extract variables (returns None if they weren't created)
+    X_train_df = splits.get('X_train')
+    X_val_df = splits.get('X_val')
+    X_test_df = splits.get('X_test')
+    
+    y_train_df = splits.get('y_train')
+    y_val_df = splits.get('y_val')
+    y_test_df = splits.get('y_test')
+    
+    # If using K-Fold, extract the folds list
+    all_folds = splits.get('folds')
+
     model_checkpoint_path = os.path.join(seed_dir, 'model_checkpoints')
     os.makedirs(model_checkpoint_path, exist_ok=True)
-    # NOTE: within below, we check if val_df and test_df is None
-    trained_models_with_predictions_dict, train_val_metrics = train_and_predict_models(
-        ml_model_names, X_train_df, y_train_df, X_test_df,
-        embeddings_col_name, args.label_column, model_checkpoint_path,
-        seed=args.seed, reweight_class=args.reweight_class, X_val_df=X_val_df, y_val_df=y_val_df
-    )
-    # ============================================================
-    # 6. EVALUATE ON IN-DOMAIN TEST SET (if exists)
-    # ============================================================
-    if X_test_df is not None and y_test_df is not None:
-        evaluate_and_save_results(
-            trained_models_with_predictions_dict=trained_models_with_predictions_dict, 
-            X_test_df=X_test_df, 
-            y_test_df=y_test_df, 
-            embeddings_col_name=embeddings_col_name, 
-            label_column=args.label_column, 
-            output_dir=seed_dir, 
-            metrics_folder_name='in_domain',
-            csv_prefix='ml_classifiers_in_domain', 
-            train_val_metrics=train_val_metrics,
-            seed=args.seed
+
+    if all_folds is None:
+        # ============================================================
+        # 5. TRAIN MODELS
+        # ============================================================
+        # NOTE: within below, we check if val_df and test_df is None
+        trained_models_with_predictions_dict, train_val_metrics = train_and_predict_models(
+            ml_model_names, X_train_df, y_train_df, X_test_df,
+            embeddings_col_name, args.label_column, model_checkpoint_path,
+            seed=args.seed, reweight_class=args.reweight_class, X_val_df=X_val_df, y_val_df=y_val_df
         )
-    # ============================================================
-    # 7. EVALUATE ON CROSS-DOMAIN TEST SETS (if provided)
-    # ============================================================
-    if args.test_datasets:
-        evaluate_external_datasets(
-            test_dataset_paths=args.test_datasets,
-            trained_models_with_predictions_dict=trained_models_with_predictions_dict,
-            text_column=args.text_column,
-            label_column=args.label_column,
-            output_dir=seed_dir,
-            train_val_metrics=train_val_metrics,
-            seed=args.seed,
-            script_dir=script_dir
-        )
+        # ============================================================
+        # 6. EVALUATE ON IN-DOMAIN TEST SET (if exists)
+        # ============================================================
+        if X_test_df is not None and y_test_df is not None:
+            evaluate_and_save_results(
+                trained_models_with_predictions_dict=trained_models_with_predictions_dict, 
+                X_test_df=X_test_df, 
+                y_test_df=y_test_df, 
+                embeddings_col_name=embeddings_col_name, 
+                label_column=args.label_column, 
+                output_dir=seed_dir, 
+                metrics_folder_name='in_domain',
+                csv_prefix='ml_classifiers_in_domain', 
+                train_val_metrics=train_val_metrics,
+                seed=args.seed
+            )
+        
+        # ============================================================
+        # 7. EVALUATE ON CROSS-DOMAIN TEST SETS (if provided)
+        # ============================================================
+        if args.test_datasets:
+            evaluate_external_datasets(
+                test_dataset_paths=args.test_datasets,
+                trained_models_with_predictions_dict=trained_models_with_predictions_dict,
+                text_column=args.text_column,
+                label_column=args.label_column,
+                output_dir=seed_dir,
+                train_val_metrics=train_val_metrics,
+                seed=args.seed,
+                script_dir=script_dir
+            )
+    else:
+        for fold_idx, fold in enumerate(all_folds, start=1):
+            print(f"\n--- Training Fold {fold_idx} ---")
+            X_train, X_val, y_train, y_val = fold
+            
+            # Create a unique checkpoint path for this fold
+            fold_checkpoint_path = os.path.join(model_checkpoint_path, f'fold_{fold_idx}')
+            os.makedirs(fold_checkpoint_path, exist_ok=True)
+
+            trained_models_with_predictions_dict, train_val_metrics = train_and_predict_models(
+                ml_model_names, X_train, y_train, X_test_df,
+                embeddings_col_name, args.label_column, fold_checkpoint_path,
+                seed=args.seed, reweight_class=args.reweight_class, X_val_df=X_val, y_val_df=y_val
+            )
+            
+            # ============================================================
+            # 6. EVALUATE ON IN-DOMAIN TEST SET
+            # ============================================================
+            if X_test_df is not None and y_test_df is not None:
+                evaluate_and_save_results(
+                    trained_models_with_predictions_dict=trained_models_with_predictions_dict, 
+                    X_test_df=X_test_df, 
+                    y_test_df=y_test_df, 
+                    embeddings_col_name=embeddings_col_name, 
+                    label_column=args.label_column, 
+                    output_dir=seed_dir, 
+                    metrics_folder_name=f'in_domain_fold_{fold_idx}',     # Unique folder
+                    csv_prefix=f'ml_classifiers_in_domain_fold_{fold_idx}', # Unique CSV
+                    train_val_metrics=train_val_metrics,
+                    seed=args.seed
+                )
+            
+            # ============================================================
+            # 7. EVALUATE ON CROSS-DOMAIN TEST SETS
+            # ============================================================
+            if args.test_datasets:
+                # Assuming evaluate_external_datasets creates its own folders/files, 
+                # you may need to pass fold_idx down into it, or temporarily alter output_dir:
+                fold_output_dir = os.path.join(seed_dir, f'cross_domain_fold_{fold_idx}')
+                os.makedirs(fold_output_dir, exist_ok=True)
+                
+                evaluate_external_datasets(
+                    test_dataset_paths=args.test_datasets,
+                    trained_models_with_predictions_dict=trained_models_with_predictions_dict,
+                    text_column=args.text_column,
+                    label_column=args.label_column,
+                    output_dir=fold_output_dir, # Unique output directory
+                    train_val_metrics=train_val_metrics,
+                    seed=args.seed,
+                    script_dir=script_dir
+                )
     # ============================================================
     # 8. EXPLAINABILITY (OPTIONAL)
     # ============================================================
@@ -854,6 +967,7 @@ if __name__ == "__main__":
                 text_col_name=args.text_column,
                 save_path=seed_dir
             )
+    
     # ============================================================
     # 9. COMPLETE
     # ============================================================
