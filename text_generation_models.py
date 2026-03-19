@@ -290,7 +290,7 @@ class TextGenerationModelFactory(ABC):
                         raw.append(json.loads(line))
                     except json.JSONDecodeError:
                         pass          # bad line → ignore silently
-
+        
         df = pd.DataFrame(raw)
 
         # Rename the columns to the names you want in the final model
@@ -301,8 +301,7 @@ class TextGenerationModelFactory(ABC):
             'p_o':  'Outcome',         # <p_o>
             'p_a':  'Attribute',       # <p_a>
             'p_m':  'Metric',          # <p_m>
-            'p_sl': 'Slope',           # <p_sl>
-            'T1':   'Base Sentence'         # sentence with the template number
+            'p_sl': 'Slope'           # <p_sl>
         })
 
         return df
@@ -334,17 +333,16 @@ class TextGenerationModelFactory(ABC):
         # 1. Ask the LLM for a JSON‑encoded prediction
         prompt_template = (
             f"{prompt_template}\n\n"
-            f"Respond ONLY with **valid JSON** in this exact format:\n"
-            f'{{"p_s": __, "p_t": __, "p_d": __, "p_o": __, "p_a": __, "p_m": __, "p_sl": __, "T1": __}}\n'
+            f"Respond ONLY with **valid JSON** in this exact format.\n"
+            f"For templates without some of the respective properties, fill the property with '-'\n"
+            f'{{"p_s": __, "p_t": __, "p_d": __, "p_o": __, "p_a": __, "p_m": __, "p_sl": __, "Base Sentence": "T#: <base sentence>"}}:\n'
             f"No markdown, no comments, no extra lines."
         )
 
-        print(prompt_template)          # <-- inspect or log what you’re sending
         raw_text = self.chat_completion([self.user(prompt_template)])
-        print(raw_text)
+        print(f"generates:\n{raw_text}")
 
         df = self._extract_predictions(raw_text)
-        print(df)
         
         df['Sentence Label'] = label
         df['Domain'] = domain
@@ -353,17 +351,24 @@ class TextGenerationModelFactory(ABC):
         df['Batch ID'] = batch_id
         df['Temperature'] = self.temperature
         df['Top P'] = self.top_p
-        df['Prompt Used'] = prompt_template
-        # df["Source"] = df["Source"]          # already set, kept for clarity
-        # df["Target"] = df["Target"]          # likewise
-        df["Raw Text"] = raw_text
+        #df['Prompt Used'] = prompt_template
+        #df["Raw Text"] = raw_text
         df["Generation Date"] = prediction_date
-        df['Outcome'] = 1
-        df['Raw Text'] = raw_text
         # print()
         # print(df)
         # ipdb.set_trace()
         # print()
+
+        columns_order = ["Base Sentence", "Source", "Target", "Prediction Date", "Outcome", "Attribute", 
+                           "Metric", "Slope", "Sentence Label", "Domain", "Model Name", "API Name", 
+                           "Batch ID", "Temperature", "Top P", "Raw Text", "Generation Date"]
+
+        existing_preferred = [c for c in columns_order if c in df.columns]
+
+        extras = [c for c in df.columns if c not in columns_order]
+
+        df = df[existing_preferred + extras]
+        
         return df
 
     def log_batch_df(self, reformat_batch_predictions_df, sentence_label, save_path: str):
@@ -458,7 +463,7 @@ class TextGenerationModelFactory(ABC):
 
                     prompt_output = prompt_outputs[domain]
                     model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain, batch_id=batch_idx, prediction_date=batch_prediction_date)
-                    print("\n\n", model_df)
+                    #print("\n\n", model_df)
 
                     batch_dfs.append(model_df)
                     batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
