@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=ml_standard
+#SBATCH --job-name=ml_weighted
 #SBATCH --output=logs_%x_%j.out
 #SBATCH --error=logs_%x_%j.err
 #SBATCH --time=24:00:00
@@ -15,7 +15,7 @@ cd ../../../prediction_classification_experiments-v2
 module load python/3
 source ../.venv/bin/activate
 
-echo "Running STANDARD (E1-E6)"
+echo "Running WEIGHTED (E1-E6)"
 for seed in 3 7 33; do
     echo ""
     echo "============================================================"
@@ -23,27 +23,33 @@ for seed in 3 7 33; do
     echo "============================================================"
     echo ""
 
-    echo ">>> Running E1: Train on Synthetic → Test on FPB + Chronicle2050"
+    echo ">>> Running E1 (Weighted): Train on Synthetic → Test on FPB + Chronicle2050"
     python ml-train.py --dataset ../data/combined_datasets/combined-full_synthetic-v1.csv --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' --experiment_suffix="-weighted" \
         --test_datasets ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv ../data/chronicle2050/chronicle2050-renamed_cols.csv
 
-    echo ">>> Running E2: Train on FPB → Test on Synthetic + Chronicle2050"
+    echo ">>> Running E2 (Weighted): Train on FPB → Test on Synthetic + Chronicle2050"
     python ml-train.py --dataset ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' --experiment_suffix="-weighted" \
         --test_datasets ../data/combined_datasets/combined-full_synthetic-v1.csv ../data/chronicle2050/chronicle2050-renamed_cols.csv
 
-    echo ">>> Running E3: Train on Chronicle2050 → Test on Synthetic + FPB"
+    echo ">>> Running E3 (Weighted): Train on Chronicle2050 → Test on Synthetic + FPB"
     python ml-train.py --dataset ../data/chronicle2050/chronicle2050-renamed_cols.csv --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' --experiment_suffix="-weighted" \
         --test_datasets ../data/combined_datasets/combined-full_synthetic-v1.csv ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv
 
-    echo ">>> Running E4: Train on Synthetic+FPB → Test on Chronicle2050"
+    echo ">>> Running E4 (Weighted): Train on Synthetic+FPB → Test on Chronicle2050"
     python ml-train.py --dataset ../data/combined_datasets/combined-synthetic-fpb-v1.csv --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' --experiment_suffix="-weighted" \
         --test_datasets ../data/chronicle2050/chronicle2050-renamed_cols.csv
 
-    echo ">>> Running E5: Train on Synthetic+Chronicle2050 → Test on FPB"
+    echo ">>> Running E5 (Weighted): Train on Synthetic+Chronicle2050 → Test on FPB"
     python ml-train.py --dataset ../data/combined_datasets/combined-synthetic-chronicle2050-v1.csv --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' --experiment_suffix="-weighted" \
         --test_datasets ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv
 
-    echo ">>> Running E6: Train on FPB+Chronicle2050 → Test on Synthetic"
+    echo ">>> Running E6 (Weighted): Train on FPB+Chronicle2050 → Test on Synthetic"
     python ml-train.py --dataset ../data/combined_datasets/combined-fpb-chronicle2050-v1.csv --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' --experiment_suffix="-weighted" \
         --test_datasets ../data/combined_datasets/combined-full_synthetic-v1.csv
 done

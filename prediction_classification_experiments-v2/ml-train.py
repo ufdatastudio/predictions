@@ -53,7 +53,7 @@ def load_dataset(script_dir, dataset_path):
     print(f"Shape: {df.shape}")
     print(f"\nPreview:\n{df.head(7)}\n")
 
-    df = df.sample(n=300, random_state=42) 
+    # df = df.sample(n=300, random_state=42) 
     
     return df
 
