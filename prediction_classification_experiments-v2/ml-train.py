@@ -663,6 +663,8 @@ if __name__ == "__main__":
                         )
     parser.add_argument('--reweight_class', default=None, 
                         help="Penalize model for imbalanced datasets. Use 'balanced' to apply class weights.")
+    parser.add_argument('--experiment_suffix', default='', 
+                    help="Optional string to append to the output folder name (e.g., '-weighted')")
     
     args = parser.parse_args()
     
@@ -678,6 +680,8 @@ if __name__ == "__main__":
     else:
         experiment_base = dataset_base
     
+
+    experiment_base = experiment_base + args.experiment_suffix
     experiment_name = f"{experiment_base}_{current_date}"
     
     # Unpack the tuple directly into two variables

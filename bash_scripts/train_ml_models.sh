@@ -72,6 +72,16 @@ for seed in 3 7 33; do
             ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv \
             ../data/chronicle2050/chronicle2050-renamed_cols.csv
 
+    echo "Running E1 (Weighted)..."
+    python ml-train.py \
+        --dataset ../data/combined_datasets/combined-full_synthetic-v1.csv \
+        --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' \
+        --experiment_suffix="-weighted" \
+        --test_datasets \
+            ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv \
+            ../data/chronicle2050/chronicle2050-renamed_cols.csv
+
     # ============================================================
     # E1.2: Train on Synthetic (no val) → Test on FPB + Chronicle2050
     # ============================================================
@@ -79,6 +89,16 @@ for seed in 3 7 33; do
     python ml-train.py \
         --dataset ../data/combined_datasets/combined-full_synthetic-v1.csv \
         --no_test_split --seed $seed \
+        --test_datasets \
+            ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv \
+            ../data/chronicle2050/chronicle2050-renamed_cols.csv
+
+    echo "Running E1.2 (Weighted)..."
+    python ml-train.py \
+        --dataset ../data/combined_datasets/combined-full_synthetic-v1.csv \
+        --no_test_split --seed $seed \
+        --reweight_class 'balanced' \
+        --experiment_suffix="-weighted" \
         --test_datasets \
             ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv \
             ../data/chronicle2050/chronicle2050-renamed_cols.csv
@@ -94,6 +114,16 @@ for seed in 3 7 33; do
             ../data/combined_datasets/combined-full_synthetic-v1.csv \
             ../data/chronicle2050/chronicle2050-renamed_cols.csv
 
+    echo "Running E2 (Weighted)..."
+    python ml-train.py \
+        --dataset ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv \
+        --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' \
+        --experiment_suffix="-weighted" \
+        --test_datasets \
+            ../data/combined_datasets/combined-full_synthetic-v1.csv \
+            ../data/chronicle2050/chronicle2050-renamed_cols.csv
+
     # ============================================================
     # E3: Train on Chronicle2050 → Test on Synthetic + FPB
     # ============================================================
@@ -101,6 +131,16 @@ for seed in 3 7 33; do
     python ml-train.py \
         --dataset ../data/chronicle2050/chronicle2050-renamed_cols.csv \
         --no_test_split --val_size 0.2 --seed $seed \
+        --test_datasets \
+            ../data/combined_datasets/combined-full_synthetic-v1.csv \
+            ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv
+
+    echo "Running E3 (Weighted)..."
+    python ml-train.py \
+        --dataset ../data/chronicle2050/chronicle2050-renamed_cols.csv \
+        --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' \
+        --experiment_suffix="-weighted" \
         --test_datasets \
             ../data/combined_datasets/combined-full_synthetic-v1.csv \
             ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv
@@ -114,6 +154,14 @@ for seed in 3 7 33; do
         --no_test_split --val_size 0.2 --seed $seed \
         --test_datasets ../data/chronicle2050/chronicle2050-renamed_cols.csv
 
+    echo "Running E4 (Weighted)..."
+    python ml-train.py \
+        --dataset ../data/combined_datasets/combined-synthetic-fpb-v1.csv \
+        --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' \
+        --experiment_suffix="-weighted" \
+        --test_datasets ../data/chronicle2050/chronicle2050-renamed_cols.csv
+
     # ============================================================
     # E5: Train on Synthetic+Chronicle2050 → Test on FPB
     # ============================================================
@@ -121,6 +169,14 @@ for seed in 3 7 33; do
     python ml-train.py \
         --dataset ../data/combined_datasets/combined-synthetic-chronicle2050-v1.csv \
         --no_test_split --val_size 0.2 --seed $seed \
+        --test_datasets ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv
+
+    echo "Running E5 (Weighted)..."
+    python ml-train.py \
+        --dataset ../data/combined_datasets/combined-synthetic-chronicle2050-v1.csv \
+        --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' \
+        --experiment_suffix="-weighted" \
         --test_datasets ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv
 
     # ============================================================
@@ -132,6 +188,14 @@ for seed in 3 7 33; do
         --no_test_split --val_size 0.2 --seed $seed \
         --test_datasets ../data/combined_datasets/combined-full_synthetic-v1.csv
 
+    echo "Running E6 (Weighted)..."
+    python ml-train.py \
+        --dataset ../data/combined_datasets/combined-fpb-chronicle2050-v1.csv \
+        --no_test_split --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' \
+        --experiment_suffix="-weighted" \
+        --test_datasets ../data/combined_datasets/combined-full_synthetic-v1.csv
+
     # ============================================================
     # E7: Standard train/val/test split on all combined
     # ============================================================
@@ -139,6 +203,13 @@ for seed in 3 7 33; do
     python ml-train.py \
         --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
         --val_size 0.2 --seed $seed
+
+    echo "Running E7 (Weighted)..."
+    python ml-train.py \
+        --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
+        --val_size 0.2 --seed $seed \
+        --reweight_class 'balanced' \
+        --experiment_suffix="-weighted"
         
     echo ""
     echo "✓ Completed all experiments for seed: $seed"
@@ -153,8 +224,7 @@ echo "======================================"
 echo "All training complete. Aggregating results..."
 echo "======================================"
 
-# Aggregate both in-domain (E7) and external (E1-E6) results
-python average_classification_results-v2.py --mode both
+python average_classification_results.py --mode cross_dataset | tee ../data/classification_results/cross_dataset_comparisons/final_results_summary.txt 
 
 echo ""
 echo "======================================"
