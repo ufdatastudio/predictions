@@ -298,7 +298,6 @@ class TextGenerationModelFactory(ABC):
             'p_s':  'Source',          # <p_s>
             'p_t':  'Target',          # <p_t>
             'p_d':  'Prediction Date', # <p_d>
-            'p_o':  'Outcome',         # <p_o>
             'p_a':  'Attribute',       # <p_a>
             'p_m':  'Metric',          # <p_m>
             'p_sl': 'Slope'           # <p_sl>
@@ -335,7 +334,7 @@ class TextGenerationModelFactory(ABC):
             f"{prompt_template}\n\n"
             f"Respond ONLY with **valid JSON** in this exact format.\n"
             f"For templates without some of the respective properties, fill the property with '-'\n"
-            f'{{"p_s": __, "p_t": __, "p_d": __, "p_o": __, "p_a": __, "p_m": __, "p_sl": __, "Base Sentence": "T#: <base sentence>"}}:\n'
+            f'{{"p_s": __, "p_t": __, "p_d": __, "p_a": __, "p_m": __, "p_sl": __, "Base Sentence": "T#: <base sentence>"}}:\n'
             f"No markdown, no comments, no extra lines."
         )
 
@@ -359,7 +358,7 @@ class TextGenerationModelFactory(ABC):
         # ipdb.set_trace()
         # print()
 
-        columns_order = ["Base Sentence", "Source", "Target", "Prediction Date", "Outcome", "Attribute", 
+        columns_order = ["Base Sentence", "Source", "Target", "Prediction Date", "Attribute", 
                            "Metric", "Slope", "Sentence Label", "Domain", "Model Name", "API Name", 
                            "Batch ID", "Temperature", "Top P", "Raw Text", "Generation Date"]
 
