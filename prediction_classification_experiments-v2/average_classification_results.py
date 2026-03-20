@@ -7,12 +7,10 @@ import argparse
 import numpy as np
 import pandas as pd
 from datetime import datetime
-
 # Add project modules to path
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(script_dir, '../'))
 from data_processing import DataProcessing
-
 
 def get_latest_seed_version(experiment_dir, base_seed):
     """Find the latest version of a seed folder."""
@@ -45,28 +43,8 @@ def get_latest_seed_version(experiment_dir, base_seed):
     latest_version, latest_folder = max(versioned_folders, key=lambda x: x[0])
     return latest_folder
 
-
 def collect_results(results_dir, mode='cross_dataset', target_experiment=None, filter_experiments=None):
-    """
-    Collect all metrics_summary.csv files and group by experiment.
-    
-    Parameters
-    ----------
-    results_dir : str
-        Path to classification_results directory
-    mode : str
-        'single' - process only target_experiment
-        'cross_dataset' - process multiple experiments for comparison
-    target_experiment : str or None
-        Specific experiment folder name (required for mode='single')
-    filter_experiments : list or None
-        List of specific experiment names to process. If None, process all.
-    
-    Returns
-    -------
-    dict
-        {experiment_name: [{'seed': int, 'folder': str, 'data': pd.DataFrame}, ...]}
-    """
+    """Collect all metrics_summary.csv files and group by experiment AND test set."""
     experiments = {}
     
     print(f"\n{'='*60}")
@@ -76,74 +54,56 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
     if mode == 'single':
         if not target_experiment:
             raise ValueError("--experiment required for mode='single'")
-        
         experiment_dirs = [target_experiment]
         print(f"Target experiment: {target_experiment}\n")
-        
-        exp_path = os.path.join(results_dir, target_experiment)
-        if not os.path.exists(exp_path) or not os.path.isdir(exp_path):
-            raise ValueError(f"Experiment directory not found: {exp_path}")
-    
-    else:  # mode == 'cross_dataset'
+    else:  
         experiment_dirs = []
         for item in os.listdir(results_dir):
             item_path = os.path.join(results_dir, item)
             if os.path.isdir(item_path) and item not in ['averaged_results', 'cross_dataset_comparisons'] and not item.startswith('.'):
                 if re.search(r'\d{4}-\d{2}-\d{2}', item):
-                    # Filter by user-specified experiments if provided
                     if filter_experiments is None or item in filter_experiments:
                         experiment_dirs.append(item)
-        
-        print(f"Found {len(experiment_dirs)} experiment directories")
-        if filter_experiments:
-            print(f"Filtered to specified experiments")
-        else:
-            print("(processing all)")
-        print()
     
     for exp_dir_name in sorted(experiment_dirs):
         exp_dir_path = os.path.join(results_dir, exp_dir_name)
+        seed_folders = [f for f in os.listdir(exp_dir_path) if f.startswith('seed')]
         
-        print(f"Processing: {exp_dir_name}")
-        
-        seed_folders = os.listdir(exp_dir_path)
-        unique_seeds = set()
-        
-        for folder in seed_folders:
-            if folder.startswith('seed') and os.path.isdir(os.path.join(exp_dir_path, folder)):
-                base_seed = folder.split('_')[0].replace('seed', '')
-                try:
-                    unique_seeds.add(int(base_seed))
-                except ValueError:
-                    continue
-        
-        print(f"  Found unique seeds: {sorted(unique_seeds)}")
-        
-        for seed in sorted(unique_seeds):
-            latest_folder = get_latest_seed_version(exp_dir_path, seed)
+        for seed_folder in seed_folders:
+            seed = int(re.search(r'\d+', seed_folder).group())
+            seed_folder_path = os.path.join(exp_dir_path, seed_folder)
             
-            if latest_folder:
-                seed_folder_path = os.path.join(exp_dir_path, latest_folder)
-                csv_file = os.path.join(seed_folder_path, 'metrics_summary.csv')
-                
-                if os.path.exists(csv_file):
-                    if exp_dir_name not in experiments:
-                        experiments[exp_dir_name] = []
+            # Walk through all directories inside the seed folder
+            for root, dirs, files in os.walk(seed_folder_path):
+                if 'ml_metrics_summary.csv' in files:
+                    csv_path = os.path.join(root, 'ml_metrics_summary.csv')
                     
-                    df = DataProcessing.load_from_file(csv_file, 'csv', sep=',')
-                    experiments[exp_dir_name].append({
+                    # Figure out if this is in_domain or external
+                    rel_path = os.path.relpath(root, seed_folder_path)
+                    
+                    # Clean the path to group folds together! 
+                    # If path is cross_domain_fold_1/external_dataset_A -> make it external_dataset_A
+                    # If path is in_domain_fold_1 -> make it in_domain
+                    if 'external_' in rel_path:
+                        test_set_name = [p for p in rel_path.split(os.sep) if p.startswith('external_')][0]
+                    elif 'in_domain' in rel_path:
+                        test_set_name = 'in_domain'
+                    else:
+                        continue
+                        
+                    eval_key = f"{exp_dir_name}__TEST__{test_set_name}"
+                    
+                    if eval_key not in experiments:
+                        experiments[eval_key] = []
+                    
+                    df = DataProcessing.load_from_file(csv_path, 'csv', sep=',')
+                    experiments[eval_key].append({
                         'seed': seed,
-                        'folder': latest_folder,
+                        'folder': rel_path,
                         'data': df
                     })
-                    print(f"    ✓ Loaded: {latest_folder}/metrics_summary.csv")
-                else:
-                    print(f"    ✗ Missing: {latest_folder}/metrics_summary.csv")
-        
-        print()
-    
+                    print(f"    ✓ Loaded: {seed_folder}/{rel_path}/ml_metrics_summary.csv")
     return experiments
-
 
 def average_experiment_results(experiment_data):
     """Average metrics across seeds, grouped by model."""
@@ -165,7 +125,6 @@ def average_experiment_results(experiment_data):
     
     return mean_df, std_df, n_seeds
 
-
 def detect_dataset_type(experiment_name):
     """Auto-detect dataset type from experiment name."""
     name_lower = experiment_name.lower()
@@ -178,7 +137,6 @@ def detect_dataset_type(experiment_name):
         return 'undersampled'
     else:
         return experiment_name
-
 
 def compute_cross_dataset_margins(summaries):
     """Compute margins for same model across datasets."""
@@ -215,76 +173,51 @@ def compute_cross_dataset_margins(summaries):
     for model in all_models:
         row = {'model': model}
         
-        # Collect metric values per dataset for this model
+        # Collect all metric values per dataset for this model
         for dataset_type, mean_df in dataset_means.items():
             if model in mean_df.index:
-                # Test accuracy (always exists)
-                if 'test_accuracy' in mean_df.columns:
-                    row[f'{dataset_type}_test_accuracy'] = mean_df.loc[model, 'test_accuracy']
-                elif 'accuracy' in mean_df.columns:
-                    row[f'{dataset_type}_test_accuracy'] = mean_df.loc[model, 'accuracy']
                 
-                # Val accuracy (optional)
-                if 'val_accuracy' in mean_df.columns:
-                    val_acc = mean_df.loc[model, 'val_accuracy']
-                    if pd.notna(val_acc):
-                        row[f'{dataset_type}_val_accuracy'] = val_acc
+                # List of all possible metrics from your dataframe
+                metric_columns = [
+                    'train_accuracy', 'val_accuracy', 'test_accuracy',
+                    'precision_class_0', 'precision_class_1',
+                    'recall_class_0', 'recall_class_1',
+                    'f1_class_0', 'f1_class_1',
+                    'tn', 'fp', 'fn', 'tp',
+                    'roc_auc', 'pr_auc'
+                ]
                 
-                # Train accuracy (optional)
-                if 'train_accuracy' in mean_df.columns:
-                    train_acc = mean_df.loc[model, 'train_accuracy']
-                    if pd.notna(train_acc):
-                        row[f'{dataset_type}_train_accuracy'] = train_acc
+                # Dynamically extract and store any metric that exists for this model
+                for metric in metric_columns:
+                    if metric in mean_df.columns:
+                        val = mean_df.loc[model, metric]
+                        if pd.notna(val):
+                            row[f'{dataset_type}_{metric}'] = val
+                            
+        # -------------------------------------------------------------
+        # Compute mean ± std across datasets for all key metrics
+        # -------------------------------------------------------------
+        
+        # Define the metrics we want to calculate cross-dataset statistics for
+        metrics_to_summarize = [
+            'train_accuracy', 'val_accuracy', 'test_accuracy',
+            'precision_class_0', 'precision_class_1',
+            'recall_class_0', 'recall_class_1',
+            'f1_class_0', 'f1_class_1',
+            'roc_auc', 'pr_auc'
+        ]
+        
+        for metric in metrics_to_summarize:
+            # Collect all values across datasets for this specific metric
+            vals = [row[f'{d}_{metric}'] for d in dataset_means.keys() 
+                    if f'{d}_{metric}' in row]
+            
+            # If values exist, compute stats
+            if vals:
+                row[f'{metric}_mean_across_datasets'] = np.mean(vals)
+                row[f'{metric}_std_across_datasets'] = np.std(vals)
+                row[f'{metric}_margin'] = max(vals) - min(vals)
                 
-                # F1 and AUC
-                if 'f1_class_1' in mean_df.columns:
-                    row[f'{dataset_type}_f1_class_1'] = mean_df.loc[model, 'f1_class_1']
-                
-                if 'auc' in mean_df.columns:
-                    row[f'{dataset_type}_auc'] = mean_df.loc[model, 'auc']
-        
-        # Compute mean ± std across datasets
-        test_acc_vals = [row[f'{d}_test_accuracy'] for d in dataset_means.keys() 
-                        if f'{d}_test_accuracy' in row]
-        val_acc_vals = [row[f'{d}_val_accuracy'] for d in dataset_means.keys() 
-                       if f'{d}_val_accuracy' in row]
-        train_acc_vals = [row[f'{d}_train_accuracy'] for d in dataset_means.keys() 
-                         if f'{d}_train_accuracy' in row]
-        f1_vals = [row[f'{d}_f1_class_1'] for d in dataset_means.keys() 
-                  if f'{d}_f1_class_1' in row]
-        auc_vals = [row[f'{d}_auc'] for d in dataset_means.keys() 
-                   if f'{d}_auc' in row]
-        
-        # Test accuracy stats
-        if test_acc_vals:
-            row['test_accuracy_mean_across_datasets'] = np.mean(test_acc_vals)
-            row['test_accuracy_std_across_datasets'] = np.std(test_acc_vals)
-            row['test_accuracy_margin'] = max(test_acc_vals) - min(test_acc_vals)
-        
-        # Val accuracy stats
-        if val_acc_vals:
-            row['val_accuracy_mean_across_datasets'] = np.mean(val_acc_vals)
-            row['val_accuracy_std_across_datasets'] = np.std(val_acc_vals)
-            row['val_accuracy_margin'] = max(val_acc_vals) - min(val_acc_vals)
-        
-        # Train accuracy stats
-        if train_acc_vals:
-            row['train_accuracy_mean_across_datasets'] = np.mean(train_acc_vals)
-            row['train_accuracy_std_across_datasets'] = np.std(train_acc_vals)
-            row['train_accuracy_margin'] = max(train_acc_vals) - min(train_acc_vals)
-        
-        # F1 stats
-        if f1_vals:
-            row['f1_mean_across_datasets'] = np.mean(f1_vals)
-            row['f1_std_across_datasets'] = np.std(f1_vals)
-            row['f1_margin'] = max(f1_vals) - min(f1_vals)
-        
-        # AUC stats
-        if auc_vals:
-            row['auc_mean_across_datasets'] = np.mean(auc_vals)
-            row['auc_std_across_datasets'] = np.std(auc_vals)
-            row['auc_margin'] = max(auc_vals) - min(auc_vals)
-        
         model_margins.append(row)
     
     model_margins_df = pd.DataFrame(model_margins)
@@ -307,49 +240,43 @@ def compute_cross_dataset_margins(summaries):
         # Determine which accuracy column to use
         acc_col = 'test_accuracy' if 'test_accuracy' in model_only_df.columns else 'accuracy'
         
-        row = {
-            'dataset': dataset_type,
-            'accuracy_mean': model_only_df[acc_col].mean(),
-            'accuracy_std': model_only_df[acc_col].std(),
-            'accuracy_min': model_only_df[acc_col].min(),
-            'accuracy_max': model_only_df[acc_col].max(),
-            'accuracy_margin': model_only_df[acc_col].max() - model_only_df[acc_col].min(),
-            'best_model': model_only_df[acc_col].idxmax(),
-            'worst_model': model_only_df[acc_col].idxmin()
-        }
-        dataset_accuracy.append(row)
+        if acc_col in model_only_df.columns:
+            row = {
+                'dataset': dataset_type,
+                'accuracy_mean': model_only_df[acc_col].mean(),
+                'accuracy_std': model_only_df[acc_col].std(),
+                'accuracy_min': model_only_df[acc_col].min(),
+                'accuracy_max': model_only_df[acc_col].max(),
+                'accuracy_margin': model_only_df[acc_col].max() - model_only_df[acc_col].min(),
+                'best_model': model_only_df[acc_col].idxmax(),
+                'worst_model': model_only_df[acc_col].idxmin()
+            }
+            dataset_accuracy.append(row)
     
     dataset_accuracy_df = pd.DataFrame(dataset_accuracy)
     
-    print("\nAccuracy per dataset (across all models):")
-    print(dataset_accuracy_df.to_string(index=False))
+    if not dataset_accuracy_df.empty:
+        print("\nAccuracy per dataset (across all models):")
+        print(dataset_accuracy_df.to_string(index=False))
     
     return model_margins_df, dataset_accuracy_df
 
-
 def save_averaged_results(results_dir, experiments, mode='cross_dataset'):
-    """
-    Save averaged results for each experiment.
-    
-    Parameters
-    ----------
-    results_dir : str
-        Base results directory
-    experiments : dict
-        Collected experiment results
-    mode : str
-        'single' or 'cross_dataset' - determines save location
-    
-    Returns
-    -------
-    list
-        Summary information for all experiments
-    """
+    """Save averaged results for each experiment and test set."""
     all_summaries = []
     
-    for exp_name, exp_data in experiments.items():
+    for raw_exp_name, exp_data in experiments.items():
+        # Parse the Train -> Test relationship
+        if "__TEST__" in raw_exp_name:
+            base_exp_name, test_set_name = raw_exp_name.split("__TEST__")
+            display_name = f"{base_exp_name} → {test_set_name}"
+        else:
+            base_exp_name = raw_exp_name
+            test_set_name = ""
+            display_name = base_exp_name
+
         print(f"\n{'='*50}")
-        print(f"Averaging: {exp_name}")
+        print(f"Averaging: {display_name}")
         print(f"{'='*50}")
         
         mean_df, std_df, n_seeds = average_experiment_results(exp_data)
@@ -366,17 +293,16 @@ def save_averaged_results(results_dir, experiments, mode='cross_dataset'):
                 })
             
             print(f"Seeds used: {n_seeds}")
-            print(f"Seed details: {[s['folder'] for s in seed_details]}")
-            print(f"\nMean metrics:\n{mean_df.head()}")
-            print(f"\nStd metrics:\n{std_df.head()}")
             
             # Determine save location based on mode
             if mode == 'single':
-                # Save inside experiment folder: experiment/averaged/
-                save_dir = os.path.join(results_dir, exp_name, 'averaged')
+                # Save inside experiment folder: experiment/averaged/test_set_name
+                if test_set_name:
+                    save_dir = os.path.join(results_dir, base_exp_name, 'averaged', test_set_name)
+                else:
+                    save_dir = os.path.join(results_dir, base_exp_name, 'averaged')
             else:
-                # Save in timestamped cross_dataset folder (will be created later)
-                save_dir = None  # Will be set by caller
+                save_dir = None  # Handled by caller in cross_dataset mode
             
             if save_dir:
                 os.makedirs(save_dir, exist_ok=True)
@@ -402,7 +328,7 @@ def save_averaged_results(results_dir, experiments, mode='cross_dataset'):
                 
                 # Save metadata
                 metadata = {
-                    'experiment': exp_name,
+                    'experiment': display_name,
                     'n_seeds': n_seeds,
                     'seeds_used': seed_details,
                     'date_averaged': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -419,7 +345,7 @@ def save_averaged_results(results_dir, experiments, mode='cross_dataset'):
                 print(f"✓ Saved to: {save_dir}/")
             
             all_summaries.append({
-                'experiment': exp_name,
+                'experiment': display_name,  # Uses the clean "Train -> Test" string for LaTeX
                 'n_seeds': n_seeds,
                 'seed_info': seed_details,
                 'mean': mean_df,
@@ -427,7 +353,6 @@ def save_averaged_results(results_dir, experiments, mode='cross_dataset'):
             })
     
     return all_summaries
-
 
 def save_cross_dataset_results(results_dir, summaries, model_margins_df, dataset_accuracy_df):
     """
@@ -483,7 +408,6 @@ def save_cross_dataset_results(results_dir, summaries, model_margins_df, dataset
     
     return comparison_dir
 
-
 def print_latex_summary(summaries, model_margins_df=None):
     """Print LaTeX-formatted summary tables."""
     print(f"\n{'='*60}")
@@ -505,14 +429,14 @@ def print_latex_summary(summaries, model_margins_df=None):
             if 'index' in combined_df.columns:
                 combined_df = combined_df.rename(columns={'index': 'model'})
         
-        # Order: Precision, Recall, F1, Test Acc, AUC, Train Acc, Val Acc
+        # Order: Precision, Recall, F1, Test Acc, AUCs, Train Acc, Val Acc
         key_cols = ['precision_class_1', 'recall_class_1', 'f1_class_1', 
-                   'test_accuracy', 'auc', 'train_accuracy', 'val_accuracy']
+                   'test_accuracy', 'roc_auc', 'pr_auc', 'train_accuracy', 'val_accuracy']
         
         # Fallback to 'accuracy' if 'test_accuracy' doesn't exist
         if 'test_accuracy' not in combined_df.columns and 'accuracy' in combined_df.columns:
             key_cols = ['precision_class_1', 'recall_class_1', 'f1_class_1', 
-                       'accuracy', 'auc', 'train_accuracy', 'val_accuracy']
+                       'accuracy', 'roc_auc', 'pr_auc', 'train_accuracy', 'val_accuracy']
         
         # Only include columns that actually exist
         available_cols = ['model'] + [col for col in key_cols if col in combined_df.columns]
@@ -558,19 +482,25 @@ def print_latex_summary(summaries, model_margins_df=None):
                 " $\\pm$ " + \
                 margin_display['test_accuracy_std_across_datasets'].apply(lambda x: f"{x:.4f}")
         
-        if 'f1_mean_across_datasets' in margin_display.columns:
+        if 'f1_class_1_mean_across_datasets' in margin_display.columns:
             margin_display['F1 (Datasets)'] = \
-                margin_display['f1_mean_across_datasets'].apply(lambda x: f"{x:.4f}") + \
+                margin_display['f1_class_1_mean_across_datasets'].apply(lambda x: f"{x:.4f}") + \
                 " $\\pm$ " + \
-                margin_display['f1_std_across_datasets'].apply(lambda x: f"{x:.4f}")
+                margin_display['f1_class_1_std_across_datasets'].apply(lambda x: f"{x:.4f}")
         
-        if 'auc_mean_across_datasets' in margin_display.columns:
-            margin_display['AUC (Datasets)'] = \
-                margin_display['auc_mean_across_datasets'].apply(lambda x: f"{x:.4f}") + \
+        if 'roc_auc_mean_across_datasets' in margin_display.columns:
+            margin_display['ROC AUC (Datasets)'] = \
+                margin_display['roc_auc_mean_across_datasets'].apply(lambda x: f"{x:.4f}") + \
                 " $\\pm$ " + \
-                margin_display['auc_std_across_datasets'].apply(lambda x: f"{x:.4f}")
+                margin_display['roc_auc_std_across_datasets'].apply(lambda x: f"{x:.4f}")
+                
+        if 'pr_auc_mean_across_datasets' in margin_display.columns:
+            margin_display['PR AUC (Datasets)'] = \
+                margin_display['pr_auc_mean_across_datasets'].apply(lambda x: f"{x:.4f}") + \
+                " $\\pm$ " + \
+                margin_display['pr_auc_std_across_datasets'].apply(lambda x: f"{x:.4f}")
         
-        display_cols = ['model', 'Test Accuracy (Datasets)', 'F1 (Datasets)', 'AUC (Datasets)']
+        display_cols = ['model', 'Test Accuracy (Datasets)', 'F1 (Datasets)', 'ROC AUC (Datasets)', 'PR AUC (Datasets)']
         available_display = [col for col in display_cols if col in margin_display.columns]
         
         if available_display:
@@ -579,7 +509,6 @@ def print_latex_summary(summaries, model_margins_df=None):
             print(margin_display.to_latex(index=False, escape=False, float_format="%.4f"))
         
         print()
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -680,6 +609,6 @@ if __name__ == "__main__":
             print(f"\nResults saved to: {os.path.join(results_dir, exp_name, 'averaged/')}")
     else:
         if len(summaries) >= 2:
-            print(f"\nCross-dataset comparison saved to: cross_dataset_comparisons/run_{{timestamp}}/")
+            print(f"\nCross-dataset comparison saved to: cross_dataset_comparisons/")
     
     print()

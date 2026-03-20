@@ -8,7 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 from spacy import displacy
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
 
@@ -22,19 +22,26 @@ class DataProcessing:
         df = pd.concat(dfs, axis=axis, ignore_index=ignore_index)
         return df
     
-    def shuffle_df(df: pd.DataFrame, random_state=42):
+    def shuffle_df(df: pd.DataFrame, random_state):
         """Shuffle the data"""
         df = df.sample(frac=1, random_state=random_state).reset_index(drop=True)
         return df
     
-    def split_data(features, labels_df, test_size=0.2, val_size=None, 
-                random_state=42, stratify_by=None):
+    def split_data(
+            features_df, 
+            labels_df,
+            random_state,
+            val_size=None, 
+            test_size=None,
+            stratify_by=None, 
+            stratify_kfold: int = None,
+            **kwargs):
         """
         Split features and labels into train/test or train/val/test sets.
         
         Parameters
         ----------
-        features : pd.DataFrame or np.ndarray
+        features_df : pd.DataFrame or np.ndarray
             Features to split
         labels_df : pd.DataFrame
             Label columns (e.g., ['Sentence Label', 'Author Type'])
@@ -45,7 +52,7 @@ class DataProcessing:
         random_state : int, default=42
             Random seed for reproducibility
         stratify_by : str, default=None
-            Column name to stratify on (e.g., 'Author Type')
+            Column name to stratify on (e.g., 'Sentence Label')
             If None, no stratification is used
         
         Returns
@@ -58,20 +65,37 @@ class DataProcessing:
         --------
         # 2-way split with stratification
         X_train, X_test, y_train, y_test = split_data(
-            features, labels, stratify_by='Author Type'
+            features, labels, stratify_by='Sentence Label'
         )
         
         # 3-way split (60% train, 20% val, 20% test)
         X_train, X_val, X_test, y_train, y_val, y_test = split_data(
-            features, labels, val_size=0.2, stratify_by='Author Type'
+            features, labels, val_size=0.2, stratify_by='Sentence Label'
         )
         """
         stratify = labels_df[stratify_by] if stratify_by else None
+
+        # 1) CHECK K-FOLD FIRST
+        if stratify_kfold:
+            skf = StratifiedKFold(n_splits=stratify_kfold, shuffle=True, random_state=random_state)
+
+            all_folds = []
+
+            for train_idx, val_idx in skf.split(features_df, labels_df):
+                X_train = features_df.iloc[train_idx]
+                X_val = features_df.iloc[val_idx]
+                y_train = labels_df.iloc[train_idx]
+                y_val = labels_df.iloc[val_idx]
+                
+                all_folds.append((X_train, X_val, y_train, y_val))
+                
+            return all_folds
         
         # No validation set - simple 2-way split
         if val_size is None:
             return train_test_split(
-                features, labels_df, 
+                features_df, 
+                labels_df, 
                 test_size=test_size, 
                 random_state=random_state,
                 stratify=stratify
@@ -80,7 +104,8 @@ class DataProcessing:
         # With validation set - two splits
         # Split 1: Remove test set
         X_temp, X_test, y_temp, y_test = train_test_split(
-            features, labels_df,
+            features_df, 
+            labels_df,
             test_size=test_size,
             random_state=random_state,
             stratify=stratify
@@ -91,7 +116,8 @@ class DataProcessing:
         stratify_temp = y_temp[stratify_by] if stratify_by else None
         
         X_train, X_val, y_train, y_val = train_test_split(
-            X_temp, y_temp,
+            X_temp, 
+            y_temp,
             test_size=val_size_adjusted,
             random_state=random_state,
             stratify=stratify_temp
@@ -1051,15 +1077,16 @@ class DataProcessing:
         
         return numerical_labels_df
     
-    def apply_resampling_full_dimensions(df: pd.DataFrame,
-                                        embedding_col: str,
-                                        label_col: str,
-                                        method: str = 'oversample',
-                                        sampling_strategy: str = 'auto',
-                                        random_state: int = 42,
-                                        save_path: str = None,
-                                        save_prefix: str = 'resampled_full',
-                                        save_file_type: str = 'csv') -> pd.DataFrame:
+    def apply_resampling_full_dimensions(
+            df: pd.DataFrame,
+            embedding_col: str,
+            label_col: str,
+            random_state,
+            method: str = 'oversample',
+            sampling_strategy: str = 'auto',
+            save_path: str = None,
+            save_prefix: str = 'resampled_full',
+            save_file_type: str = 'csv') -> pd.DataFrame:
         """Apply resampling to full 96-dimensional embeddings."""
         X_full = np.stack(df[embedding_col].values)
         y = df[label_col].values

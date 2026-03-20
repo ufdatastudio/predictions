@@ -49,8 +49,15 @@ class EvaluationMetric:
 
         return classification_report(y_true, y_prediction,  output_dict=True)
     
-    def get_confusion_matrix(y_true, y_prediction):
-        return confusion_matrix(y_true, y_prediction)
+    def get_confusion_matrix(y_true, y_pred, by_category=False):
+        cm = confusion_matrix(y_true, y_pred)
+
+        if by_category is True:
+            # Works only for binary classification
+            tn, fp, fn, tp = cm.ravel().tolist()
+            return cm, tn, fp, fn, tp
+
+        return cm
     
     def get_roc_auc(y_true, y_prediction):
         return roc_auc_score(y_true, y_prediction)
@@ -86,7 +93,6 @@ class EvaluationMetric:
         model.train_model(X_train, y_train)
         predictions = model.predict(X_test)
         
-
         metrics = EvaluationMetric.custom_evaluation_metrics(y_true=y_test, y_prediction=predictions)
         metrics['Model'] = model.get_model_name()
         
