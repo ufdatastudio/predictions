@@ -329,11 +329,11 @@ class TextGenerationModelFactory(ABC):
         `pd.DataFrame`
             The generated completion response formatted as a DataFrame.
         """
-        # 1. Ask the LLM for a JSON‑encoded prediction
+        # Ask the LLM for a JSON‑encoded prediction
         prompt_template = (
             f"{prompt_template}\n\n"
             f"Respond ONLY with **valid JSON** in this exact format.\n"
-            f"For templates without some of the respective properties, fill the property with '-'\n"
+            f"For templates without some of the respective properties, leave the property blank (do not make up any properties if none are provided)\n"
             f'{{"p_s": __, "p_t": __, "p_d": __, "p_a": __, "p_m": __, "p_sl": __, "Base Sentence": "T#: <base sentence>"}}:\n'
             f"No markdown, no comments, no extra lines."
         )
@@ -414,6 +414,29 @@ class TextGenerationModelFactory(ABC):
         logger.dataframe_to_csv(df_to_save, save_from_df_name)
         logger.csv_to_log(save_from_df_name, save_from_csv_name)
 
+    def build_metadata(self, row: pd.Series) -> dict:
+        """Build the metadata for the batch.
+        
+        Parameters:
+        -----------
+        row: `pd.Series`
+            The row of the DataFrame to build the metadata for.
+        
+        Returns:
+        --------
+        `dict`
+            The metadata for the batch.
+        """
+        return {
+                "model_name": row.get("Model Name"),
+                "api_name": row.get("API Name"),
+                "batch_id": row.get("Batch ID"),
+                "temperature": row.get("Temperature"),
+                "top_p": row.get("Top P"),
+                "generation_date": row.get("Generation Date"),
+                "template_number": row.get("Template Number"),
+                "template_text": row.get("Template Text")}
+
     def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label, save_path: str, batch_prediction_date: datetime, prediction_templates: list):
         """Generate a completion response and return as a DataFrame.
 
@@ -467,6 +490,18 @@ class TextGenerationModelFactory(ABC):
                     batch_dfs.append(model_df)
                     batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
                     reformat_batch_predictions_df = DataProcessing.reformat_df_with_template_number(batch_predictions_df, prediction_templates, col_name="Base Sentence")
+
+                    reformat_batch_predictions_df["Metadata"] = reformat_batch_predictions_df.apply(self.build_metadata, axis=1)
+                    drop_cols = [
+                                "Model Name",
+                                "API Name",
+                                "Batch ID",
+                                "Temperature",
+                                "Top P",
+                                "Generation Date",
+                                "Template Number",
+                                "Template Text"]
+                    reformat_batch_predictions_df = reformat_batch_predictions_df.drop(columns=drop_cols, errors="ignore")
                 print()
 
                 # print(f"NEW DOMAIN: {domain}")
