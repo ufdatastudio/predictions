@@ -155,38 +155,24 @@ class DataVisualizing:
     def plot_balancedness_before_after(
         df_before: pd.DataFrame,
         df_after: pd.DataFrame,
-        label_col: str = 'Prediction',
+        label_col: str = 'Label',
         class_names: list = ['Non-Prediction', 'Prediction'],
         feature_cols: list = ['Feature_1', 'Feature_2'],
         method_name: str = 'Resampling',
+        title: str = None,
+        save: bool = False,
+        save_path: str = None
     ) -> None:
         """
         Parameters
         ----------
-        df_before : pd.DataFrame
-            DataFrame before resampling.
-        df_after : pd.DataFrame
-            DataFrame after resampling.
-        label_col : str, default 'Prediction'
-            Column name holding binary labels.
-        class_names : list, default ['Non-Prediction', 'Prediction']
-            Human-readable names for [class_0, class_1].
-        feature_cols : list, default ['Feature_1', 'Feature_2']
-            Two feature column names used for the scatter plot.
-        method_name : str, default 'Resampling'
-            Name of the resampling method (used in titles).
-
-        Notes
-        -----
-        2x2 grid: bar charts (top) and scatter plots (bottom),
-        before and after resampling.
-
-        Returns
-        -------
-        None
+        # ... (rest of your docstring) ...
+        save : bool, default False
+            Whether to save the figure to disk.
+        save_path : str, optional
+            The directory path where the figure should be saved.
         """
         fig = plt.figure(figsize=(14, 10))
-
         # ---- Top row: bar charts ----------------------------------------
         for col_idx, (df, stage) in enumerate(
             [(df_before, 'Before'), (df_after, 'After')], start=1
@@ -194,7 +180,6 @@ class DataVisualizing:
             ax = plt.subplot(2, 2, col_idx)
             counts = df[label_col].value_counts().sort_index()
             total = len(df)
-
             bars = ax.bar(
                 [0, 1], counts.values,
                 color=['#1f77b4', '#ff7f0e'],
@@ -209,14 +194,20 @@ class DataVisualizing:
                     ha='center', va='bottom',
                     fontsize=10, fontweight='bold',
                 )
-
             ax.set_xticks([0, 1])
             ax.set_xticklabels(class_names)
             ax.set_ylabel('Count')
-            ax.set_title(f'{stage} {method_name} – Class Distribution')
+            
+            # Format the title dynamically
+            if title is None:
+                chart_title = f'{stage} {method_name} – Class Distribution'
+            else:
+                chart_title = f'{stage}: {title} – Class Distribution'
+                
+            ax.set_title(chart_title)
             ax.set_ylim(0, max(counts.values) * 1.30)
             ax.grid(axis='y', alpha=0.3)
-
+            
         # ---- Bottom row: scatter plots ----------------------------------
         for col_idx, (df, stage) in enumerate(
             [(df_before, 'Before'), (df_after, 'After')], start=3
@@ -224,19 +215,40 @@ class DataVisualizing:
             ax = plt.subplot(2, 2, col_idx)
             X = df[feature_cols].values
             y = df[label_col].values
-
             ax.scatter(X[y == 0][:, 0], X[y == 0][:, 1],
                        label=class_names[0], alpha=0.5, edgecolor='k')
             ax.scatter(X[y == 1][:, 0], X[y == 1][:, 1],
                        label=class_names[1], alpha=0.5, edgecolor='k')
-            ax.set_title(f'{stage} {method_name} – Feature Space\n(n={len(df)})')
+                       
+            # Format the title dynamically
+            if title is None:
+                scatter_title = f'{stage} {method_name} – Feature Space\n(n={len(df)})'
+            else:
+                scatter_title = f'{stage}: {title} – Feature Space\n(n={len(df)})'
+                
+            ax.set_title(scatter_title)
             ax.set_xlabel(feature_cols[0])
             ax.set_ylabel(feature_cols[1])
             ax.legend()
             ax.grid(alpha=0.3)
-
+            
         plt.tight_layout()
-        plt.show()
+        
+        # Save logic
+        if save and save_path:
+            # Create a clean file prefix
+            base_prefix = title.lower().replace(' ', '_').replace('(', '').replace(')', '') if title else method_name.lower()
+            
+            # Use your DataProcessing save method (it uses plt.savefig internally if 'png' is passed)
+            DataProcessing.save_to_file(
+                data=fig, 
+                path=save_path, 
+                prefix=f'resampling_visual_{base_prefix}', 
+                save_file_type='png',
+                include_version=False
+            )
+            
+        # plt.show() # Optional depending on if you are running headless
         plt.close()
 
     def confusion_matrix(

@@ -2,15 +2,21 @@
 import os
 import sys
 import joblib
+import warnings
+warnings.filterwarnings("ignore")
 import argparse
 import matplotlib
 matplotlib.use('Agg')  # Prevent GUI windows from opening
-import warnings
-warnings.filterwarnings("ignore")
+
 import numpy as np
 import pandas as pd
+
 from datetime import datetime
 from typing import Dict, Any, Optional
+
+from imblearn.over_sampling import RandomOverSampler
+from imblearn.under_sampling import RandomUnderSampler
+
 # Get the current working directory of the script
 script_dir = os.getcwd()
 # Add the parent directory to the system path
@@ -50,10 +56,21 @@ def load_dataset(script_dir, dataset_path):
     
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    print(f"Shape: {df.shape}")
-    print(f"\nPreview:\n{df.head(7)}\n")
 
     # df = df.sample(n=300, random_state=42) 
+    
+    # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
+    if 'Dataset Name' not in df.columns:
+        filename = os.path.basename(dataset_path).lower()
+        if 'fpb' in filename:
+            df['Dataset Name'] = 'fpb-imbalanced'
+        elif 'chronicle' in filename:
+            df['Dataset Name'] = 'chronicle2050'
+        else:
+            df['Dataset Name'] = 'synthetic'
+            
+    print(f"Shape: {df.shape}")
+    print(f"\nPreview:\n{df.head(7)}\n")
     
     return df
 
@@ -134,53 +151,69 @@ def extract_sentence_embeddings(df, text_column='Base Sentence'):
     
     return embeddings_df, embeddings_col_name
 
+def resample_train_data(X_train_df, technique, col_name, seed, embeddings_col_name, y_col_name, save_visual_path):
+    print("\n" + "="*40)
+    print(f"RESAMPLE: {col_name} | {embeddings_col_name} | {y_col_name}")
+    print("="*40)
+    print(f"X_train_df Shape: {X_train_df.shape}")
+    print(f"\nX_train_df Preview:\n{X_train_df.head(7)}\n")
+    
+    # 1 & 2. Check and Split
+    filt = (X_train_df['Dataset Name'] == col_name)
+    df_to_resample = X_train_df[filt]
+    df_leave_alone = X_train_df[~filt]
+    print(f"df_to_resample Shape: {df_to_resample.shape}")
+    print(f"\ndf_to_resample Preview:\n{df_to_resample.head(7)}\n")
+    
+    # If the target dataset isn't in this specific training set, skip resampling entirely
+    if df_to_resample.empty:
+        print(f"⚠️ Target dataset '{col_name}' not found in this training split. Skipping resampling.")
+        X_resampled_df = X_train_df.drop(columns=[y_col_name])
+        y_resampled_df = X_train_df[[y_col_name]]
+        return X_resampled_df, y_resampled_df
+        
+    # 3. Resample ONLY the target dataset
+    resampled_df = DataProcessing.apply_resampling_full_dimensions(
+        df=df_to_resample,
+        embedding_col=embeddings_col_name,
+        label_col=y_col_name,
+        random_state=seed,
+        method=technique
+    )
+    
+    # 4. Recombine 
+    recombined_df = DataProcessing.concat_dfs([resampled_df, df_leave_alone], ignore_index=True)
+    
+    # Optional Visualizations (Commented out for massive runs)
+    # all_datasets_df = DataProcessing.extract_features_for_visualization(X_train_df, embeddings_col_name, y_col_name)
+    # resampled_with_non_resampled_datasets = DataProcessing.extract_features_for_visualization(recombined_df, embeddings_col_name, y_col_name)
+    # DataVisualizing.plot_balancedness_before_after(all_datasets_df, resampled_with_non_resampled_datasets, class_names=['NON-PREDICTION', 'PREDICTION'], method_name=technique, title=f'Original and Imbalanced x Original and Resampled ({technique})', save=True, save_path=save_visual_path)        
+    # imbalanced_df = DataProcessing.extract_features_for_visualization(df_to_resample, embeddings_col_name, y_col_name)
+    # resampled_features_df = DataProcessing.extract_features_for_visualization(resampled_df, embeddings_col_name, y_col_name)
+    # DataVisualizing.plot_balancedness_before_after(imbalanced_df, resampled_features_df, class_names=['NON-PREDICTION', 'PREDICTION'], method_name=technique, title=f'Imbalanced x Resampled ({technique})', save=True, save_path=save_visual_path)  
+    
+    # 5. Shuffle (CRITICAL)
+    recombined_df = recombined_df.sample(frac=1, random_state=seed).reset_index(drop=True)
+    
+    # Separate back into X and y DataFrames
+    X_resampled_df = recombined_df.drop(columns=[y_col_name])
+    y_resampled_df = recombined_df[[y_col_name]]
+    
+    return X_resampled_df, y_resampled_df
+
 def split_train_test(
     df: pd.DataFrame, 
     test_size: Optional[float] = None,
     val_size: Optional[float] = None,
     seed: int = 42, 
     stratify_kfold: Optional[int] = None, 
-    stratify_by: str = 'Sentence Label'
-) -> Dict[str, Any]:
+    stratify_by: str = 'Sentence Label',
+    embeddings_col_name: str = 'Base Sentence Embedding',
+    resampling_technique: Optional[str] = None,
+    resampling_col_name: str = 'fpb-imbalanced',
+    save_visual_path: str = None,
+    ) -> Dict[str, Any]:
     """
-    Notes:
-        Perform data splits with optional stratified K-Fold, returning a dictionary so the caller
-        doesn't need to juggle different tuple sizes.
-
-        Behavior (priority order):
-        1) If `stratify_kfold` is set (>0):
-                - If `test_size` > 0: first split off a held-out test set, then run K-Fold on the remaining training data.
-                - If `test_size` == 0 or None: run K-Fold on the full data.
-                - Returns:
-                    {
-                    "folds": List[Tuple[X_train, X_val, y_train, y_val]],
-                    "X_test": (optional, if test_size > 0),
-                    "y_test": (optional, if test_size > 0)
-                    }
-        2) Else if both `test_size` and `val_size`:
-                - Train/Val/Test split and returns:
-                    {
-                    "X_train", "X_val", "X_test",
-                    "y_train", "y_val", "y_test"
-                    }
-        3) Else if `test_size` only:
-                - Train/Test split and returns:
-                    {
-                    "X_train", "X_test",
-                    "y_train", "y_test"
-                    }
-        4) Else if `val_size` only:
-                - Train/Val split and returns:
-                    {
-                    "X_train", "X_val",
-                    "y_train", "y_val"
-                    }
-        5) Else:
-                - No split; returns:
-                    {
-                    "X": features (df without label column),
-                    "y": labels (df[[stratify_by]])
-                    }
     Returns:
         Dict[str, Any]: Splits dictionary as documented above.
     """
@@ -218,6 +251,27 @@ def split_train_test(
             stratify_kfold=k,
             stratify_by=stratify_by
         )
+        # Apply resampling dynamically to each fold's training set
+        if resampling_technique and resampling_col_name == 'fpb-imbalanced':
+            resampled_folds = []
+            for X_train_fold, X_val_fold, _, y_val_fold in all_folds:
+                
+                # Resample just the training data for this specific fold
+                resampled_X_train_df_fold, resampled_y_train_df_fold = resample_train_data(
+                    X_train_df=X_train_fold, 
+                    technique=resampling_technique, 
+                    col_name=resampling_col_name,
+                    seed=seed,
+                    embeddings_col_name=embeddings_col_name,
+                    y_col_name=stratify_by,
+                    save_visual_path=save_visual_path
+                )
+                    
+                # Append the resampled train sets and untouched val sets back together
+                resampled_folds.append((resampled_X_train_df_fold, X_val_fold, resampled_y_train_df_fold, y_val_fold))
+                
+            return {"folds": resampled_folds}
+            
         return {"folds": all_folds}
 
     # =========================================
@@ -232,6 +286,23 @@ def split_train_test(
             test_size=ts,
             stratify_by=stratify_by
         )
+        if resampling_technique and resampling_col_name:
+            if resampling_col_name == 'fpb-imbalanced':
+                # Don't pass in y_train bc that column is in X_train_df
+                resampled_X_train_df, resampled_y_train_df = resample_train_data(
+                    X_train_df=X_train_df, 
+                    technique=resampling_technique, 
+                    col_name=resampling_col_name,
+                    seed=seed,
+                    embeddings_col_name=embeddings_col_name,
+                    y_col_name=stratify_by,
+                    save_visual_path=save_visual_path
+                    )
+                
+                return {
+                    "X_train": resampled_X_train_df, "X_val": X_val_df, "X_test": X_test_df,
+                    "y_train": resampled_y_train_df, "y_val": y_val_df, "y_test": y_test_df
+                }
         return {
             "X_train": X_train_df, "X_val": X_val_df, "X_test": X_test_df,
             "y_train": y_train_df, "y_val": y_val_df, "y_test": y_test_df
@@ -248,6 +319,25 @@ def split_train_test(
             test_size=ts,
             stratify_by=stratify_by
         )
+        if resampling_technique and resampling_col_name:
+            if resampling_col_name == 'fpb-imbalanced':
+                # Don't pass in y_train bc that column is in X_train_df
+                resampled_X_train_df, resampled_y_train_df = resample_train_data(
+                    X_train_df=X_train_df, 
+                    technique=resampling_technique, 
+                    col_name=resampling_col_name,
+                    seed=seed,
+                    embeddings_col_name=embeddings_col_name,
+                    y_col_name=stratify_by,
+                    save_visual_path=save_visual_path
+                    )
+                
+                return {
+                    "X_train": resampled_X_train_df, "X_test": X_test_df,
+                    "y_train": resampled_y_train_df, "y_test": y_test_df
+                }
+            else:
+                X_train_df
         return {
             "X_train": X_train_df, "X_test": X_test_df,
             "y_train": y_train_df, "y_test": y_test_df
@@ -265,6 +355,23 @@ def split_train_test(
             train_size=vs,
             stratify_by=stratify_by
         )
+        if resampling_technique and resampling_col_name:
+            if resampling_col_name == 'fpb-imbalanced':
+                # Don't pass in y_train bc that column is in X_train_df
+                resampled_X_train_df, resampled_y_train_df = resample_train_data(
+                    X_train_df=X_train_df, 
+                    technique=resampling_technique, 
+                    col_name=resampling_col_name,
+                    seed=seed,
+                    embeddings_col_name=embeddings_col_name,
+                    y_col_name=stratify_by,
+                    save_visual_path=save_visual_path
+                    )
+                
+                return {
+                    "X_train": resampled_X_train_df, "X_val": X_val_df,
+                    "y_train": resampled_y_train_df, "y_val": y_val_df
+                }
         return {
             "X_train": X_train_df, "X_val": X_val_df,
             "y_train": y_train_df, "y_val": y_val_df
@@ -770,7 +877,8 @@ if __name__ == "__main__":
                     help="Optional string to append to the output folder name (e.g., '-weighted')")
     parser.add_argument('--stratified_kfold', default=None,
                         help='Maintains class proportions in each fold. Import for imbalanced data.')
-    
+    parser.add_argument('--resample_method', default=None,
+                        help='Over/Under sample. Import for imbalanced data.')
     args = parser.parse_args()
     
     # ============================================================
@@ -842,7 +950,11 @@ if __name__ == "__main__":
         val_size=args.val_size,
         seed=args.seed, 
         stratify_kfold=args.stratified_kfold,
-        stratify_by=args.label_column
+        stratify_by=args.label_column,
+        embeddings_col_name=embeddings_col_name,
+        resampling_technique=args.resample_method,
+        resampling_col_name='fpb-imbalanced',
+        save_visual_path=seed_dir
     )
         
     # Safely extract variables (returns None if they weren't created)

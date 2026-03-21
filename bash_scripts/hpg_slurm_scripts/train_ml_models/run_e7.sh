@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=ml_e7
-#SBATCH --output=logs_%x_%j.out
-#SBATCH --error=logs_%x_%j.err
+#SBATCH --output=../logs/train_ml_models/logs_%x_%j.out
+#SBATCH --error=../logs/train_ml_models/logs_%x_%j.err
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -24,18 +24,65 @@ for seed in 3 7 33; do
     echo ""
     
     echo ">>> Running E7 (Standard)"
-    python ml-train.py --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv --val_size 0.2 --seed $seed
+    python ml-train.py \
+        --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
+        --val_size 0.2 \
+        --seed $seed
     
     echo ">>> Running E7 (Weighted)"
-    python ml-train.py --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv --val_size 0.2 --seed $seed \
-        --reweight_class 'balanced' --experiment_suffix="-weighted"
+    python ml-train.py \
+        --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
+        --val_size 0.2 \
+        --seed $seed \
+        --reweight_class 'balanced' \
+        --experiment_suffix="-weighted"
+
+    echo ">>> Running E7 (Oversampled)"
+    python ml-train.py \
+        --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
+        --val_size 0.2 \
+        --seed $seed \
+        --resample_method oversample \
+        --experiment_suffix="-oversampled"
+
+    echo ">>> Running E7 (Undersampled)"
+    python ml-train.py \
+        --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
+        --val_size 0.2 \
+        --seed $seed \
+        --resample_method undersample \
+        --experiment_suffix="-undersampled"
 
     for k in 3 7; do
         echo ">>> Running E7 ($k-Fold)"
-        python ml-train.py --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv --seed $seed --stratified_kfold $k
+        python ml-train.py \
+            --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
+            --seed $seed \
+            --stratified_kfold $k \
+            --experiment_suffix="-kfold$k"
         
         echo ">>> Running E7 (Weighted $k-Fold)"
-        python ml-train.py --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv --seed $seed --stratified_kfold $k \
-            --reweight_class 'balanced' --experiment_suffix="-weighted"
+        python ml-train.py \
+            --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
+            --seed $seed \
+            --stratified_kfold $k \
+            --reweight_class 'balanced' \
+            --experiment_suffix="-weighted-kfold$k"
+
+        echo ">>> Running E7 (Oversampled $k-Fold)"
+        python ml-train.py \
+            --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
+            --seed $seed \
+            --stratified_kfold $k \
+            --resample_method oversample \
+            --experiment_suffix="-oversampled-kfold$k"
+
+        echo ">>> Running E7 (Undersampled $k-Fold)"
+        python ml-train.py \
+            --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
+            --seed $seed \
+            --stratified_kfold $k \
+            --resample_method undersample \
+            --experiment_suffix="-undersampled-kfold$k"
     done
 done

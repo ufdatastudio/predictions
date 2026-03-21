@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=ml_weight
+#SBATCH --job-name=ml_under
 #SBATCH --output=../logs/train_ml_models/logs_%x_%j.out
 #SBATCH --error=../logs/train_ml_models/logs_%x_%j.err
 #SBATCH --time=12:00:00
@@ -15,7 +15,7 @@ cd ../../../prediction_classification_experiments-v2
 module load python/3
 source ../.venv/bin/activate
 
-echo "Running WEIGHTED (E1-E7)"
+echo "Running UNDERSAMPLED (E1-E7)"
 for seed in 3 7 33; do
     echo ""
     echo "============================================================"
@@ -29,8 +29,8 @@ for seed in 3 7 33; do
         --no_test_split \
         --val_size 0.2 \
         --seed $seed \
-        --reweight_class 'balanced' \
-        --experiment_suffix="-weighted" \
+        --resample_method undersample \
+        --experiment_suffix="-undersampled" \
         --test_datasets \
             ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv \
             ../data/chronicle2050/chronicle2050-renamed_cols.csv
@@ -41,8 +41,8 @@ for seed in 3 7 33; do
         --no_test_split \
         --val_size 0.2 \
         --seed $seed \
-        --reweight_class 'balanced' \
-        --experiment_suffix="-weighted" \
+        --resample_method undersample \
+        --experiment_suffix="-undersampled" \
         --test_datasets \
             ../data/combined_datasets/combined-full_synthetic-v1.csv \
             ../data/chronicle2050/chronicle2050-renamed_cols.csv
@@ -53,8 +53,8 @@ for seed in 3 7 33; do
         --no_test_split \
         --val_size 0.2 \
         --seed $seed \
-        --reweight_class 'balanced' \
-        --experiment_suffix="-weighted" \
+        --resample_method undersample \
+        --experiment_suffix="-undersampled" \
         --test_datasets \
             ../data/combined_datasets/combined-full_synthetic-v1.csv \
             ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv
@@ -65,8 +65,8 @@ for seed in 3 7 33; do
         --no_test_split \
         --val_size 0.2 \
         --seed $seed \
-        --reweight_class 'balanced' \
-        --experiment_suffix="-weighted" \
+        --resample_method undersample \
+        --experiment_suffix="-undersampled" \
         --test_datasets \
             ../data/chronicle2050/chronicle2050-renamed_cols.csv
 
@@ -76,8 +76,8 @@ for seed in 3 7 33; do
         --no_test_split \
         --val_size 0.2 \
         --seed $seed \
-        --reweight_class 'balanced' \
-        --experiment_suffix="-weighted" \
+        --resample_method undersample \
+        --experiment_suffix="-undersampled" \
         --test_datasets \
             ../data/financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv
 
@@ -87,8 +87,8 @@ for seed in 3 7 33; do
         --no_test_split \
         --val_size 0.2 \
         --seed $seed \
-        --reweight_class 'balanced' \
-        --experiment_suffix="-weighted" \
+        --resample_method undersample \
+        --experiment_suffix="-undersampled" \
         --test_datasets \
             ../data/combined_datasets/combined-full_synthetic-v1.csv
 
@@ -97,6 +97,6 @@ for seed in 3 7 33; do
         --dataset ../data/combined_datasets/combined-synthetic_fpb_chr2050-v1.csv \
         --val_size 0.2 \
         --seed $seed \
-        --reweight_class 'balanced' \
-        --experiment_suffix="-weighted"
+        --resample_method undersample \
+        --experiment_suffix="-undersampled"
 done

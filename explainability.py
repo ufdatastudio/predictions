@@ -4,7 +4,7 @@ import shap
 import joblib
 import argparse
 import matplotlib
-matplotlib.use('Agg')  # Prevent GUI windows from opening
+# matplotlib.use('Agg')  # Prevent GUI windows from opening
 import numpy as np
 import pandas as pd
 from datetime import datetime

@@ -1082,15 +1082,24 @@ class DataProcessing:
             embedding_col: str,
             label_col: str,
             random_state,
-            method: str = 'oversample',
+            method: str,
             sampling_strategy: str = 'auto',
             save_path: str = None,
-            save_prefix: str = 'resampled_full',
-            save_file_type: str = 'csv') -> pd.DataFrame:
+            save_prefix: str = None,
+            save_file_type: str = None) -> pd.DataFrame:
         """Apply resampling to full 96-dimensional embeddings."""
         X_full = np.stack(df[embedding_col].values)
         y = df[label_col].values
-        
+
+        print("\n" + "="*40)
+        print(f"RESAMPLE: {embedding_col} | {label_col}")
+        print("="*40)
+        print(f"X_full Shape: {X_full.shape}")
+        print(f"\nX_full Preview:\n{X_full}\n")
+        print(f"y Shape: {y.shape}")
+        print(f"\ny Preview:\n{y}\n")
+
+
         if method == 'oversample':
             resampler = RandomOverSampler(sampling_strategy=sampling_strategy, random_state=random_state)
         elif method == 'undersample':
@@ -1130,6 +1139,12 @@ class DataProcessing:
                                        embedding_col: str, 
                                        label_col: str) -> pd.DataFrame:
         """Extract first 2 dimensions from embeddings for visualization."""
+        print("\n" + "="*40)
+        print(f"EXTRACT FEATURES FOR VISUALIZING: {embedding_col} | {label_col}")
+        print("="*40)
+        print(f"df Shape: {df.shape}")
+        print(f"\ndf Preview:\n{df.head(7)}\n")
+
         embeddings_array = np.stack(df[embedding_col].values)
         features_df = pd.DataFrame({
             'Feature_1': embeddings_array[:, 0],
