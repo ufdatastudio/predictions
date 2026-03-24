@@ -50,13 +50,13 @@ class EvaluationMetric:
         return classification_report(y_true, y_prediction,  output_dict=True)
     
     def get_confusion_matrix(y_true, y_pred, by_category=False):
-        cm = confusion_matrix(y_true, y_pred)
-
+        
+        # Enforce a 2x2 matrix by specifying the binary labels
+        cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
         if by_category is True:
             # Works only for binary classification
             tn, fp, fn, tp = cm.ravel().tolist()
             return cm, tn, fp, fn, tp
-
         return cm
     
     def get_roc_auc(y_true, y_prediction):

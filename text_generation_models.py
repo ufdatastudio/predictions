@@ -142,10 +142,10 @@ class TextGenerationModelFactory(ABC):
             # Return all available models
             model_names = self.get_all_model_names()
         
-        models = []
+        models = {}
         for model_name in model_names:
             try:
-                models.append(self.create_instance(model_name))
+                models[model_name] = self.create_instance(model_name)
             except ValueError as e:
                 print(f"Warning: {e}")
         
