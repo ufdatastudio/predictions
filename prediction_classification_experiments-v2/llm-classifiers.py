@@ -38,7 +38,7 @@ def load_dataset(dataset_path):
     print(f"Shape: {df.shape}")
     print(f"\nPreview:\n{df.head(7)}\n")
     print(f"\nPreview:\n{df.tail(7)}\n")
-    df = df.sample(n=7, random_state=3) # Added random_state for reproducibility
+    df = df.sample(n=40, random_state=42) # Added random_state for reproducibility
     
     return df
 
@@ -52,8 +52,8 @@ def build_model(model_name):
     pp = pprint.PrettyPrinter(indent=3)
     pp.pprint(model_name)
     
-    models = tgmf.create_instances([model_name])
-    return models[model_name]
+    models = tgmf.create_instance(model_name)
+    return models
 
 def load_prompt():
     system_identity_prompt = "You are an expert at identifying specific types of sentences called prediction."
@@ -110,7 +110,7 @@ def _llm_classifier(sentence_to_classify: str, base_prompt: str, model, task, fo
       
       return raw_text_llm_generation, label
 
-def llm_classifier(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output):
+def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output):
     print(f"Shape: {test_df.shape}")
     print(f"\nPreview:\n{test_df.head(7)}\n")
     print(f"\nPreview:\n{test_df.tail(7)}\n")
@@ -119,6 +119,8 @@ def llm_classifier(model_name, model, test_df, base_prompt, sentence_label_task,
     print(model_name, model)
     
     for loop_idx, (idx, row) in enumerate(tqdm(test_df.iterrows(), total=len(test_df), desc="Processing")):
+        print(idx, row)
+        print()
         text = row['Base Sentence']
         
         if loop_idx < 3:
@@ -328,7 +330,7 @@ if __name__ == "__main__":
     # 2. EXPERIMENT SETUP
     # ============================================================
     current_date = datetime.now().strftime('%Y-%m-%d')
-    seed_value = 3 # Default random seed for tracking
+    seed_value = 42 # Default random seed for tracking
     save_directory = os.path.dirname(args.test_datasets)
     
     # ============================================================
@@ -345,7 +347,7 @@ if __name__ == "__main__":
     # ============================================================
     # 4. RUN INFERENCE
     # ============================================================
-    y_hat_df = llm_classifier(
+    y_hat_df = llm_classifer(
         args.model_name,
         model,
         test_df,
@@ -371,13 +373,7 @@ if __name__ == "__main__":
         # X_val_df=val_df,
         # y_val_df=val_df[[args.label_column]] if val_df is not None else None
     )
-
-    DataProcessing.save_to_file(
-        data=metrics_summary_df, 
-        path=default_load_save_path,
-        prefix=f"{args.model_name}_metrics_summary.csv",
-        save_file_type='csv'
-    )
+        
     # ============================================================
     # 9. COMPLETE
     # ============================================================
