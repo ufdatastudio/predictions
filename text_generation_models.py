@@ -40,7 +40,6 @@ class TextGenerationModelFactory(ABC):
         self.top_p = top_p
         self.model_name = None
     
-   
     def map_platform_to_api(self, platform_name: str):
         """
         Parameter:
