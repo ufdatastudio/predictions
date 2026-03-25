@@ -21,11 +21,9 @@ sys.path.append(os.path.join(script_dir, '../'))
 
 from metrics import EvaluationMetric
 from data_processing import DataProcessing
+from data_visualizing import DataVisualizing
 from prediction_properties import PredictionProperties
 from text_generation_models import TextGenerationModelFactory
-
-# If you have a DataVisualizing module, uncomment this:
-# from visualizations import DataVisualizing 
 
 def load_dataset(dataset_path):
     """Load dataset from file path."""
@@ -95,14 +93,14 @@ def parse_json_response(response, reasoning=False):
             return None  # Return single None when reasoning=False
 
 def _llm_classifier(
-        sentence_to_classify, 
-        base_prompt, 
-        model, 
-        task, 
+        sentence_to_classify,
+        base_prompt,
+        model,
+        task,
         format_output,
         is_first,
-        max_attempts=5, 
-        base_wait_time=300, 
+        max_attempts=5,
+        base_wait_time=300,
         max_total_wait=43200):
       prompt = f"""{base_prompt}
       
@@ -136,7 +134,7 @@ def _llm_classifier(
               attempt += 1
               
               if "rate limit" in error_msg or "429" in error_msg:
-                  # Progressively increase wait time, e.g., 60s, 120s, 180s...
+                  # Progressively increase wait time, e.g., 300s, 600s, 900s...
                   current_wait_time = base_wait_time * attempt 
                   
                   if total_waited + current_wait_time > max_total_wait:
@@ -231,6 +229,10 @@ def evaluate_models(
     actual_labels = results_df[label_col_name].values
     predictions = results_df[model_name].values
     
+    # Recreate X_test_list and y_test_df for DataVisualizing methods
+    X_test_list = results_df['Base Sentence'].to_list()
+    y_test_df = results_df[[label_col_name]]
+    
     # Fill NaN predictions with a default (e.g., 0) if LLM failed to parse
     predictions = np.nan_to_num(np.array(predictions, dtype=float), nan=0.0)
     
@@ -256,12 +258,12 @@ def evaluate_models(
     print(f"Confusion Matrix:\n{confusion_mat}\n")
     
     # Save confusion matrix visualization
-    # DataVisualizing.confusion_matrix(
-    #     model_name,
-    #     confusion_mat, 
-    #     save_path, 
-    #     include_version=False
-    # )
+    DataVisualizing.confusion_matrix(
+        model_name,
+        confusion_mat, 
+        save_path, 
+        include_version=False
+    )
     print(f"✓ Saved confusion matrix: confusion_matrix_{model_name}.png\n")
     
     # ROC-AUC score
@@ -277,7 +279,7 @@ def evaluate_models(
     #     save_path, 
     #     include_version=False
     # )
-    print(f"✓ Saved POC-CURVE: pos_curve{model_name}.png\n")
+    # print(f"✓ Saved POC-CURVE: pos_curve{model_name}.png\n")
     
     # PR-AUC
     pr_auc_score = EvaluationMetric.get_pr_auc(actual_labels, continuous_scores)
@@ -292,7 +294,7 @@ def evaluate_models(
     #     save_path, 
     #     include_version=False
     # )
-    print(f"✓ Saved PR-CURVE: pr_curve{model_name}.png\n")
+    # print(f"✓ Saved PR-CURVE: pr_curve{model_name}.png\n")
             
     # Build unified metrics row
     metrics_row = {
@@ -329,7 +331,14 @@ def evaluate_models(
     print(metrics_summary_df)
     print()
     
-    # metrics_summary_df.to_csv(os.path.join(save_path, f"metrics_summary_{model_name}.csv"), index=False)
+    # Use DataProcessing to save the dataframe as CSV
+    DataProcessing.save_to_file(
+        data=metrics_summary_df,
+        path=save_path,
+        prefix=f"metrics_summary_{model_name}",
+        save_file_type='csv',
+        include_version=True
+    )
     
     return metrics_summary_df
     
@@ -349,7 +358,7 @@ if __name__ == "__main__":
     
     default_load_save_path = os.path.join(base_data_path, 'classification_results/train_synthetic-v1_2026-03-23/seed3/external_fpb-maya-binary-imbalanced-96d-v1')
     default_dataset_path = os.path.join(default_load_save_path, 'x_y_test_set.csv')
-    print(default_dataset_path)
+    # print(default_dataset_path)
     
     parser = argparse.ArgumentParser(
         description='Train ML classifiers for prediction sentence classification'
@@ -384,6 +393,7 @@ if __name__ == "__main__":
     current_date = datetime.now().strftime('%Y-%m-%d')
     seed_value = 42 # Default random seed for tracking
     save_directory = os.path.dirname(args.test_datasets)
+    print(save_directory)
     
     # ============================================================
     # 3. LOAD & PREPARE DATA

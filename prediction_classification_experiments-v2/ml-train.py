@@ -22,11 +22,12 @@ script_dir = os.getcwd()
 # Add the parent directory to the system path
 sys.path.append(os.path.join(script_dir, '../'))
 from metrics import EvaluationMetric
+from explainability import Explainability
 from data_processing import DataProcessing
 from data_visualizing import DataVisualizing
 from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
-from explainability import Explainability
+
 
 def create_output_directory(args, experiment_name):
     """Create unique output directory with date and seed."""
@@ -678,11 +679,11 @@ def evaluate_and_save_results(
     DataProcessing.save_to_file(
         models_metrics_df, 
         path=eval_save_path, 
-        prefix='ml_metrics_summary', 
+        prefix='metrics_summary_ml_models', 
         save_file_type='csv', 
         include_version=False,
         )
-    print(f"✓ Saved metrics summary to: {os.path.join(eval_save_path, 'ml_metrics_summary.csv')}")
+    print(f"✓ Saved metrics summary to: {os.path.join(eval_save_path, 'metrics_summary_ml_models.csv')}")
 
 def evaluate_external_datasets(
     test_dataset_paths,
