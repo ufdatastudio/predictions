@@ -38,7 +38,7 @@ def load_dataset(dataset_path):
     print(f"Shape: {df.shape}")
     print(f"\nPreview:\n{df.head(7)}\n")
     print(f"\nPreview:\n{df.tail(7)}\n")
-    df = df.sample(n=40, random_state=42) # Added random_state for reproducibility
+    df = df.sample(n=15, random_state=42) # Added random_state for reproducibility
     
     return df
 

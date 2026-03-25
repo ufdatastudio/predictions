@@ -50,7 +50,7 @@ class EvaluationMetric:
         return classification_report(y_true, y_prediction,  output_dict=True)
     
     def get_confusion_matrix(y_true, y_pred, by_category=False):
-        cm = confusion_matrix(y_true, y_pred)
+        cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
 
         if by_category is True:
             # Works only for binary classification
