@@ -17,7 +17,7 @@ module load python/3
 source ../.venv/bin/activate
 
 echo "============================================================"
-echo "          SENTENCE CLASSIFCATION: gpt-oss-120b"
+echo "          SENTENCE CLASSIFCATION (HPG): gpt-oss-120b"
 echo "============================================================"
 
 python llm-classifiers.py \

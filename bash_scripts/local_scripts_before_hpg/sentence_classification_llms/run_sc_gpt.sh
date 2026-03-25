@@ -4,7 +4,7 @@
 cd ../../../prediction_classification_experiments-v2
 
 echo "============================================================"
-echo "          SMOKE TEST: gpt-oss-120b"
+echo "          SENTENCE CLASSIFICATION (LOCAL): gpt-oss-120b"
 echo "============================================================"
 
 python llm-classifiers.py \
