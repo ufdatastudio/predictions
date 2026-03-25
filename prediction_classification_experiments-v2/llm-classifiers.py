@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import json
+import time
 import pprint
 import argparse
 import matplotlib
@@ -75,6 +76,9 @@ def load_prompt():
 def parse_json_response(response, reasoning=False):
     """Parse JSON response from LLM to extract label and reasoning"""
     try:
+        if response is None:
+            return (None, None) if reasoning else None
+            
         # Extract JSON if there's extra text
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if json_match:
@@ -90,7 +94,16 @@ def parse_json_response(response, reasoning=False):
         else:
             return None  # Return single None when reasoning=False
 
-def _llm_classifier(sentence_to_classify: str, base_prompt: str, model, task, format_output: str, is_first: bool):
+def _llm_classifier(
+        sentence_to_classify, 
+        base_prompt, 
+        model, 
+        task, 
+        format_output,
+        is_first,
+        max_attempts=5, 
+        base_wait_time=300, 
+        max_total_wait=43200):
       prompt = f"""{base_prompt}
       
       Sentence to label: '{sentence_to_classify}'
@@ -103,12 +116,51 @@ def _llm_classifier(sentence_to_classify: str, base_prompt: str, model, task, fo
             print(f"\tPrompt: {prompt}")
             
       input_prompt = model.user(prompt)
-      raw_text_llm_generation = model.chat_completion([input_prompt])
-      # print(f"Raw response: {raw_text_llm_generation}")
-      # Parse the JSON response
-      label = parse_json_response(raw_text_llm_generation, reasoning=False)
       
-      return raw_text_llm_generation, label
+      success = False
+      attempt = 0
+      total_waited = 0
+      
+      while not success and attempt < max_attempts:
+          try:
+              if attempt > 0:
+                  print(f"Executing LLM request (Attempt {attempt + 1})...")
+                  
+              raw_text_llm_generation = model.chat_completion([input_prompt])
+              label = parse_json_response(raw_text_llm_generation, reasoning=False)
+              
+              return raw_text_llm_generation, label
+              
+          except Exception as e:
+              error_msg = str(e).lower()
+              attempt += 1
+              
+              if "rate limit" in error_msg or "429" in error_msg:
+                  # Progressively increase wait time, e.g., 60s, 120s, 180s...
+                  current_wait_time = base_wait_time * attempt 
+                  
+                  if total_waited + current_wait_time > max_total_wait:
+                      print(f"Max total wait time ({max_total_wait}s) exceeded. Stopping retry to prevent exceeding requested SLURM time.")
+                      return None, None
+                      
+                  print(f"Rate limit detected. Waiting {current_wait_time} seconds before retry...")
+                  time.sleep(current_wait_time)
+                  total_waited += current_wait_time
+                  
+              elif "badrequesterror" in error_msg:
+                  print(f"Bad Request Error. Stopping processing for this sentence.")
+                  print(f"Error details: {e}")
+                  return None, None
+                  
+              else:
+                  print(f"An unexpected error occurred: {e}")
+                  if attempt < max_attempts:
+                      print(f"Retrying in 10 seconds...")
+                      time.sleep(10)
+                      total_waited += 10
+                  else:
+                      print(f"Max attempts ({max_attempts}) reached. Skipping this sentence to prevent pipeline failure.")
+                      return None, None
 
 def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output):
     print(f"Shape: {test_df.shape}")
