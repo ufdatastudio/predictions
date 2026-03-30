@@ -1,12 +1,20 @@
 import os
+
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
 import matplotlib.pyplot as plt
-from typing import Union, Optional
+
 from spacy import displacy
 from spacy.tokens import Doc
+from typing import Union, Optional
+
+from sklearn.manifold import TSNE
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from IPython.display import HTML, display
+
 from data_processing import DataProcessing
 from sklearn.metrics import RocCurveDisplay, PrecisionRecallDisplay
 
@@ -455,6 +463,85 @@ class DataVisualizing:
         plt.show()
         plt.close()
 
+    def plot_kmeans_tsne(
+        df,
+        text_column,
+        embedding_col_name,
+        n_clusters,
+        show_sentences_per_cluster,
+        sentence_label
+    ):
+        # Check if the sentence label column exists in the DataFrame
+        show_sentence_label = sentence_label in df.columns
+
+        # Create an empty list to store our embedding vectors
+        embeddings_list = []
+        embeddings_raw = df[embedding_col_name].values
+
+        # Loop through each embedding in the DataFrame
+        for embedding in embeddings_raw:
+            # Check if the embedding is stored as a string (e.g., "[-0.12  0.24  ...]")
+            if isinstance(embedding, str):
+                # Step 1: Remove the surrounding brackets [ ]
+                emb_stripped = embedding.strip('[]')
+                # Step 2: Convert the string of numbers into a numpy array
+                emb_array = np.fromstring(emb_stripped, sep=' ', dtype=np.float64)
+            else:
+                # If it's already a numpy array, use it directly
+                emb_array = np.array(embedding, dtype=np.float64)
+
+            # Add the embedding vector to our list
+            embeddings_list.append(emb_array)
+
+        # Convert the list of arrays into a single 2D numpy array
+        embeddings = np.array(embeddings_list)
+
+        # KMeans clustering on full dimensional data
+        kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(embeddings)
+        labels = kmeans.labels_
+
+        # t-SNE dimensionality reduction
+        tsne = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=2, random_state=0).fit_transform(embeddings)
+
+        plt.figure(figsize=(12, 8))
+        scatter = plt.scatter(tsne[:, 0], tsne[:, 1], c=labels, cmap='viridis', s=100, alpha=0.6)
+        plt.title(f'KMeans Clustering with t-SNE Visualization\nClusters: {n_clusters}, Total points: {len(embeddings)}')
+        plt.xlabel('t-SNE Component 1')
+        plt.ylabel('t-SNE Component 2')
+        plt.colorbar(scatter, label='Cluster')
+        plt.tight_layout()
+        plt.show()
+
+        # Print sample sentences and label distribution per cluster
+        print(f"\n--- Sample Sentences Per Cluster ---")
+        for cluster_id in sorted(set(labels)):
+            cluster_indices = np.where(labels == cluster_id)[0]
+            sample_indices = np.random.choice(
+                cluster_indices,
+                size=min(show_sentences_per_cluster, len(cluster_indices)),
+                replace=False
+            )
+
+            print(f"\nCluster {cluster_id} ({len(cluster_indices)} sentences):")
+
+            # Print label distribution (0s and 1s) for this cluster
+            if show_sentence_label:
+                cluster_df = df.iloc[cluster_indices]
+                label_counts = cluster_df[sentence_label].value_counts().sort_index()
+                for label_val, count in label_counts.items():
+                    if label_val == 0:
+                        print(f"  Label {label_val} (Non-Prediction): {count} sentences ({count / len(cluster_indices) * 100:.1f}%)")
+                    else:
+                        print(f"  Label {label_val} (Prediction): {count} sentences ({count / len(cluster_indices) * 100:.1f}%)")
+
+            # Print sample sentences
+            print(f"\n  Sample Sentences:")
+            for idx in sample_indices:
+                if show_sentence_label:
+                    print(f"  - [{df.iloc[idx][sentence_label]}] {df.iloc[idx][text_column]}")
+                else:
+                    print(f"  - {df.iloc[idx][text_column]}")
+    
     def _ensure_doc(text_or_doc: Union[str, Doc], nlp) -> Doc:
         """Return a spaCy Doc – parse if string, pass through if already a Doc."""
         return nlp(text_or_doc) if isinstance(text_or_doc, str) else text_or_doc
@@ -469,7 +556,13 @@ class DataVisualizing:
         """Render the named-entity visualisation for a sentence."""
         doc = DataVisualizing._ensure_doc(sentence, spacy_nlp_model)
         html = displacy.render(doc, style='ent', jupyter=False)
-        display(HTML(html))
+        # display(HTML(html))
+
+        display(HTML(f"""
+        <div style="max-width:{200}px;">
+            {html}
+        </div>
+        """))
 
     def spacy_dep_ent(
         sentence: Union[str, Doc],
