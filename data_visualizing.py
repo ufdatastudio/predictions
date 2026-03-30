@@ -463,56 +463,13 @@ class DataVisualizing:
         plt.show()
         plt.close()
 
-    def plot_kmeans_tsne(
-        df,
-        text_column,
-        embedding_col_name,
-        n_clusters,
-        show_sentences_per_cluster,
-        sentence_label
-    ):
-        # Check if the sentence label column exists in the DataFrame
+    def print_cluster_samples(df, labels, sentence_label, text_column, show_sentences_per_cluster):
+        """
+        Prints label distribution and sample sentences per cluster.
+        Used by both plot_kmeans_tsne and plot_kmeans_tsne_filtered.
+        """
         show_sentence_label = sentence_label in df.columns
 
-        # Create an empty list to store our embedding vectors
-        embeddings_list = []
-        embeddings_raw = df[embedding_col_name].values
-
-        # Loop through each embedding in the DataFrame
-        for embedding in embeddings_raw:
-            # Check if the embedding is stored as a string (e.g., "[-0.12  0.24  ...]")
-            if isinstance(embedding, str):
-                # Step 1: Remove the surrounding brackets [ ]
-                emb_stripped = embedding.strip('[]')
-                # Step 2: Convert the string of numbers into a numpy array
-                emb_array = np.fromstring(emb_stripped, sep=' ', dtype=np.float64)
-            else:
-                # If it's already a numpy array, use it directly
-                emb_array = np.array(embedding, dtype=np.float64)
-
-            # Add the embedding vector to our list
-            embeddings_list.append(emb_array)
-
-        # Convert the list of arrays into a single 2D numpy array
-        embeddings = np.array(embeddings_list)
-
-        # KMeans clustering on full dimensional data
-        kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(embeddings)
-        labels = kmeans.labels_
-
-        # t-SNE dimensionality reduction
-        tsne = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=2, random_state=0).fit_transform(embeddings)
-
-        plt.figure(figsize=(12, 8))
-        scatter = plt.scatter(tsne[:, 0], tsne[:, 1], c=labels, cmap='viridis', s=100, alpha=0.6)
-        plt.title(f'KMeans Clustering with t-SNE Visualization\nClusters: {n_clusters}, Total points: {len(embeddings)}')
-        plt.xlabel('t-SNE Component 1')
-        plt.ylabel('t-SNE Component 2')
-        plt.colorbar(scatter, label='Cluster')
-        plt.tight_layout()
-        plt.show()
-
-        # Print sample sentences and label distribution per cluster
         print(f"\n--- Sample Sentences Per Cluster ---")
         for cluster_id in sorted(set(labels)):
             cluster_indices = np.where(labels == cluster_id)[0]
@@ -521,7 +478,6 @@ class DataVisualizing:
                 size=min(show_sentences_per_cluster, len(cluster_indices)),
                 replace=False
             )
-
             print(f"\nCluster {cluster_id} ({len(cluster_indices)} sentences):")
 
             # Print label distribution (0s and 1s) for this cluster
@@ -541,6 +497,121 @@ class DataVisualizing:
                     print(f"  - [{df.iloc[idx][sentence_label]}] {df.iloc[idx][text_column]}")
                 else:
                     print(f"  - {df.iloc[idx][text_column]}")
+
+
+    def plot_kmeans_tsne_filtered(df, x_axis_filter, y_axis_filter, tsne, labels, sentence_label, text_column, show_sentences_per_cluster):
+
+        # Build combined mask based on filters provided
+        mask = np.ones(len(tsne), dtype=bool)
+        title_parts = []
+
+        if x_axis_filter is not None:
+            x_min, x_max = x_axis_filter
+            mask &= (tsne[:, 0] >= x_min) & (tsne[:, 0] <= x_max)
+            title_parts.append(f"x={x_min} to {x_max}")
+
+        if y_axis_filter is not None:
+            y_min, y_max = y_axis_filter
+            mask &= (tsne[:, 1] >= y_min) & (tsne[:, 1] <= y_max)
+            title_parts.append(f"y={y_min} to {y_max}")
+
+        # Apply mask
+        filtered_tsne = tsne[mask]
+        filtered_labels = labels[mask]
+        filtered_df = df[mask].reset_index(drop=True)
+
+        # Plot
+        plt.figure(figsize=(12, 8))
+        scatter = plt.scatter(
+            filtered_tsne[:, 0], filtered_tsne[:, 1],
+            c=filtered_labels, cmap='viridis', s=100, alpha=0.6
+        )
+        plt.title(f'KMeans Clustering with t-SNE Visualization\n(Filtered: {", ".join(title_parts)})')
+        plt.xlabel('t-SNE Component 1')
+        plt.ylabel('t-SNE Component 2')
+        plt.colorbar(scatter, label='Cluster')
+        plt.tight_layout()
+        plt.show()
+
+        print(f"\nFiltered points: {len(filtered_tsne)} out of {len(tsne)}")
+
+        # Print samples using shared function
+        DataVisualizing.print_cluster_samples(
+            df=filtered_df,
+            labels=filtered_labels,
+            sentence_label=sentence_label,
+            text_column=text_column,
+            show_sentences_per_cluster=show_sentences_per_cluster
+        )
+
+        return filtered_df
+
+
+    def plot_kmeans_tsne(
+        df,
+        text_column,
+        embedding_col_name,
+        n_clusters,
+        show_sentences_per_cluster,
+        sentence_label,
+        filter_x_axis=None,
+        filter_y_axis=None
+    ):
+        # Create an empty list to store our embedding vectors
+        embeddings_list = []
+        embeddings_raw = df[embedding_col_name].values
+
+        # Loop through each embedding in the DataFrame
+        for embedding in embeddings_raw:
+            if isinstance(embedding, str):
+                emb_stripped = embedding.strip('[]')
+                emb_array = np.fromstring(emb_stripped, sep=' ', dtype=np.float64)
+            else:
+                emb_array = np.array(embedding, dtype=np.float64)
+            embeddings_list.append(emb_array)
+
+        # Convert to 2D numpy array
+        embeddings = np.array(embeddings_list)
+
+        # KMeans clustering
+        kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(embeddings)
+        labels = kmeans.labels_
+
+        # t-SNE dimensionality reduction
+        tsne = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=2, random_state=0).fit_transform(embeddings)
+
+        # Plot
+        plt.figure(figsize=(12, 8))
+        scatter = plt.scatter(tsne[:, 0], tsne[:, 1], c=labels, cmap='viridis', s=100, alpha=0.6)
+        plt.title(f'KMeans Clustering with t-SNE Visualization\nClusters: {n_clusters}, Total points: {len(embeddings)}')
+        plt.xlabel('t-SNE Component 1')
+        plt.ylabel('t-SNE Component 2')
+        plt.colorbar(scatter, label='Cluster')
+        plt.tight_layout()
+        plt.show()
+
+        # Print samples using shared function
+        DataVisualizing.print_cluster_samples(
+            df=df,
+            labels=labels,
+            sentence_label=sentence_label,
+            text_column=text_column,
+            show_sentences_per_cluster=show_sentences_per_cluster
+        )
+
+        # Apply filter if provided
+        if filter_x_axis is not None or filter_y_axis is not None:
+            filtered_df = DataVisualizing.plot_kmeans_tsne_filtered(
+                df=df,
+                x_axis_filter=filter_x_axis,
+                y_axis_filter=filter_y_axis,
+                tsne=tsne,
+                labels=labels,
+                sentence_label=sentence_label,
+                text_column=text_column,
+                show_sentences_per_cluster=show_sentences_per_cluster
+            )
+            return filtered_df
     
     def _ensure_doc(text_or_doc: Union[str, Doc], nlp) -> Doc:
         """Return a spaCy Doc – parse if string, pass through if already a Doc."""
