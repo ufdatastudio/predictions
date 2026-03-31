@@ -470,7 +470,12 @@ class DataVisualizing:
         """
         show_sentence_label = sentence_label in df.columns
 
+        # Add Cluster column to df copy — 0 or 1 based on KMeans label
+        df = df.copy()
+        df['Cluster'] = labels
+
         print(f"\n--- Sample Sentences Per Cluster ---")
+        cluster_dfs = []
         for cluster_id in sorted(set(labels)):
             cluster_indices = np.where(labels == cluster_id)[0]
             sample_indices = np.random.choice(
@@ -498,6 +503,11 @@ class DataVisualizing:
                 else:
                     print(f"  - {df.iloc[idx][text_column]}")
 
+            cluster_dfs.append(df.iloc[cluster_indices])
+
+        # Return OUTSIDE the for loop — after all clusters are processed
+        return df, cluster_dfs
+
 
     def plot_kmeans_tsne_filtered(df, x_axis_filter, y_axis_filter, tsne, labels, sentence_label, text_column, show_sentences_per_cluster):
 
@@ -520,7 +530,13 @@ class DataVisualizing:
         filtered_labels = labels[mask]
         filtered_df = df[mask].reset_index(drop=True)
 
-        # Plot
+        # Add coordinates and cluster to filtered_df
+        filtered_df = filtered_df.copy()
+        filtered_df['Cluster'] = filtered_labels
+        filtered_df['tsne_x'] = filtered_tsne[:, 0]
+        filtered_df['tsne_y'] = filtered_tsne[:, 1]
+
+        # Plot full filtered region
         plt.figure(figsize=(12, 8))
         scatter = plt.scatter(
             filtered_tsne[:, 0], filtered_tsne[:, 1],
@@ -535,8 +551,27 @@ class DataVisualizing:
 
         print(f"\nFiltered points: {len(filtered_tsne)} out of {len(tsne)}")
 
+        # Plot per cluster separately
+        for cluster_id in sorted(set(filtered_labels)):
+            cluster_mask = filtered_labels == cluster_id
+            cluster_tsne = filtered_tsne[cluster_mask]
+
+            plt.figure(figsize=(12, 8))
+            scatter = plt.scatter(
+                cluster_tsne[:, 0], cluster_tsne[:, 1],
+                c=[cluster_id] * len(cluster_tsne), cmap='viridis',
+                vmin=0, vmax=max(filtered_labels),
+                s=100, alpha=0.6
+            )
+            plt.title(f'KMeans Clustering with t-SNE Visualization\n(Filtered: {", ".join(title_parts)}, Cluster {cluster_id})')
+            plt.xlabel('t-SNE Component 1')
+            plt.ylabel('t-SNE Component 2')
+            plt.colorbar(scatter, label='Cluster')
+            plt.tight_layout()
+            plt.show()
+
         # Print samples using shared function
-        DataVisualizing.print_cluster_samples(
+        filtered_df, cluster_dfs = DataVisualizing.print_cluster_samples(
             df=filtered_df,
             labels=filtered_labels,
             sentence_label=sentence_label,
@@ -544,7 +579,7 @@ class DataVisualizing:
             show_sentences_per_cluster=show_sentences_per_cluster
         )
 
-        return filtered_df
+        return filtered_df, cluster_dfs
 
 
     def plot_kmeans_tsne(
@@ -580,7 +615,13 @@ class DataVisualizing:
         # t-SNE dimensionality reduction
         tsne = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=2, random_state=0).fit_transform(embeddings)
 
-        # Plot
+        # Add coordinates and cluster to df
+        df = df.copy()
+        df['Cluster'] = labels
+        df['tsne_x'] = tsne[:, 0]
+        df['tsne_y'] = tsne[:, 1]
+
+        # Plot full dataset
         plt.figure(figsize=(12, 8))
         scatter = plt.scatter(tsne[:, 0], tsne[:, 1], c=labels, cmap='viridis', s=100, alpha=0.6)
         plt.title(f'KMeans Clustering with t-SNE Visualization\nClusters: {n_clusters}, Total points: {len(embeddings)}')
@@ -590,8 +631,27 @@ class DataVisualizing:
         plt.tight_layout()
         plt.show()
 
+        # Plot per cluster separately
+        for cluster_id in sorted(set(labels)):
+            cluster_mask = labels == cluster_id
+            cluster_tsne = tsne[cluster_mask]
+
+            plt.figure(figsize=(12, 8))
+            scatter = plt.scatter(
+                cluster_tsne[:, 0], cluster_tsne[:, 1],
+                c=[cluster_id] * len(cluster_tsne), cmap='viridis',
+                vmin=0, vmax=max(labels),
+                s=100, alpha=0.6
+            )
+            plt.title(f'KMeans Clustering with t-SNE Visualization\nCluster {cluster_id}, Total points: {len(cluster_tsne)}')
+            plt.xlabel('t-SNE Component 1')
+            plt.ylabel('t-SNE Component 2')
+            plt.colorbar(scatter, label='Cluster')
+            plt.tight_layout()
+            plt.show()
+
         # Print samples using shared function
-        DataVisualizing.print_cluster_samples(
+        df, cluster_dfs = DataVisualizing.print_cluster_samples(
             df=df,
             labels=labels,
             sentence_label=sentence_label,
@@ -601,7 +661,7 @@ class DataVisualizing:
 
         # Apply filter if provided
         if filter_x_axis is not None or filter_y_axis is not None:
-            filtered_df = DataVisualizing.plot_kmeans_tsne_filtered(
+            filtered_df, cluster_dfs = DataVisualizing.plot_kmeans_tsne_filtered(
                 df=df,
                 x_axis_filter=filter_x_axis,
                 y_axis_filter=filter_y_axis,
@@ -611,7 +671,9 @@ class DataVisualizing:
                 text_column=text_column,
                 show_sentences_per_cluster=show_sentences_per_cluster
             )
-            return filtered_df
+            return filtered_df, cluster_dfs
+
+        return df, cluster_dfs
     
     def _ensure_doc(text_or_doc: Union[str, Doc], nlp) -> Doc:
         """Return a spaCy Doc – parse if string, pass through if already a Doc."""
