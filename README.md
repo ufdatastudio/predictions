@@ -7,9 +7,10 @@ A project to recognize and assess prediction data (text, numerical, audio, visua
 - [Definitions](#definition)
 - [File Structure](#file-structure)
 - [Installation](#installation)
+- [Setup NaviGator](#installation)
 - [Usage](#usage)
 - [Contributing](#contributing)
-- [License](#license)
+
 
 ## File Structure
 
@@ -43,7 +44,7 @@ A project to recognize and assess prediction data (text, numerical, audio, visua
      - Create a [NaviGator Toolkit](https://api.ai.it.ufl.edu/) API key -- `NAVI_GATOR_API_KEY = "djb2"`. See steps below.
      - OPTIONAL: Create a [Groq Cloud](https://console.groq.com/) API key -- `GROQ_CLOUD_API_KEY = "djb"`. Similar to NaviGator steps.
 
-## Setup NaviGator
+### Setup NaviGator
 
 > Only UF students
 
@@ -57,7 +58,8 @@ A project to recognize and assess prediction data (text, numerical, audio, visua
    6. Click `Create Key`
 4. Ensure you have forked the repo, then navigate to the development branch, create a new file called '.env', and add the string `NAVI_GATOR_API_KEY= <your_api_key>`.
 
+## Usage
 
-
+See the [issue](https://github.com/ufdatastudio/predictions/issues) you're working on for details. If no details are provided, then reach out (dj.brinkley@ufl.edu unless we already have another mode of communication).
 
 
