@@ -385,7 +385,6 @@ def split_train_test(
     X_full = df.drop(columns=[stratify_by]) if stratify_by in df.columns else df.copy()
     return {"X": X_full, "y": y_df}
     
-
 def build_models(factory, model_names, seed, reweight_class):
     """Initialize ML models from factory."""
     models = {}
@@ -854,7 +853,7 @@ if __name__ == "__main__":
         description='Train ML classifiers for prediction sentence classification'
     )
     
-    parser.add_argument('--dataset', default=default_dataset, help='Path to dataset file')
+    parser.add_argument('--dataset', default=default_dataset, help='Path to dataset file. Dataset to learn on.')
     parser.add_argument('--save_path', default=default_save_path, help='Directory to save results')
     parser.add_argument('--dataset_type', default=None, 
                        choices=['synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank'],

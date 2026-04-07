@@ -37,7 +37,7 @@ def load_dataset(dataset_path):
     print(f"Shape: {df.shape}")
     print(f"\nPreview:\n{df.head(7)}\n")
     print(f"\nPreview:\n{df.tail(7)}\n")
-    df = df.sample(n=15, random_state=42) # Added random_state for reproducibility
+    # df = df.sample(n=15, random_state=42) # Added random_state for reproducibility
     
     return df
 
@@ -124,7 +124,7 @@ def _llm_classifier(
               if attempt > 0:
                   print(f"Executing LLM request (Attempt {attempt + 1})...")
                   
-              raw_text_llm_generation = model.chat_completion([input_prompt])
+              raw_text_llm_generation = model.chat_completion([input_prompt], max_tokens=15)
               label = parse_json_response(raw_text_llm_generation, reasoning=False)
               
               return raw_text_llm_generation, label
@@ -169,8 +169,6 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
     print(model_name, model)
     
     for loop_idx, (idx, row) in enumerate(tqdm(test_df.iterrows(), total=len(test_df), desc="Processing")):
-        print(idx, row)
-        print()
         text = row['Base Sentence']
         
         if loop_idx < 3:

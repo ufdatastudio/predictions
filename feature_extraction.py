@@ -437,7 +437,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
 
             for token in doc:
                 # baseline token attributes
-                sentences.append(doc)
+                sentences.append(doc.text)
                 words.append(token.text)
                 lemmas.append(token.lemma_)
                 pos_labels.append(token.pos_)
@@ -555,7 +555,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 DataVisualizing.spacy_ner_ent(doc, self.nlp)
 
             for ent in doc.ents:
-                sentences.append(doc)
+                sentences.append(doc.text)
                 words.append(ent.text)
                 labels.append(ent.label_)
                 unique_labels.append(

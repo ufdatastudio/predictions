@@ -56,7 +56,6 @@ class EvaluationMetric:
             # Works only for binary classification
             tn, fp, fn, tp = cm.ravel().tolist()
             return cm, tn, fp, fn, tp
-
         return cm
     
     def get_roc_auc(y_true, y_prediction):
@@ -99,22 +98,39 @@ class EvaluationMetric:
         return metrics, predictions
    
 # AGREEMENT
-    def get_cohens_kappa(self, df, rater_1_col_name, rater_2_col_name):
+    def get_cohens_kappa(df, rater_1_col_name, rater_2_col_name):
         frequency_table = pd.crosstab(df[rater_1_col_name], df[rater_2_col_name])
         return cohens_kappa(frequency_table)
     
-    def get_fleiss_kappa(self, df, col_names):
-        df = df.loc[:, col_names]
-        stacked = df.stack().reset_index()
-        # print(stacked)
+    def get_fleiss_kappa(df, col_names, per_row_agreement=True, per_row_entropy=True):
+        df_models = df.loc[:, col_names]
+        stacked = df_models.stack().reset_index()
         stacked.columns = ['Subject to Rate', 'Rater', 'Value']
-
+        
         # Crosstab: rows = Subject, columns = Category, values = counts
         freq_table = pd.crosstab(stacked['Subject to Rate'], stacked['Value'])
-        # print(freq_table)
-        return fleiss_kappa(freq_table)
+        
+        kappa = fleiss_kappa(freq_table)
+        
+        # Per-row agreement: proportion of models that agree on the majority label
+        if per_row_agreement:
+            n_raters = len(col_names)
+            df['Per Row Agreement'] = df_models.apply(
+                lambda row: row.value_counts().iloc[0] / n_raters, axis=1
+            )
+        
+        # Per-row entropy: measures how uncertain/disagreed models are per sentence
+        if per_row_entropy:
+            n_raters = len(col_names)
+            def row_entropy(row):
+                counts = row.value_counts()
+                probs = counts / n_raters
+                return -sum(p * np.log2(p) for p in probs if p > 0)
+            df['Per Row Entropy'] = df_models.apply(row_entropy, axis=1)
+        
+        return kappa, freq_table, df
     
-    def calculate_pairwise_cohens_kappa(self, df: pd.DataFrame, model_names: list, 
+    def calculate_pairwise_cohens_kappa(df: pd.DataFrame, model_names: list, 
                                     model_type: str = 'Model', print_bool: bool = False) -> pd.DataFrame:
         """
         Calculate Cohen's Kappa for all unique pairs of models.

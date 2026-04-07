@@ -141,10 +141,10 @@ class TextGenerationModelFactory(ABC):
             # Return all available models
             model_names = self.get_all_model_names()
         
-        models = []
+        models = {}
         for model_name in model_names:
             try:
-                models.append(self.create_instance(model_name))
+                models[model_name] = self.create_instance(model_name)
             except ValueError as e:
                 print(f"Warning: {e}")
         
@@ -818,42 +818,71 @@ class KokoroTextGenerationModel(TextGenerationModelFactory):
     
 def parse_json_response(response):
     """Parse JSON response from LLM to extract label and reasoning"""
-    
     try:
-        # Extract JSON if there's extra text
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if json_match:
             data = json.loads(json_match.group())
             return data.get('label'), data.get('reasoning')
     except Exception as e:
         print(f"Error parsing JSON: {e}")
-        return None, None
+    return None, None
 
-def llm_classify_text(data: str, base_prompt: str, model):
+def llm_classify_text(data: str, base_prompt: str, prompt_type: str, model):
     errors = {}
-    prompt = f""" Given this: {base_prompt}. Also given the sentence '{data}', your task is to analyze the sentence and determine if it is a prediction. If prediction, generate label as 1 and if non-prediction generate label as 0.
-    Respond ONLY with valid JSON in this exact format:
-    {{"label": 0, "reasoning": "your explanation here"}}
-    Examples:
-    - "It will rain tomorrow." → {{"label": 1, "reasoning": "Contains the future tense words 'will' and 'tomorrow'"}}
-    - "The stock market is expected to rise next quarter." → {{"label": 1, "reasoning": "Contains future tense words 'is expected'"}}
-    - "I am going to the store." → {{"label": 0, "reasoning": "Does not contain a future tense word"}}
-    - "Lakers will win the championship." → {{"label": 1, "reasoning": "Contains the future tense word 'will'"}}
-    """
 
-    idx = 1
-    if idx == 1:
-        #   print(f"\tPrompt: {prompt}")
-            idx = idx + 1
+    if prompt_type == "zero-shot":
+        prompt = f"""
+            {base_prompt}
+
+            Respond ONLY with valid JSON in this format:
+            {{"label": 0 or 1}}
+
+            Text:
+            <<<{data}>>>
+        """
+
+    elif prompt_type == "few-shot":
+        prompt = f"""
+            {base_prompt}
+
+            Respond ONLY with valid JSON in this format:
+            {{"label": 0 or 1}}
+
+            Text:
+            <<<{data}>>>
+        """
+
+    elif prompt_type == "chain-of-thought":
+        prompt = f"""
+            {base_prompt}
+
+            Think step by step before answering.
+
+            Respond ONLY with valid JSON in this format:
+            {{"label": 0 or 1, "reasoning": "explanation"}}
+
+            Text:
+            <<<{data}>>>
+        """
+
+    else:
+        raise ValueError(f"Unknown prompt_type: {prompt_type}")
+
     input_prompt = model.user(prompt)
     raw_text_llm_generation = model.chat_completion([input_prompt])
-    
-    try: 
-        # Parse the JSON response
+
+    try:
         label, reasoning = parse_json_response(raw_text_llm_generation)
+
+        # ✅ Enforce: no reasoning unless chain-of-thought
+        if prompt_type != "chain-of-thought":
+            reasoning = None
+
         return raw_text_llm_generation, label, reasoning
+
     except Exception as e:
         print(f"Error: {e}")
         errors[data] = e
+        return raw_text_llm_generation, None, None
 
         
