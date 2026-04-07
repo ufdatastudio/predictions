@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import json
+import time
 import pprint
 import argparse
 import matplotlib
@@ -20,11 +21,9 @@ sys.path.append(os.path.join(script_dir, '../'))
 
 from metrics import EvaluationMetric
 from data_processing import DataProcessing
+from data_visualizing import DataVisualizing
 from prediction_properties import PredictionProperties
 from text_generation_models import TextGenerationModelFactory
-
-# If you have a DataVisualizing module, uncomment this:
-# from visualizations import DataVisualizing 
 
 def load_dataset(dataset_path):
     """Load dataset from file path."""
@@ -38,7 +37,7 @@ def load_dataset(dataset_path):
     print(f"Shape: {df.shape}")
     print(f"\nPreview:\n{df.head(7)}\n")
     print(f"\nPreview:\n{df.tail(7)}\n")
-    df = df.sample(n=7, random_state=3) # Added random_state for reproducibility
+    # df = df.sample(n=15, random_state=42) # Added random_state for reproducibility
     
     return df
 
@@ -52,8 +51,8 @@ def build_model(model_name):
     pp = pprint.PrettyPrinter(indent=3)
     pp.pprint(model_name)
     
-    models = tgmf.create_instances([model_name])
-    return models[model_name]
+    models = tgmf.create_instance(model_name)
+    return models
 
 def load_prompt():
     system_identity_prompt = "You are an expert at identifying specific types of sentences called prediction."
@@ -75,6 +74,9 @@ def load_prompt():
 def parse_json_response(response, reasoning=False):
     """Parse JSON response from LLM to extract label and reasoning"""
     try:
+        if response is None:
+            return (None, None) if reasoning else None
+            
         # Extract JSON if there's extra text
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if json_match:
@@ -90,7 +92,16 @@ def parse_json_response(response, reasoning=False):
         else:
             return None  # Return single None when reasoning=False
 
-def _llm_classifier(sentence_to_classify: str, base_prompt: str, model, task, format_output: str, is_first: bool):
+def _llm_classifier(
+        sentence_to_classify,
+        base_prompt,
+        model,
+        task,
+        format_output,
+        is_first,
+        max_attempts=5,
+        base_wait_time=300,
+        max_total_wait=43200):
       prompt = f"""{base_prompt}
       
       Sentence to label: '{sentence_to_classify}'
@@ -103,14 +114,53 @@ def _llm_classifier(sentence_to_classify: str, base_prompt: str, model, task, fo
             print(f"\tPrompt: {prompt}")
             
       input_prompt = model.user(prompt)
-      raw_text_llm_generation = model.chat_completion([input_prompt])
-      # print(f"Raw response: {raw_text_llm_generation}")
-      # Parse the JSON response
-      label = parse_json_response(raw_text_llm_generation, reasoning=False)
       
-      return raw_text_llm_generation, label
+      success = False
+      attempt = 0
+      total_waited = 0
+      
+      while not success and attempt < max_attempts:
+          try:
+              if attempt > 0:
+                  print(f"Executing LLM request (Attempt {attempt + 1})...")
+                  
+              raw_text_llm_generation = model.chat_completion([input_prompt], max_tokens=15)
+              label = parse_json_response(raw_text_llm_generation, reasoning=False)
+              
+              return raw_text_llm_generation, label
+              
+          except Exception as e:
+              error_msg = str(e).lower()
+              attempt += 1
+              
+              if "rate limit" in error_msg or "429" in error_msg:
+                  # Progressively increase wait time, e.g., 300s, 600s, 900s...
+                  current_wait_time = base_wait_time * attempt 
+                  
+                  if total_waited + current_wait_time > max_total_wait:
+                      print(f"Max total wait time ({max_total_wait}s) exceeded. Stopping retry to prevent exceeding requested SLURM time.")
+                      return None, None
+                      
+                  print(f"Rate limit detected. Waiting {current_wait_time} seconds before retry...")
+                  time.sleep(current_wait_time)
+                  total_waited += current_wait_time
+                  
+              elif "badrequesterror" in error_msg:
+                  print(f"Bad Request Error. Stopping processing for this sentence.")
+                  print(f"Error details: {e}")
+                  return None, None
+                  
+              else:
+                  print(f"An unexpected error occurred: {e}")
+                  if attempt < max_attempts:
+                      print(f"Retrying in 10 seconds...")
+                      time.sleep(10)
+                      total_waited += 10
+                  else:
+                      print(f"Max attempts ({max_attempts}) reached. Skipping this sentence to prevent pipeline failure.")
+                      return None, None
 
-def llm_classifier(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output):
+def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output):
     print(f"Shape: {test_df.shape}")
     print(f"\nPreview:\n{test_df.head(7)}\n")
     print(f"\nPreview:\n{test_df.tail(7)}\n")
@@ -177,6 +227,10 @@ def evaluate_models(
     actual_labels = results_df[label_col_name].values
     predictions = results_df[model_name].values
     
+    # Recreate X_test_list and y_test_df for DataVisualizing methods
+    X_test_list = results_df['Base Sentence'].to_list()
+    y_test_df = results_df[[label_col_name]]
+    
     # Fill NaN predictions with a default (e.g., 0) if LLM failed to parse
     predictions = np.nan_to_num(np.array(predictions, dtype=float), nan=0.0)
     
@@ -202,12 +256,12 @@ def evaluate_models(
     print(f"Confusion Matrix:\n{confusion_mat}\n")
     
     # Save confusion matrix visualization
-    # DataVisualizing.confusion_matrix(
-    #     model_name,
-    #     confusion_mat, 
-    #     save_path, 
-    #     include_version=False
-    # )
+    DataVisualizing.confusion_matrix(
+        model_name,
+        confusion_mat, 
+        save_path, 
+        include_version=False
+    )
     print(f"✓ Saved confusion matrix: confusion_matrix_{model_name}.png\n")
     
     # ROC-AUC score
@@ -223,7 +277,7 @@ def evaluate_models(
     #     save_path, 
     #     include_version=False
     # )
-    print(f"✓ Saved POC-CURVE: pos_curve{model_name}.png\n")
+    # print(f"✓ Saved POC-CURVE: pos_curve{model_name}.png\n")
     
     # PR-AUC
     pr_auc_score = EvaluationMetric.get_pr_auc(actual_labels, continuous_scores)
@@ -238,7 +292,7 @@ def evaluate_models(
     #     save_path, 
     #     include_version=False
     # )
-    print(f"✓ Saved PR-CURVE: pr_curve{model_name}.png\n")
+    # print(f"✓ Saved PR-CURVE: pr_curve{model_name}.png\n")
             
     # Build unified metrics row
     metrics_row = {
@@ -275,7 +329,14 @@ def evaluate_models(
     print(metrics_summary_df)
     print()
     
-    # metrics_summary_df.to_csv(os.path.join(save_path, f"metrics_summary_{model_name}.csv"), index=False)
+    # Use DataProcessing to save the dataframe as CSV
+    DataProcessing.save_to_file(
+        data=metrics_summary_df,
+        path=save_path,
+        prefix=f"metrics_summary_{model_name}",
+        save_file_type='csv',
+        include_version=True
+    )
     
     return metrics_summary_df
     
@@ -295,7 +356,7 @@ if __name__ == "__main__":
     
     default_load_save_path = os.path.join(base_data_path, 'classification_results/train_synthetic-v1_2026-03-23/seed3/external_fpb-maya-binary-imbalanced-96d-v1')
     default_dataset_path = os.path.join(default_load_save_path, 'x_y_test_set.csv')
-    print(default_dataset_path)
+    # print(default_dataset_path)
     
     parser = argparse.ArgumentParser(
         description='Train ML classifiers for prediction sentence classification'
@@ -330,6 +391,7 @@ if __name__ == "__main__":
     current_date = datetime.now().strftime('%Y-%m-%d')
     seed_value = 42 # Default random seed for tracking
     save_directory = os.path.dirname(args.test_datasets)
+    print(save_directory)
     
     # ============================================================
     # 3. LOAD & PREPARE DATA
@@ -345,7 +407,7 @@ if __name__ == "__main__":
     # ============================================================
     # 4. RUN INFERENCE
     # ============================================================
-    y_hat_df = llm_classifier(
+    y_hat_df = llm_classifer(
         args.model_name,
         model,
         test_df,
@@ -371,13 +433,7 @@ if __name__ == "__main__":
         # X_val_df=val_df,
         # y_val_df=val_df[[args.label_column]] if val_df is not None else None
     )
-
-    DataProcessing.save_to_file(
-        data=metrics_summary_df, 
-        path=default_load_save_path,
-        prefix=f"{args.model_name}_metrics_summary.csv",
-        save_file_type='csv'
-    )
+        
     # ============================================================
     # 9. COMPLETE
     # ============================================================

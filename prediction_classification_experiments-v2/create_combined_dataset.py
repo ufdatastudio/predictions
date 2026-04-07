@@ -81,6 +81,7 @@ def load_predictions_dataset(script_dir, sep=','):
             print(f"\n=== {col} value counts ===")
             print(predictions_df[col].value_counts())
 
+    predictions_df['Dataset Name'] = 'synthetic_predictions'
     print(f"\nPreview:\n{predictions_df.head(3)}\n")
     
     return predictions_df
@@ -126,6 +127,7 @@ def load_non_predictions_dataset(script_dir, sep=','):
             print(f"\n=== {col} value counts ===")
             print(non_predictions_df[col].value_counts())
     
+    non_predictions_df['Dataset Name'] = 'synthetic_non_predictions'
     print(f"\nPreview:\n{non_predictions_df.head(3)}\n")
     
     return non_predictions_df
@@ -205,6 +207,7 @@ def load_financial_phrasebank_dataset(script_dir, sep=',', encoding='latin'):
     print(f"\nLabel distribution:")
     print(fpb_df['Sentence Label'].value_counts())
     
+    fpb_df['Dataset Name'] = 'fpb-imbalanced'
     print(f"\nPreview:\n{fpb_df.head(3)}\n")
     
     return fpb_df
@@ -259,8 +262,8 @@ def load_chronicle2050_dataset(script_dir, sep=',', encoding='latin'):
     print(f"\nLabel distribution:")
     print(chronicle2050_df['Sentence Label'].value_counts())
     
+    chronicle2050_df['Dataset Name'] = 'chronicle2050'
     print(f"\nPreview:\n{chronicle2050_df.head(7)}\n")
-    print(f"\nPreview:\n{chronicle2050_df.tail(7)}\n")
     
     return chronicle2050_df
 
@@ -367,14 +370,15 @@ def extract_standard_columns(combined_df, additional_cols=None):
     pd.DataFrame
         Dataset with selected columns only
     """
-    standard_cols = ['Base Sentence', 'Sentence Label']
+    # CRITICAL FIX: 'Dataset Name' is now explicitly kept
+    standard_cols = ['Base Sentence', 'Sentence Label', 'Dataset Name']
     
     if additional_cols:
         keep_cols = standard_cols + additional_cols
     else:
         keep_cols = standard_cols
     
-    # Only keep columns that exist
+    # Only keep columns that actually exist in the DataFrame
     keep_cols = [col for col in keep_cols if col in combined_df.columns]
     
     print(f"\nExtracting columns: {keep_cols}")

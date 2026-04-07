@@ -1,7 +1,7 @@
 #!/bin/bash
 # train_ml_models.sh
 
-cd ../prediction_classification_experiments-v2
+cd ../../../prediction_classification_experiments-v2
 
 # Run experiment 3 times with different seeds
 for seed in 7 33 40; do

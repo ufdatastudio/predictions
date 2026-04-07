@@ -1,0 +1,407 @@
+============================================================
+          SENTENCE CLASSIFICATION: gpt-oss-120b
+============================================================
+/orange/ufdatastudios/dj.brinkley/predictions/prediction_classification_experiments-v2/../data/classification_results/train_synthetic-v1_2026-03-23/seed3/external_fpb-maya-binary-imbalanced-96d-v1/x_y_test_set.csv
+
+========================================
+LOAD DATASET
+========================================
+Dataset path: /orange/ufdatastudios/dj.brinkley/predictions/prediction_classification_experiments-v2/../data/classification_results/train_synthetic-v1_2026-03-23/seed3/external_fpb-maya-binary-imbalanced-96d-v1/x_y_test_set.csv
+Shape: (4846, 6)
+
+Preview:
+                                       Base Sentence  ...                            Base Sentence Embedding
+0  With the new production plant the company woul...  ...  [-1.22568220e-01  2.48624131e-01 -4.82655168e-...
+1  According to the company 's updated strategy f...  ...  [-2.63320029e-01  3.28540474e-01  4.48558182e-...
+2  TeliaSonera TLSN said the offer is in line wit...  ...  [ 1.15080299e-02  1.98225155e-01  1.95062440e-...
+3  STORA ENSO , NORSKE SKOG , M-REAL , UPM-KYMMEN...  ...  [-5.94305294e-03  1.57299116e-01 -1.01663664e-...
+4  The company also estimates the already carried...  ...  [-9.75671411e-02  2.17742935e-01 -5.24893478e-...
+5  The company still expects its turnover in 2010...  ...  [-8.01109150e-02  2.36596152e-01 -5.08406200e-...
+6  The acquisition will considerably increase Kem...  ...  [-1.40268207e-01  2.62877226e-01  7.93231372e-...
+
+[7 rows x 6 columns]
+
+
+Preview:
+                                          Base Sentence  ...                            Base Sentence Embedding
+4839  Operating result for the 12-month period decre...  ...  [-1.44944608e-01  2.22282931e-01 -4.77027521e-...
+4840  HELSINKI Thomson Financial - Shares in Cargote...  ...  [-3.65871415e-02  2.23010108e-01  2.32716370e-...
+4841  LONDON MarketWatch -- Share prices ended lower...  ...  [-9.97306556e-02  1.64349496e-01  1.71351619e-...
+4842  Rinkuskiai 's beer sales fell by 6.5 per cent ...  ...  [-1.98924989e-01  3.00148040e-01  1.01390548e-...
+4843  Operating profit fell to EUR 35.4 mn from EUR ...  ...  [-1.26625523e-01  2.81394184e-01  1.47076428e-...
+4844  Net sales of the Paper segment decreased to EU...  ...  [-1.32034168e-01  2.24063978e-01  3.11533064e-...
+4845  Sales in Finland decreased by 10.5 % in Januar...  ...  [-2.11000890e-01  3.38408977e-01  2.79511586e-...
+
+[7 rows x 6 columns]
+
+
+========================================
+LLM TO LOAD
+========================================
+'gpt-oss-120b'
+
+========================================
+PROMPT
+========================================
+
+Task: Classify the sentence "label" as either a "non-prediction": 0, "prediction": 1.
+
+Format Output: Respond ONLY with valid JSON in this exact format: {"predicted_sentence_label": 0}. Do NOT reason or provide anything other than {"predicted_sentence_label": 0}. 
+
+Base Prompt: You are an expert at identifying specific types of sentences called prediction. For each prediction, the format is based on:  A prediction <p> = (<p_s>, <p_t>, <p_d>, <p_o>), where it consists of the following four properties:
+
+            1. <p_s>
+                - Defined as: 
+                    - Source entity that states the <p>
+                - Characteristics:
+                    - A person with either: a name only, profile name only, geneder only, domain specific title only or any combination of these.
+                    - An associated organization
+                    - Named entity: Person, organization
+                    - Part of speech: Noun
+
+            2. <p_t>
+                - Defined as: 
+                    - Target entity that the <p> is about
+                - Characteristics:
+                    - Same and <p_s>
+                    
+            3. <p_d>
+                - Defined as: 
+                    - Date when the <p> is made
+                    - Date when the <p> is expected to come to fruition
+                - Characteristics:
+                    - Forecast can range from a second to anytime in the future.
+                    - Could answer the question: "How far out is the <p> from today?"
+                    - Any format
+                    - Must be made before it is expected to come to fruition
+                    - Named entity: Date, cardinal?
+                    - Part of speech: vary
+
+            4. <p_o>
+                - Defined as:
+                    - Outcome
+                - Characteristics:
+                    - Relevant or misc details such as a quantifiable metric, slope, attribute of interest
+                    - From Pegah at USC: Value at an instant, statistical function minimum, changes over interval, second order effect comparison, recurrent pattern
+                    - Named entity: vary
+                    - Part of speech: vary
+
+
+         
+Enforce the requirements of a prediction: 
+            1. Usage of synonyms to the word "prediction", such as ['forecast', 'projection', 'estimate', 'outlook', 'expectation', 'anticipation', 'prophecy', 'prognosis', 'guess', 'speculation', 'forecasting', 'projection', 'foretelling', 'forecasted outcome', 'forecast estimate'].
+            2. Usage of the future verb tense, such as: ['will', 'shall', 'would', 'going', 'might', 'should', 'could', 'may', 'must', 'can'].
+            3. Do NOT use past or present tense verbs.
+
+        
+Shape: (15, 6)
+
+Preview:
+                                          Base Sentence  ...                            Base Sentence Embedding
+3207  Products include Consumer Electronics devices ...  ...  [-1.03953987e-01  1.73079550e-01 -1.15378737e-...
+1684  The company is studying the feasibility of foc...  ...  [ 6.19034842e-03  5.41415289e-02  3.18137631e-...
+1044  It is also 7.7 pct above the 12-month volume w...  ...  [-2.60502994e-01  3.29445064e-01  1.49927372e-...
+4145  Finnish energy company Fortum Oyj said on Nove...  ...  [-7.04143345e-02  2.03570545e-01  6.74679503e-...
+1538  Completion of the transaction is subject to a ...  ...  [-6.24450343e-03  9.13091153e-02 -2.24449560e-...
+1034  Bilfinger investors cheered the agreement , pu...  ...  [-1.21109009e-01  2.32098728e-01 -3.46716121e-...
+2107  `` We are pleased to welcome Tapeks Noma into ...  ...  [ 9.91792306e-02 -1.18386010e-02 -1.02243707e-...
+
+[7 rows x 6 columns]
+
+
+Preview:
+                                          Base Sentence  ...                            Base Sentence Embedding
+4021  Under the agreement , Larox will transfer 10 e...  ...  [-3.55597399e-02  8.36101249e-02 -4.44596149e-...
+3569  Westpac Banking Corp - Is to issue a benchmark...  ...  [-1.70170993e-01  1.75186828e-01  1.00417793e-...
+2570  As part of the reorganisation measures that wi...  ...  [ 6.85089976e-02  2.11522549e-01 -2.06934176e-...
+1756                           You are warmly welcome !  ...  [ 4.98300083e-02  4.17144075e-02 -2.15617985e-...
+2337  Juha Jordan , chief engineer at Glaston , said...  ...  [-2.74198372e-02  2.17418090e-01  2.47040857e-...
+3395  The name of the newspaper publishing and print...  ...  [-2.78347656e-02  8.57105330e-02 -1.49531364e-...
+3188  Oriola-KD is a spin-off of Finnish pharmaceuti...  ...  [-9.10202786e-02  2.42889225e-01 -1.33259390e-...
+
+[7 rows x 6 columns]
+
+gpt-oss-120b <text_generation_models.GptOss120TextGenerationModel object at 0x1536c64f7d50>
+3207 Base Sentence              Products include Consumer Electronics devices ...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-1.03953987e-01  1.73079550e-01 -1.15378737e-...
+Name: 3207, dtype: object
+
+Classify sentence as either prediction (1) or non-prediction (0)
+    3207 --- Sentence: Products include Consumer Electronics devices such as mobile phones and their accessories , set-top boxes , flat panel TVs as well as System Solutions products such as infrastructure systems , modules and other industrial segment products .
+	Prompt: You are an expert at identifying specific types of sentences called prediction. For each prediction, the format is based on:  A prediction <p> = (<p_s>, <p_t>, <p_d>, <p_o>), where it consists of the following four properties:
+
+            1. <p_s>
+                - Defined as: 
+                    - Source entity that states the <p>
+                - Characteristics:
+                    - A person with either: a name only, profile name only, geneder only, domain specific title only or any combination of these.
+                    - An associated organization
+                    - Named entity: Person, organization
+                    - Part of speech: Noun
+
+            2. <p_t>
+                - Defined as: 
+                    - Target entity that the <p> is about
+                - Characteristics:
+                    - Same and <p_s>
+                    
+            3. <p_d>
+                - Defined as: 
+                    - Date when the <p> is made
+                    - Date when the <p> is expected to come to fruition
+                - Characteristics:
+                    - Forecast can range from a second to anytime in the future.
+                    - Could answer the question: "How far out is the <p> from today?"
+                    - Any format
+                    - Must be made before it is expected to come to fruition
+                    - Named entity: Date, cardinal?
+                    - Part of speech: vary
+
+            4. <p_o>
+                - Defined as:
+                    - Outcome
+                - Characteristics:
+                    - Relevant or misc details such as a quantifiable metric, slope, attribute of interest
+                    - From Pegah at USC: Value at an instant, statistical function minimum, changes over interval, second order effect comparison, recurrent pattern
+                    - Named entity: vary
+                    - Part of speech: vary
+
+
+         
+Enforce the requirements of a prediction: 
+            1. Usage of synonyms to the word "prediction", such as ['forecast', 'projection', 'estimate', 'outlook', 'expectation', 'anticipation', 'prophecy', 'prognosis', 'guess', 'speculation', 'forecasting', 'projection', 'foretelling', 'forecasted outcome', 'forecast estimate'].
+            2. Usage of the future verb tense, such as: ['will', 'shall', 'would', 'going', 'might', 'should', 'could', 'may', 'must', 'can'].
+            3. Do NOT use past or present tense verbs.
+
+        
+      
+      Sentence to label: 'Products include Consumer Electronics devices such as mobile phones and their accessories , set-top boxes , flat panel TVs as well as System Solutions products such as infrastructure systems , modules and other industrial segment products .'
+      Classify the sentence "label" as either a "non-prediction": 0, "prediction": 1.
+      
+      Respond ONLY with valid JSON in this exact format: {"predicted_sentence_label": 0}. Do NOT reason or provide anything other than {"predicted_sentence_label": 0}. 
+      
+	Label: 0 via Model: gpt-oss-120b
+1684 Base Sentence              The company is studying the feasibility of foc...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [ 6.19034842e-03  5.41415289e-02  3.18137631e-...
+Name: 1684, dtype: object
+
+Classify sentence as either prediction (1) or non-prediction (0)
+    1684 --- Sentence: The company is studying the feasibility of focusing most of its processed meat production in the Vantaa facilities and the processing of fresh meat in the Forssa facilities .
+	Label: 0 via Model: gpt-oss-120b
+1044 Base Sentence              It is also 7.7 pct above the 12-month volume w...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-2.60502994e-01  3.29445064e-01  1.49927372e-...
+Name: 1044, dtype: object
+
+Classify sentence as either prediction (1) or non-prediction (0)
+    1044 --- Sentence: It is also 7.7 pct above the 12-month volume weighted average price of the stock .
+	Label: 0 via Model: gpt-oss-120b
+4145 Base Sentence              Finnish energy company Fortum Oyj said on Nove...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-7.04143345e-02  2.03570545e-01  6.74679503e-...
+Name: 4145, dtype: object
+
+1538 Base Sentence              Completion of the transaction is subject to a ...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-6.24450343e-03  9.13091153e-02 -2.24449560e-...
+Name: 1538, dtype: object
+
+1034 Base Sentence              Bilfinger investors cheered the agreement , pu...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-1.21109009e-01  2.32098728e-01 -3.46716121e-...
+Name: 1034, dtype: object
+
+2107 Base Sentence              `` We are pleased to welcome Tapeks Noma into ...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [ 9.91792306e-02 -1.18386010e-02 -1.02243707e-...
+Name: 2107, dtype: object
+
+4257 Base Sentence              ( ADPnews ) - Dec 30 , 2009 - Finnish investme...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-8.15085024e-02  2.60425448e-01  2.63041817e-...
+Name: 4257, dtype: object
+
+4021 Base Sentence              Under the agreement , Larox will transfer 10 e...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-3.55597399e-02  8.36101249e-02 -4.44596149e-...
+Name: 4021, dtype: object
+
+3569 Base Sentence              Westpac Banking Corp - Is to issue a benchmark...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-1.70170993e-01  1.75186828e-01  1.00417793e-...
+Name: 3569, dtype: object
+
+2570 Base Sentence              As part of the reorganisation measures that wi...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [ 6.85089976e-02  2.11522549e-01 -2.06934176e-...
+Name: 2570, dtype: object
+
+1756 Base Sentence                                       You are warmly welcome !
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [ 4.98300083e-02  4.17144075e-02 -2.15617985e-...
+Name: 1756, dtype: object
+
+2337 Base Sentence              Juha Jordan , chief engineer at Glaston , said...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-2.74198372e-02  2.17418090e-01  2.47040857e-...
+Name: 2337, dtype: object
+
+3395 Base Sentence              The name of the newspaper publishing and print...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-2.78347656e-02  8.57105330e-02 -1.49531364e-...
+Name: 3395, dtype: object
+
+3188 Base Sentence              Oriola-KD is a spin-off of Finnish pharmaceuti...
+maya_label                                                    NON-PREDICTION
+Sentence Label                                                             0
+Author Type                                                                1
+Dataset Name                                                  fpb-imbalanced
+Base Sentence Embedding    [-9.10202786e-02  2.42889225e-01 -1.33259390e-...
+Name: 3188, dtype: object
+
+Shape: (15, 4)
+
+Preview:
+                                                 text  ...      llm_name
+0   Products include Consumer Electronics devices ...  ...  gpt-oss-120b
+1   The company is studying the feasibility of foc...  ...  gpt-oss-120b
+2   It is also 7.7 pct above the 12-month volume w...  ...  gpt-oss-120b
+3   Finnish energy company Fortum Oyj said on Nove...  ...  gpt-oss-120b
+4   Completion of the transaction is subject to a ...  ...  gpt-oss-120b
+5   Bilfinger investors cheered the agreement , pu...  ...  gpt-oss-120b
+6   `` We are pleased to welcome Tapeks Noma into ...  ...  gpt-oss-120b
+7   ( ADPnews ) - Dec 30 , 2009 - Finnish investme...  ...  gpt-oss-120b
+8   Under the agreement , Larox will transfer 10 e...  ...  gpt-oss-120b
+9   Westpac Banking Corp - Is to issue a benchmark...  ...  gpt-oss-120b
+10  As part of the reorganisation measures that wi...  ...  gpt-oss-120b
+11                           You are warmly welcome !  ...  gpt-oss-120b
+12  Juha Jordan , chief engineer at Glaston , said...  ...  gpt-oss-120b
+13  The name of the newspaper publishing and print...  ...  gpt-oss-120b
+14  Oriola-KD is a spin-off of Finnish pharmaceuti...  ...  gpt-oss-120b
+
+[15 rows x 4 columns]
+
+
+Preview:
+                                                 text  ...      llm_name
+0   Products include Consumer Electronics devices ...  ...  gpt-oss-120b
+1   The company is studying the feasibility of foc...  ...  gpt-oss-120b
+2   It is also 7.7 pct above the 12-month volume w...  ...  gpt-oss-120b
+3   Finnish energy company Fortum Oyj said on Nove...  ...  gpt-oss-120b
+4   Completion of the transaction is subject to a ...  ...  gpt-oss-120b
+5   Bilfinger investors cheered the agreement , pu...  ...  gpt-oss-120b
+6   `` We are pleased to welcome Tapeks Noma into ...  ...  gpt-oss-120b
+7   ( ADPnews ) - Dec 30 , 2009 - Finnish investme...  ...  gpt-oss-120b
+8   Under the agreement , Larox will transfer 10 e...  ...  gpt-oss-120b
+9   Westpac Banking Corp - Is to issue a benchmark...  ...  gpt-oss-120b
+10  As part of the reorganisation measures that wi...  ...  gpt-oss-120b
+11                           You are warmly welcome !  ...  gpt-oss-120b
+12  Juha Jordan , chief engineer at Glaston , said...  ...  gpt-oss-120b
+13  The name of the newspaper publishing and print...  ...  gpt-oss-120b
+14  Oriola-KD is a spin-off of Finnish pharmaceuti...  ...  gpt-oss-120b
+
+[15 rows x 4 columns]
+
+
+========================================
+CREATE RESULTS DATAFRAME
+========================================
+✓ Added predictions: gpt-oss-120b
+
+Final shape: (15, 7)
+
+Preview:
+                                          Base Sentence  ... gpt-oss-120b
+3207  Products include Consumer Electronics devices ...  ...            0
+1684  The company is studying the feasibility of foc...  ...            0
+1044  It is also 7.7 pct above the 12-month volume w...  ...            0
+
+[3 rows x 7 columns]
+
+
+========================================
+EVALUATION RESULTS
+========================================
+Label: Sentence Label
+
+### Model: gpt-oss-120b ###
+              precision    recall  f1-score   support
+
+         0.0       1.00      0.87      0.93        15
+         1.0       0.00      0.00      0.00         0
+
+    accuracy                           0.87        15
+   macro avg       0.50      0.43      0.46        15
+weighted avg       1.00      0.87      0.93        15
+
+Confusion Matrix:
+[[13  2]
+ [ 0  0]]
+
+✓ Saved confusion matrix: confusion_matrix_gpt-oss-120b.png
+
+ROC-AUC Score: nan
+
+✓ Saved POC-CURVE: pos_curvegpt-oss-120b.png
+
+PR-AUC Score: 0.0000
+
+✓ Saved PR-CURVE: pr_curvegpt-oss-120b.png
+
+
+========================================
+METRICS SUMMARY WITH SEED 42
+========================================
+          model train_accuracy val_accuracy  ...  tp roc_auc pr_auc
+0  gpt-oss-120b           None         None  ...   0     NaN    0.0
+
+[1 rows x 16 columns]
+
+
+========================================
+PIPELINE COMPLETE
+========================================
