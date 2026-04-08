@@ -109,15 +109,15 @@ if __name__ == "__main__":
     Usage examples:
     
     # E1: Fetch Tesla and autonomous vehicle articles
-    python news_api_fetcher.py \
-        --query "Tesla OR SAE Level 4 autonomy" \
+    python fetch_news_api.py \
+        --query "(team OR season OR playoff) AND (predict OR expected OR likely)" \
         --start_date 2026-03-21 \
         --end_date 2026-03-28 \
         --sort_by relevancy \
         --page_size 100
     
     # E2: Fetch Bitcoin articles sorted by popularity
-    python news_api_fetcher.py \
+    python fetch_news_api.py \
         --query "bitcoin OR cryptocurrency" \
         --start_date 2026-02-01 \
         --end_date 2026-02-28 \
@@ -125,13 +125,15 @@ if __name__ == "__main__":
         --page_size 50
     
     # E3: Fetch prediction-related articles sorted by date
-    python news_api_fetcher.py \
+    python fetch_news_api.py \
         --query "forecast OR predict OR expected OR outlook" \
         --start_date 2026-01-01 \
         --end_date 2026-01-31 \
         --sort_by publishedAt \
         --page_size 75
     """
+    
+
     
     # ============================================================
     # 1. CONFIGURATION
