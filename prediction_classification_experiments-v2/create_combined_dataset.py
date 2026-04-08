@@ -215,57 +215,148 @@ def load_financial_phrasebank_dataset(script_dir, sep=',', encoding='latin'):
 def load_chronicle2050_dataset(script_dir, sep=',', encoding='latin'):
     """
     Load and process chronicle2050 dataset.
-    
-    Parameters
-    ----------
-    script_dir : str
-        Current script directory
-    sep : str
-        CSV separator character
-    encoding : str
-        File encoding
-    
-    Returns
-    -------
-    pd.DataFrame
-        Processed chronicle2050 dataset with binary labels
-    
-    Notes
-    -----
-    Dataset source: [link]
-    Contains _ statements from longbets, GPT, NY Times news, etc.
-    
+
     Processing steps:
-    1. Load annotated financial phrasebank data
+    1. Load annotated Chronicle2050 CSV
     2. Drop rows without labels
-    3. Convert text labels to binary (PREDICTION=1, other=0)
-    4. Rename columns to match standard format
+    3. Convert textual labels to binary
+       (prediction=1, not-prediction=0)
+    4. Rename columns to standard format
     """
+
     print("\n" + "="*60)
     print("LOAD CHRONICLE2050 DATASET")
     print("="*60)
-    
+
     base_data_path = DataProcessing.load_base_data_path(script_dir)
     chronicle2050_path = os.path.join(
-        base_data_path, 
-        'chronicle2050/chronicle2050-renamed_cols.csv'
+        base_data_path,
+        'chronicle2050',
+        'annotators',
+        'chronicle2050-shawnick-binary-v1.csv'
     )
-    
+
     print(f"Loading from: {chronicle2050_path}")
-    
-    chronicle2050_df = DataProcessing.load_from_file(chronicle2050_path, 'csv', sep=sep, encoding=encoding)
+
+    chronicle2050_df = DataProcessing.load_from_file(
+        chronicle2050_path,
+        'csv',
+        sep=sep,
+        encoding=encoding
+    )
     print(f"Loaded shape: {chronicle2050_df.shape}")
-    
+
+    # --------------------------------------------------
+    # Drop rows without labels
+    # --------------------------------------------------
+    original_len = len(chronicle2050_df)
+    chronicle2050_df.dropna(subset=['shawnick_labels'], inplace=True)
+    dropped_count = original_len - len(chronicle2050_df)
+
+    if dropped_count > 0:
+        print(f"✓ Dropped {dropped_count} rows without labels")
+
+    # --------------------------------------------------
+    # Map textual labels to binary
+    # --------------------------------------------------
+    label_map = {
+        'prediction': 1,
+        'not-prediction': 0
+    }
+
+    chronicle2050_df['Sentence Label'] = (
+        chronicle2050_df['shawnick_labels']
+        .str.lower()
+        .map(label_map)
+    )
+
+    # --------------------------------------------------
+    # Rename sentence column to standard name
+    # --------------------------------------------------
+    chronicle2050_df.rename(
+        columns={
+            'sentence': 'Base Sentence'
+        },
+        inplace=True
+    )
+
     print(f"Final shape: {chronicle2050_df.shape}")
     print(f"Columns: {list(chronicle2050_df.columns)}")
-    
-    print(f"\nLabel distribution:")
+
+    print("\nSentence Label distribution:")
     print(chronicle2050_df['Sentence Label'].value_counts())
-    
+
     chronicle2050_df['Dataset Name'] = 'chronicle2050'
     print(f"\nPreview:\n{chronicle2050_df.head(7)}\n")
-    
+
     return chronicle2050_df
+
+def load_news_api_dataset(script_dir, sep=','):
+    """
+    Load and process NewsAPI annotated dataset.
+
+    Processing steps:
+    1. Load all NewsAPI annotation CSVs
+    2. Keep only prediction rows (Sentence Label == 1)
+    3. Standardize column names
+    4. Attach dataset name
+    """
+
+    print("\n" + "="*60)
+    print("LOAD NEWS API DATASET")
+    print("="*60)
+
+    base_data_path = DataProcessing.load_base_data_path(script_dir)
+    news_api_path = os.path.join(base_data_path, "news_api", "annotators")
+
+    print(f"Loading from: {news_api_path}")
+
+    dfs = []
+    for filename in os.listdir(news_api_path):
+        if not filename.endswith(".csv"):
+            continue
+
+        filepath = os.path.join(news_api_path, filename)
+        print(f"Loading: {filename}")
+
+        df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
+        dfs.append(df)
+
+    if not dfs:
+        print("⚠️ No NewsAPI CSVs found.")
+        return pd.DataFrame()
+
+    news_api_df = DataProcessing.concat_dfs(dfs)
+    print(f"Loaded shape (all rows): {news_api_df.shape}")
+
+    # --------------------------------------------------
+    # Keep predictions only
+    # --------------------------------------------------
+    if 'Sentence Label' not in news_api_df.columns:
+        raise ValueError("Expected 'Sentence Label' column in NewsAPI dataset")
+
+    news_api_df = news_api_df[news_api_df['Sentence Label'] == 1]
+    print(f"Filtered shape (predictions only): {news_api_df.shape}")
+
+    # --------------------------------------------------
+    # Standardize column names
+    # --------------------------------------------------
+    if 'Base Sentence' not in news_api_df.columns:
+        raise ValueError("Expected 'Base Sentence' column in NewsAPI dataset")
+
+    news_api_df = news_api_df[['Base Sentence', 'Sentence Label'] + [
+        c for c in news_api_df.columns
+        if c not in ['Base Sentence', 'Sentence Label']
+    ]]
+
+    print("\nSentence Label distribution:")
+    print(news_api_df['Sentence Label'].value_counts())
+
+    news_api_df['Dataset Name'] = 'news_api_predictions'
+
+    print(f"\nPreview:\n{news_api_df.head(7)}\n")
+
+    return news_api_df
 
 def filter_by_domain(df, domain_name):
     """
@@ -454,10 +545,11 @@ if __name__ == "__main__":
             non_predictions      - LLM-generated past-tense observation sentences  [Brinkley et al. (...)]
             financial_phrasebank - Real financial statements from calls/reports/news [Malo et al. (2014)]
             chronicle2050        - Real statements from Longbets, Horizons, synthetic (ChatGPT), news (New York Times) [Regev et al. (2024)]
+            news api
             
             Examples:
             # Combine all datasets (default)
-            python3 create_combined_dataset.py
+            python3 create_combined_dataset.py --output_name synthetic_only
             
             # Combine specific datasets
             python3 create_combined_dataset.py --datasets predictions financial_phrasebank
@@ -467,6 +559,10 @@ if __name__ == "__main__":
             
             # Custom output location and name
             python3 create_combined_dataset.py --save_path ../results/ --output_name my_dataset
+
+            # Combine all datasets (default)
+            python3 create_combined_dataset.py --datasets predictions non_predictions financial_phrasebank chronicle2050 news_api --output_name all-preds-non_preds-fpb-c2050-news
+
         """
     )
     
@@ -474,7 +570,13 @@ if __name__ == "__main__":
     parser.add_argument(
         '--datasets',
         nargs='+',
-        choices=['predictions', 'non_predictions', 'financial_phrasebank', 'chronicle2050'],
+        choices=[
+            'predictions',
+            'non_predictions',
+            'financial_phrasebank',
+            'chronicle2050',
+            'news_api'
+        ],
         default=['predictions', 'non_predictions'],
         help='Datasets to combine. Default: all synthetic only'
     )
@@ -496,8 +598,7 @@ if __name__ == "__main__":
     
     parser.add_argument(
         '--output_name',
-        default='combined-full_synthetic',
-        help='Output filename (without extension). Default: combined-full_synthetic'
+        help='Output filename (without extension).'
     )
     
     parser.add_argument(
@@ -587,6 +688,17 @@ if __name__ == "__main__":
         datasets_to_combine.append(chronicle2050_df)
         dataset_names.append("Chronicle2050")
     
+
+    # --- Load NewsAPI ---
+    if 'news_api' in args.datasets:
+        news_api_df = load_news_api_dataset(script_dir)
+
+        # Apply domain filter if specified
+        if args.filter_domain:
+            news_api_df = filter_by_domain(news_api_df, args.filter_domain)
+
+        datasets_to_combine.append(news_api_df)
+        dataset_names.append("NewsAPI")
     # ============================================================
     # 4. VALIDATE DATASET SELECTION
     # ============================================================
