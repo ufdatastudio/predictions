@@ -727,6 +727,59 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             word_split_sentences.append(words)
         return word_split_sentences
     
+    def split_into_sentences(self) -> pd.DataFrame:
+        """
+        Split a text column with multiple sentences into sentence-level rows using spaCy sentence
+        boundary detection.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input DataFrame containing the text to be split.
+        text_column : str
+            Name of the column containing the text (e.g., ``"Base Sentence"``).
+        nlp : spacy.language.Language
+            A loaded spaCy language model with sentence boundary detection enabled.
+
+        Returns
+        -------
+        pd.DataFrame
+            A new DataFrame where each row corresponds to a single sentence
+            derived from the original text column. All other columns are
+            duplicated as needed to preserve metadata.
+
+        Notes
+        -----
+        - This function does not modify the original DataFrame.
+        - Sentence segmentation is performed using spaCy's built-in
+        sentence boundary detection, which is more reliable than
+        rule-based or regex-only approaches.
+        """
+        
+        df = self.df_to_vectorize.copy()
+        text_column = self.col_name_to_vectorize
+        
+        sentence_lists = []
+
+        for text in df[text_column]:
+            sentences = []
+
+            if isinstance(text, str) and text.strip() != "":
+                doc = self.nlp(text)
+
+                for sent in doc.sents:
+                    sentence_text = sent.text.strip()
+                    # if len(sentence_text) > 3:
+                    sentences.append(sentence_text)
+
+            sentence_lists.append(sentences)
+
+        df[text_column] = sentence_lists
+        df = df.explode(text_column).reset_index(drop=True)
+
+        return df
+
+
 class RobertaFeatureExtraction(FeatureExtractionFactory):
     """An extension of the abstract base class called FeatureExtractionFactory"""
 
