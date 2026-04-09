@@ -23,9 +23,8 @@ class DataVisualizing:
 
     def plot_class_distribution(
         df: pd.DataFrame,
-        label_col: str = 'Prediction',
-        class_names: list = ['Non-Prediction', 'Prediction'],
-        title: str = 'Class Distribution',
+        label_col: str,
+        title: str = None,
         save_path: Optional[str] = None,
     ) -> None:
         """
@@ -53,45 +52,101 @@ class DataVisualizing:
         """
         counts = df[label_col].value_counts().sort_index()
         total = len(df)
-
-        fig, ax = plt.subplots(figsize=(7, 5))
-
-        bars = ax.bar(
-            [0, 1],
-            counts.values,
-            color=['#1f77b4', '#ff7f0e'],
-            edgecolor='black',
-            width=0.5,
-        )
-
-        # Annotate each bar with count and percentage
+        
+        # Auto-detect if binary (0,1) for better labeling
+        if set(counts.index) == {0, 1}:
+            labels = ['Non-Prediction', 'Prediction']
+            colors = ['#1f77b4', '#ff7f0e']
+        else:
+            labels = counts.index
+            colors = plt.cm.Set3(range(len(counts)))
+        
+        fig, ax = plt.subplots(figsize=(max(8, len(counts)*1.5), 6))
+        bars = ax.bar(range(len(counts)), counts.values, color=colors, edgecolor='black')
+        
+        # Annotate bars
         for bar, count in zip(bars, counts.values):
             pct = (count / total) * 100
-            ax.text(
-                bar.get_x() + bar.get_width() / 2,
-                bar.get_height(),
-                f'n={count}\n({pct:.1f}%)',
-                ha='center', va='bottom',
-                fontsize=10, fontweight='bold',
-            )
-
-        ax.set_xticks([0, 1])
-        ax.set_xticklabels(class_names)
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height(),
+                    f'n={count}\n({pct:.1f}%)', ha='center', va='bottom', fontweight='bold')
+        
+        ax.set_xticks(range(len(counts)))
+        ax.set_xticklabels(labels, rotation=45 if len(counts) > 3 else 0, ha='right')
         ax.set_ylabel('Count')
-        ax.set_title(title)
-        ax.set_ylim(0, max(counts.values) * 1.30)
+        ax.set_title(title or f'{label_col} Distribution')
         ax.grid(axis='y', alpha=0.3)
-
+        
         plt.tight_layout()
-
         if save_path:
-            DataProcessing.save_to_file(
-                None, save_path, 'class_distribution', 'png', include_version=True
-            )
-
+            DataProcessing.save_to_file(None, save_path, f'{label_col}_distribution', 'png', include_version=True)
         plt.show()
         plt.close()
 
+    def plot_stacked_distribution(
+        df: pd.DataFrame,
+        category_col: str = 'Dataset Name',
+        label_col: str = 'Sentence Label',
+        title: str = None,
+        save_path: Optional[str] = None,
+    ) -> None:
+        """Plot stacked bar chart showing predictions/non-predictions per category."""
+        import matplotlib.pyplot as plt
+        
+        # Create crosstab for stacked data
+        cross_tab = pd.crosstab(df[category_col], df[label_col])
+        
+        # Ensure we have both 0 and 1 columns
+        if 0 not in cross_tab.columns:
+            cross_tab[0] = 0
+        if 1 not in cross_tab.columns:
+            cross_tab[1] = 0
+        
+        cross_tab = cross_tab[[0, 1]]  # Order: non-predictions, predictions
+        
+        fig, ax = plt.subplots(figsize=(max(8, len(cross_tab)*1.5), 6))
+        
+        # Create stacked bars
+        bars1 = ax.bar(range(len(cross_tab)), cross_tab[0], 
+                    color='#1f77b4', label='Non-Predictions (0)', edgecolor='black')
+        bars2 = ax.bar(range(len(cross_tab)), cross_tab[1], 
+                    bottom=cross_tab[0], color='#ff7f0e', label='Predictions (1)', edgecolor='black')
+        
+        # Annotate each segment
+        for i, (bar1, bar2) in enumerate(zip(bars1, bars2)):
+            # Non-predictions annotation
+            if cross_tab.iloc[i, 0] > 0:
+                ax.text(bar1.get_x() + bar1.get_width()/2, bar1.get_height()/2,
+                        f'{cross_tab.iloc[i, 0]}', ha='center', va='center', fontweight='bold')
+            
+            # Predictions annotation  
+            if cross_tab.iloc[i, 1] > 0:
+                ax.text(bar2.get_x() + bar2.get_width()/2, 
+                        cross_tab.iloc[i, 0] + bar2.get_height()/2,
+                        f'{cross_tab.iloc[i, 1]}', ha='center', va='center', fontweight='bold')
+            
+            # Total on top
+            total = cross_tab.iloc[i, 0] + cross_tab.iloc[i, 1]
+            
+            ax.text(bar2.get_x() + bar2.get_width()/2, total + cross_tab.values.max() * 0.02,
+                    f'Total: {total}', ha='center', va='bottom', fontweight='bold', fontsize=9)
+        
+        ax.set_xticks(range(len(cross_tab)))
+        ax.set_xticklabels(cross_tab.index, rotation=45, ha='right')
+        ax.set_ylabel('Count')
+        ax.set_title(title or f'{category_col} Distribution (Stacked by {label_col})')
+        ax.legend()
+        ax.grid(axis='y', alpha=0.3)
+        
+        plt.tight_layout()
+        if save_path:
+            DataProcessing.save_to_file(None, save_path, f'{category_col}_stacked_distribution', 'png', include_version=True)
+        plt.show()
+        plt.close()
+        
+        # Print the crosstab
+        print(f"\n{category_col} vs {label_col} Breakdown:")
+        print(cross_tab)
+        
     def plot_balancedness(
         X: np.ndarray,
         y: np.ndarray,
