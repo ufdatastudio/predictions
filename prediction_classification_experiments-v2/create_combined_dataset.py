@@ -38,7 +38,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(script_dir, '../'))
 
 from data_processing import DataProcessing
-
+from data_visualizing import DataVisualizing
 
 def load_predictions_dataset(script_dir, sep=','):
     """
@@ -64,6 +64,7 @@ def load_predictions_dataset(script_dir, sep=','):
     print("\n" + "="*60)
     print("LOAD PREDICTIONS DATASET")
     print("="*60)
+    save_plots_path = os
     
     predictions_df = DataProcessing.load_multiple_batches(
         script_dir,
@@ -75,12 +76,10 @@ def load_predictions_dataset(script_dir, sep=','):
     print(f"Columns: {list(predictions_df.columns)}")
 
     skip = ['Base Sentence']   # add any column names here
-
     for col in predictions_df.columns:
         if col not in skip:
             print(f"\n=== {col} value counts ===")
             print(predictions_df[col].value_counts())
-
     predictions_df['Dataset Name'] = 'synthetic_predictions'
     print(f"\nPreview:\n{predictions_df.head(3)}\n")
     
@@ -495,12 +494,14 @@ def save_combined_dataset(df, save_path, output_name, include_version=True):
     print("\n" + "="*60)
     print("SAVE COMBINED DATASET")
     print("="*60)
+
+    combo_data_save_path = os.path.join(args.save_path, args.output_name)
     
-    os.makedirs(save_path, exist_ok=True)
+    os.makedirs(combo_data_save_path, exist_ok=True)
     
     DataProcessing.save_to_file(
         df, 
-        save_path, 
+        combo_data_save_path, 
         output_name, 
         'csv',
         include_version=include_version
@@ -509,14 +510,14 @@ def save_combined_dataset(df, save_path, output_name, include_version=True):
     # Find the actual saved filename
     if include_version:
         # Check for versioned files
-        existing_files = [f for f in os.listdir(save_path) if f.startswith(output_name)]
+        existing_files = [f for f in os.listdir(combo_data_save_path) if f.startswith(output_name)]
         if existing_files:
             latest_file = sorted(existing_files)[-1]
-            full_path = os.path.join(save_path, latest_file)
+            full_path = os.path.join(combo_data_save_path, latest_file)
         else:
-            full_path = os.path.join(save_path, f"{output_name}.csv")
+            full_path = os.path.join(combo_data_save_path, f"{output_name}.csv")
     else:
-        full_path = os.path.join(save_path, f"{output_name}.csv")
+        full_path = os.path.join(combo_data_save_path, f"{output_name}.csv")
     
     print(f"\n✓ Saved dataset:")
     print(f"  Path: {full_path}")
@@ -613,7 +614,7 @@ if __name__ == "__main__":
         help='Overwrite existing file instead of creating versioned copy'
     )
     
-    # Additional column options
+    # keep all columns
     parser.add_argument(
         '--keep_all_columns',
         action='store_true',
@@ -680,7 +681,6 @@ if __name__ == "__main__":
         datasets_to_combine.append(fpb_df)
         dataset_names.append("Financial Phrasebank")
     
-
     # --- Load Financial Phrasebank ---
     if 'chronicle2050' in args.datasets:
         chronicle2050_df = load_chronicle2050_dataset(script_dir)
@@ -688,7 +688,6 @@ if __name__ == "__main__":
         datasets_to_combine.append(chronicle2050_df)
         dataset_names.append("Chronicle2050")
     
-
     # --- Load NewsAPI ---
     if 'news_api' in args.datasets:
         news_api_df = load_news_api_dataset(script_dir)
@@ -699,25 +698,23 @@ if __name__ == "__main__":
 
         datasets_to_combine.append(news_api_df)
         dataset_names.append("NewsAPI")
+
     # ============================================================
     # 4. VALIDATE DATASET SELECTION
     # ============================================================
-    
     if len(datasets_to_combine) == 0:
         print("\n❌ ERROR: No datasets selected for combination!")
-        print("Please specify at least one dataset using --datasets")
+        print("Please specify at least two dataset using --datasets")
         sys.exit(1)
     
     # ============================================================
     # 5. COMBINE DATASETS
     # ============================================================
-    
     combined_df = combine_datasets(datasets_to_combine, dataset_names)
     
     # ============================================================
     # 6. EXTRACT COLUMNS
     # ============================================================
-    
     print("\n" + "="*60)
     print("COLUMN SELECTION")
     print("="*60)
@@ -731,7 +728,8 @@ if __name__ == "__main__":
     print(f"\nFinal dataset:")
     print(f"  Shape: {final_df.shape}")
     print(f"  Columns: {list(final_df.columns)}")
-    print(f"\nPreview:\n{final_df.head(3)}\n")
+    print(f"\nPreview:\n{final_df.head(7)}\n")
+    print(f"\nPreview:\n{final_df.tail(7)}\n")
     
     # ============================================================
     # 7. SAVE COMBINED DATASET
@@ -773,10 +771,20 @@ if __name__ == "__main__":
         print(f"  Non-Predictions (Label=0): {(final_df['Sentence Label']==0).sum()}")
     
     skip = ['Base Sentence']   # add any column names here
-
+    save_stacked_plot = os.path.join(args.save_path, args.output_name)
     for col in final_df.columns:
         if col not in skip:
             print(f"\n=== {col} value counts ===")
-            print(final_df[col].value_counts())
+            class_values = final_df[col].value_counts()
+            print(class_values)
             
+            # Plot Dataset Name distribution
+            if col == "Dataset Name":
+                print("Plotting stacked Dataset Name distribution...")
+                DataVisualizing.plot_stacked_distribution(
+                    final_df,
+                    category_col='Dataset Name',
+                    label_col='Sentence Label', 
+                    save_path=save_stacked_plot
+                )
     print("\n" + "="*60 + "\n")
