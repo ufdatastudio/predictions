@@ -859,7 +859,7 @@ if __name__ == "__main__":
                        choices=['synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank'],
                        help='Filter combined dataset by source')
     parser.add_argument('--text_column', default='Base Sentence', help='Text column name')
-    parser.add_argument('--label_column', default='Sentence Label', help='Label column name')
+    parser.add_argument('--label_column', default='Ground Truth', help='Label column name')
     parser.add_argument('--explainability', action='store_true', help='Generate SHAP/LIME explanations')
     parser.add_argument('--seed', type=int, default=7, help='Random seed')
     parser.add_argument('--val_size', type=float, default=None, help='Validation set size (0-1)')

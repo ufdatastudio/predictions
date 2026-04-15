@@ -67,42 +67,46 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
     
     for exp_dir_name in sorted(experiment_dirs):
         exp_dir_path = os.path.join(results_dir, exp_dir_name)
-        seed_folders = [f for f in os.listdir(exp_dir_path) if f.startswith('seed')]
         
-        for seed_folder in seed_folders:
-            seed = int(re.search(r'\d+', seed_folder).group())
-            seed_folder_path = os.path.join(exp_dir_path, seed_folder)
-            
-            # Walk through all directories inside the seed folder
-            for root, dirs, files in os.walk(seed_folder_path):
-                if 'ml_metrics_summary.csv' in files:
-                    csv_path = os.path.join(root, 'ml_metrics_summary.csv')
-                    
-                    # Figure out if this is in_domain or external
-                    rel_path = os.path.relpath(root, seed_folder_path)
-                    
-                    # Clean the path to group folds together! 
-                    # If path is cross_domain_fold_1/external_dataset_A -> make it external_dataset_A
-                    # If path is in_domain_fold_1 -> make it in_domain
-                    if 'external_' in rel_path:
-                        test_set_name = [p for p in rel_path.split(os.sep) if p.startswith('external_')][0]
-                    elif 'in_domain' in rel_path:
-                        test_set_name = 'in_domain'
-                    else:
-                        continue
+        # List all immediate folders in the experiment directory
+        immediate_folders = [f for f in os.listdir(exp_dir_path) if os.path.isdir(os.path.join(exp_dir_path, f))]
+        
+        # Iterate through folders starting with "seed"
+        for folder_name in immediate_folders:
+            if folder_name.startswith('seed'):
+                seed = int(re.search(r'\d+', folder_name).group())
+                seed_folder_path = os.path.join(exp_dir_path, folder_name)
+                
+                # Walk through all directories inside the seed folder
+                for root, dirs, files in os.walk(seed_folder_path):
+                    if 'metrics_summary_ml_models.csv' in files:  # Changed filename here
+                        csv_path = os.path.join(root, 'metrics_summary_ml_models.csv') # Changed filename here
                         
-                    eval_key = f"{exp_dir_name}__TEST__{test_set_name}"
-                    
-                    if eval_key not in experiments:
-                        experiments[eval_key] = []
-                    
-                    df = DataProcessing.load_from_file(csv_path, 'csv', sep=',')
-                    experiments[eval_key].append({
-                        'seed': seed,
-                        'folder': rel_path,
-                        'data': df
-                    })
-                    print(f"    ✓ Loaded: {seed_folder}/{rel_path}/ml_metrics_summary.csv")
+                        # Figure out if this is in_domain or external
+                        rel_path = os.path.relpath(root, seed_folder_path)
+                        
+                        # Clean the path to group folds together! 
+                        # If path is cross_domain_fold_1/external_dataset_A -> make it external_dataset_A
+                        # If path is in_domain_fold_1 -> make it in_domain
+                        if 'external_' in rel_path:
+                            test_set_name = [p for p in rel_path.split(os.sep) if p.startswith('external_')][0]
+                        elif 'in_domain' in rel_path:
+                            test_set_name = 'in_domain'
+                        else:
+                            continue
+                            
+                        eval_key = f"{exp_dir_name}__TEST__{test_set_name}"
+                        
+                        if eval_key not in experiments:
+                            experiments[eval_key] = []
+                        
+                        df = DataProcessing.load_from_file(csv_path, 'csv', sep=',')
+                        experiments[eval_key].append({
+                            'seed': seed,
+                            'folder': rel_path,
+                            'data': df
+                        })
+                        print(f"    ✓ Loaded: {seed_folder_path}/{rel_path}/metrics_summary_ml_models.csv") # Changed filename here
     return experiments
 
 def average_experiment_results(experiment_data):
@@ -112,8 +116,17 @@ def average_experiment_results(experiment_data):
     
     all_dfs = [item['data'] for item in experiment_data]
     combined_df = pd.concat(all_dfs, ignore_index=True)
+    print(f"\n{'='*60}")
+    print(combined_df.head(7))
+    print(combined_df.tail(7))
+    print(f"{'='*60}\n")
+
     
     numeric_cols = combined_df.select_dtypes(include=[np.number]).columns
+    
+    # Rename the first column to 'model' if it doesn't have a name
+    if combined_df.columns[0] == '':
+        combined_df = combined_df.rename(columns={combined_df.columns[0]: 'model'})
     
     mean_df = combined_df.groupby('model')[numeric_cols].mean()
     mean_df.loc['mean_across_models'] = mean_df.mean()
@@ -550,6 +563,7 @@ if __name__ == "__main__":
     print(f"Mode: {args.mode}")
     if args.mode == 'single':
         print(f"Target experiment: {args.experiment}")
+        # results_dir = os.path.join(results_dir, args.experiment)
     elif args.experiments:
         print(f"Filtering experiments: {len(args.experiments)}")
     print(f"Results directory: {results_dir}\n")
