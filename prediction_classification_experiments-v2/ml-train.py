@@ -14,6 +14,9 @@ import pandas as pd
 from datetime import datetime
 from typing import Dict, Any, Optional
 
+from imblearn.over_sampling import RandomOverSampler
+from imblearn.under_sampling import RandomUnderSampler
+
 # Get the current working directory of the script
 script_dir = os.getcwd()
 # Add the parent directory to the system path
@@ -55,7 +58,7 @@ def load_dataset(script_dir, dataset_path):
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
 
-    # df = df.sample(n=7, random_state=42) 
+    # df = df.sample(n=300, random_state=42) 
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
@@ -843,7 +846,7 @@ if __name__ == "__main__":
     # script_dir = os.path.dirname(os.path.abspath(__file__))
     base_data_path = DataProcessing.load_base_data_path(script_dir)
     
-    default_dataset = os.path.join(base_data_path, 'combined_datasets/train_synthetic-v1.csv')
+    default_dataset = os.path.join(base_data_path, 'combined_datasets/combined-full_synthetic-v1.csv')
     default_save_path = os.path.join(base_data_path, 'classification_results/')
     
     parser = argparse.ArgumentParser(
@@ -856,7 +859,7 @@ if __name__ == "__main__":
                        choices=['synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank'],
                        help='Filter combined dataset by source')
     parser.add_argument('--text_column', default='Base Sentence', help='Text column name')
-    parser.add_argument('--label_column', default='Sentence Label', help='Label column name')
+    parser.add_argument('--label_column', default='Ground Truth', help='Label column name')
     parser.add_argument('--explainability', action='store_true', help='Generate SHAP/LIME explanations')
     parser.add_argument('--seed', type=int, default=7, help='Random seed')
     parser.add_argument('--val_size', type=float, default=None, help='Validation set size (0-1)')

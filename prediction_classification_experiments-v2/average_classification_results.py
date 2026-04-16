@@ -75,22 +75,22 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
             
             # Walk through all directories inside the seed folder
             for root, dirs, files in os.walk(seed_folder_path):
-                if 'ml_metrics_summary.csv' in files:
-                    csv_path = os.path.join(root, 'ml_metrics_summary.csv')
+                if 'metrics_summary_ml_models.csv' in files:
+                    csv_path = os.path.join(root, 'metrics_summary_ml_models.csv')
                     
                     # Figure out if this is in_domain or external
                     rel_path = os.path.relpath(root, seed_folder_path)
                     
-                    # Clean the path to group folds together! 
-                    # If path is cross_domain_fold_1/external_dataset_A -> make it external_dataset_A
-                    # If path is in_domain_fold_1 -> make it in_domain
-                    if 'external_' in rel_path:
-                        test_set_name = [p for p in rel_path.split(os.sep) if p.startswith('external_')][0]
-                    elif 'in_domain' in rel_path:
-                        test_set_name = 'in_domain'
-                    else:
-                        continue
-                        
+                    # **REMOVE THIS FILTERING**
+                    # if 'external_' in rel_path:
+                    #     test_set_name = [p for p in rel_path.split(os.sep) if p.startswith('external_')][0]
+                    # elif 'in_domain' in rel_path:
+                    #     test_set_name = 'in_domain'
+                    # else:
+                    #     continue
+                    
+                    test_set_name = rel_path  # Use the entire relative path as the test set name
+                    
                     eval_key = f"{exp_dir_name}__TEST__{test_set_name}"
                     
                     if eval_key not in experiments:
@@ -102,7 +102,7 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
                         'folder': rel_path,
                         'data': df
                     })
-                    print(f"    ✓ Loaded: {seed_folder}/{rel_path}/ml_metrics_summary.csv")
+                    print(f"    ✓ Loaded: {seed_folder}/{rel_path}/metrics_summary_ml_models.csv")
     return experiments
 
 def average_experiment_results(experiment_data):
@@ -112,8 +112,17 @@ def average_experiment_results(experiment_data):
     
     all_dfs = [item['data'] for item in experiment_data]
     combined_df = pd.concat(all_dfs, ignore_index=True)
+    print(f"\n{'='*60}")
+    print(combined_df.head(7))
+    print(combined_df.tail(7))
+    print(f"{'='*60}\n")
+
     
     numeric_cols = combined_df.select_dtypes(include=[np.number]).columns
+    
+    # Rename the first column to 'model' if it doesn't have a name
+    if combined_df.columns[0] == '':
+        combined_df = combined_df.rename(columns={combined_df.columns[0]: 'model'})
     
     mean_df = combined_df.groupby('model')[numeric_cols].mean()
     mean_df.loc['mean_across_models'] = mean_df.mean()
@@ -550,6 +559,7 @@ if __name__ == "__main__":
     print(f"Mode: {args.mode}")
     if args.mode == 'single':
         print(f"Target experiment: {args.experiment}")
+        # results_dir = os.path.join(results_dir, args.experiment)
     elif args.experiments:
         print(f"Filtering experiments: {len(args.experiments)}")
     print(f"Results directory: {results_dir}\n")
