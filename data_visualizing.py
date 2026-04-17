@@ -89,61 +89,58 @@ class DataVisualizing:
         title: str = None,
         save_path: Optional[str] = None,
     ) -> None:
-        """Plot stacked bar chart showing predictions/non-predictions per category."""
+        """Plot horizontal stacked bar chart with labels below each bar."""
         import matplotlib.pyplot as plt
-        
-        # Create crosstab for stacked data
+
         cross_tab = pd.crosstab(df[category_col], df[label_col])
-        
-        # Ensure we have both 0 and 1 columns
+
         if 0 not in cross_tab.columns:
             cross_tab[0] = 0
         if 1 not in cross_tab.columns:
             cross_tab[1] = 0
-        
-        cross_tab = cross_tab[[0, 1]]  # Order: non-predictions, predictions
-        
-        fig, ax = plt.subplots(figsize=(max(8, len(cross_tab)*1.5), 6))
-        
-        # Create stacked bars
-        bars1 = ax.bar(range(len(cross_tab)), cross_tab[0], 
-                    color='#1f77b4', label='Non-Predictions (0)', edgecolor='black')
-        bars2 = ax.bar(range(len(cross_tab)), cross_tab[1], 
-                    bottom=cross_tab[0], color='#ff7f0e', label='Predictions (1)', edgecolor='black')
-        
-        # Annotate each segment
-        for i, (bar1, bar2) in enumerate(zip(bars1, bars2)):
-            # Non-predictions annotation
-            if cross_tab.iloc[i, 0] > 0:
-                ax.text(bar1.get_x() + bar1.get_width()/2, bar1.get_height()/2,
-                        f'{cross_tab.iloc[i, 0]}', ha='center', va='center', fontweight='bold')
-            
-            # Predictions annotation  
-            if cross_tab.iloc[i, 1] > 0:
-                ax.text(bar2.get_x() + bar2.get_width()/2, 
-                        cross_tab.iloc[i, 0] + bar2.get_height()/2,
-                        f'{cross_tab.iloc[i, 1]}', ha='center', va='center', fontweight='bold')
-            
-            # Total on top
-            total = cross_tab.iloc[i, 0] + cross_tab.iloc[i, 1]
-            
-            ax.text(bar2.get_x() + bar2.get_width()/2, total + cross_tab.values.max() * 0.02,
-                    f'Total: {total}', ha='center', va='bottom', fontweight='bold', fontsize=9)
-        
-        ax.set_xticks(range(len(cross_tab)))
-        ax.set_xticklabels(cross_tab.index, rotation=45, ha='right')
-        ax.set_ylabel('Count')
+
+        cross_tab = cross_tab[[0, 1]]
+        totals    = cross_tab.sum(axis=1)
+        max_val   = totals.max()
+        n_cats    = len(cross_tab)
+        bar_height = 0.4
+
+        fig, ax = plt.subplots(figsize=(12, max(6, n_cats * 1.5)))
+
+        y = list(range(n_cats))
+
+        ax.barh(y, cross_tab[0], height=bar_height,
+                color='#1f77b4', label='Non-Predictions (0)', edgecolor='black')
+        ax.barh(y, cross_tab[1], height=bar_height,
+                left=cross_tab[0], color='#ff7f0e', label='Predictions (1)', edgecolor='black')
+
+        for i in range(n_cats):
+            non_pred = cross_tab.iloc[i, 0]
+            pred     = cross_tab.iloc[i, 1]
+            total    = non_pred + pred
+            non_pct  = non_pred / total * 100
+            pred_pct = pred / total * 100
+
+            # Label below the bar: non-pred% | pred%  n=total (non_pred | pred)
+            label = f'{non_pct:.1f}% non-pred  |  {pred_pct:.1f}% pred    n={total} ({non_pred} | {pred})'
+            ax.text(0, i - bar_height * 0.85, label,
+                    ha='left', va='top', fontsize=8.5, color='#333333')
+
+        ax.set_yticks(y)
+        ax.set_yticklabels(cross_tab.index)
+        ax.set_xlabel('Count')
         ax.set_title(title or f'{category_col} Distribution (Stacked by {label_col})')
-        ax.legend()
-        ax.grid(axis='y', alpha=0.3)
-        
+        ax.legend(loc='lower right')
+        ax.grid(axis='x', alpha=0.3)
+        ax.set_xlim(0, max_val * 1.15)
+
         plt.tight_layout()
         if save_path:
+            from data_processing import DataProcessing
             DataProcessing.save_to_file(None, save_path, f'{category_col}_stacked_distribution', 'png', include_version=True)
         plt.show()
         plt.close()
-        
-        # Print the crosstab
+
         print(f"\n{category_col} vs {label_col} Breakdown:")
         print(cross_tab)
         

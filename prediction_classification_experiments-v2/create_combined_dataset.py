@@ -13,14 +13,12 @@ from data_visualizing import DataVisualizing
 def filter_by_domain(df, domain_name):
     """
     Filter dataset by domain column.
-
     Parameters
     ----------
     df : pd.DataFrame
         Dataset with 'Domain' column.
     domain_name : str
         Domain to filter for.
-
     Returns
     -------
     pd.DataFrame
@@ -38,17 +36,16 @@ def filter_by_domain(df, domain_name):
     print(f"  Kept {filtered_len/original_len*100:.1f}% of rows")
     return filtered_df
 
+
 def combine_datasets(dataset_list, dataset_names):
     """
     Combine multiple datasets with standard columns.
-
     Parameters
     ----------
     dataset_list : list of pd.DataFrame
         List of datasets to combine.
     dataset_names : list of str
         Names of each dataset for logging.
-
     Returns
     -------
     pd.DataFrame
@@ -80,17 +77,16 @@ def combine_datasets(dataset_list, dataset_names):
     print(f"\nTail:\n{combined_df.tail(3)}\n")
     return combined_df
 
+
 def extract_standard_columns(combined_df, additional_cols=None):
     """
     Extract standard columns plus any additional specified columns.
-
     Parameters
     ----------
     combined_df : pd.DataFrame
         Combined dataset.
     additional_cols : list of str, optional
         Additional columns to keep beyond the standard set.
-
     Returns
     -------
     pd.DataFrame
@@ -102,10 +98,10 @@ def extract_standard_columns(combined_df, additional_cols=None):
     print(f"\nExtracting columns: {filtered_keep_cols}")
     return combined_df.loc[:, filtered_keep_cols]
 
+
 def save_combined_dataset(df, save_path, output_name, include_version=True):
     """
     Save combined dataset to disk.
-
     Parameters
     ----------
     df : pd.DataFrame
@@ -120,10 +116,8 @@ def save_combined_dataset(df, save_path, output_name, include_version=True):
     print("\n" + "="*60)
     print("SAVE COMBINED DATASET")
     print("="*60)
-
     combo_data_save_path = os.path.join(save_path, output_name)
     os.makedirs(combo_data_save_path, exist_ok=True)
-
     DataProcessing.save_to_file(
         df,
         combo_data_save_path,
@@ -131,7 +125,6 @@ def save_combined_dataset(df, save_path, output_name, include_version=True):
         'csv',
         include_version=include_version
     )
-
     if include_version:
         existing_files = [f for f in os.listdir(combo_data_save_path) if f.startswith(output_name)]
         latest_file = sorted(existing_files)[-1] if existing_files else f"{output_name}.csv"
@@ -144,6 +137,7 @@ def save_combined_dataset(df, save_path, output_name, include_version=True):
     print(f"  Shape: {df.shape}")
     print(f"  Size: {os.path.getsize(full_path) / 1024:.2f} KB\n")
 
+
 if __name__ == "__main__":
     print("\n" + "="*60)
     print("COMBINED DATASET CREATION PIPELINE")
@@ -155,31 +149,46 @@ if __name__ == "__main__":
     base_data_path = os.path.join(script_dir, '../data')
     default_save_path = os.path.join(base_data_path, 'combined_datasets/')
 
+    dataset_loader_map = {
+        'synthetic':            DataProcessing.load_synthetic_dataset,
+        'financial_phrasebank': DataProcessing.load_financial_phrasebank_dataset,
+        'chronicle2050':        DataProcessing.load_chronicle2050_dataset,
+        'news_api':             DataProcessing.load_news_api_dataset,
+        'yt':                   DataProcessing.load_yt_dataset,
+        'timebank':             DataProcessing.load_timebank_dataset
+    }
+
     parser = argparse.ArgumentParser(
         description='Combine synthetic and real datasets for ML training',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
         Available Datasets:
-            predictions          - LLM-generated future-tense prediction sentences [Brinkley et al. (...)]
-            non_predictions      - LLM-generated past-tense observation sentences  [Brinkley et al. (...)]
+            synthetic            - LLM-generated predictions + observations [Brinkley et al. (...)]
             financial_phrasebank - Real financial statements [Malo et al. (2014)]
             chronicle2050        - Real statements from Longbets, Horizons, etc. [Regev et al. (2024)]
             news_api             - Real news API annotated sentences
             yt                   - Real YouTube annotated sentences
+            timebank             - TimeBank 1.2 annotated sentences
 
         Examples:
-            python3 create_combined_dataset.py --output_name synthetic_only
-            python3 create_combined_dataset.py --datasets predictions financial_phrasebank
-            python3 create_combined_dataset.py --filter_domain finance
-            python3 create_combined_dataset.py --datasets predictions non_predictions financial_phrasebank chronicle2050 news_api yt --output_name all-combined
+            python3 create_combined_dataset.py --datasets synthetic
+            python3 create_combined_dataset.py --datasets synthetic financial_phrasebank
+            python3 create_combined_dataset.py --datasets synthetic --filter_domain finance
+            python3 create_combined_dataset.py --datasets synthetic financial_phrasebank chronicle2050 news_api yt timebank --output_name all-combined
         """
     )
     parser.add_argument(
         '--datasets',
         nargs='+',
-        choices=['predictions', 'non_predictions', 'financial_phrasebank', 'chronicle2050', 'news_api', 'yt'],
-        default=['predictions', 'non_predictions'],
-        help='Datasets to combine. Default: predictions and non_predictions.'
+        choices=list(dataset_loader_map.keys()),
+        default=['synthetic'],
+        help='One or more datasets to combine. Default: synthetic.'
+    )
+    parser.add_argument(
+        '--predictions_only',
+        action='store_true',
+        default=False,
+        help='Only load prediction-labeled rows (default: False).'
     )
     parser.add_argument(
         '--filter_domain',
@@ -194,7 +203,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '--output_name',
-        help='Output filename (without extension).'
+        default='combined_dataset',
+        help='Output filename (without extension). Default: combined_dataset.'
     )
     parser.add_argument(
         '--no_save',
@@ -224,6 +234,7 @@ if __name__ == "__main__":
     # ============================================================
     print(f"\nConfiguration:")
     print(f"  Datasets to combine : {', '.join(args.datasets)}")
+    print(f"  Predictions only    : {args.predictions_only}")
     print(f"  Domain filter       : {args.filter_domain if args.filter_domain else 'None (all domains)'}")
     print(f"  Save path           : {args.save_path}")
     print(f"  Output name         : {args.output_name}")
@@ -236,29 +247,17 @@ if __name__ == "__main__":
     # ============================================================
     # 3. Load Datasets
     # ============================================================
-    dataset_loader_map = {
-        'predictions':          DataProcessing.load_predictions_dataset,
-        'non_predictions':      DataProcessing.load_non_predictions_dataset,
-        'financial_phrasebank': DataProcessing.load_financial_phrasebank_dataset,
-        'chronicle2050':        DataProcessing.load_chronicle2050_dataset,
-        'news_api':             DataProcessing.load_news_api_dataset,
-        'yt':                   DataProcessing.load_yt_dataset
-    }
-
-    # Datasets that support domain filtering
-    domain_filterable = {'predictions', 'non_predictions', 'news_api', 'yt'}
-
+    domain_filterable = {'synthetic', 'news_api', 'yt'}
     datasets_to_combine = []
     dataset_names = []
 
     for dataset_key in args.datasets:
         loader = dataset_loader_map[dataset_key]
-        df = loader(script_dir)
+        df = loader(script_dir, predictions_only=False, visualize=False)  # always load all, never plot
         if args.filter_domain and dataset_key in domain_filterable:
             df = filter_by_domain(df, args.filter_domain)
         datasets_to_combine.append(df)
         dataset_names.append(dataset_key)
-
     # ============================================================
     # 4. Validate Dataset Selection
     # ============================================================
@@ -328,19 +327,17 @@ if __name__ == "__main__":
         print(f"  Prediction Count     (Label=1): {pred_count} ({round(pred_count/total*100, 2)}%)")
         print(f"  Non-Prediction Count (Label=0): {non_pred_count} ({round(non_pred_count/total*100, 2)}%)")
 
-    skip = ['Base Sentence']
-    save_stacked_plot = os.path.join(args.save_path, args.output_name)
-    for col in final_df.columns:
-        if col not in skip:
-            print(f"\n=== {col} value counts ===")
-            print(final_df[col].value_counts())
-            if col == "Dataset Name":
-                print("Plotting stacked Dataset Name distribution...")
-                DataVisualizing.plot_stacked_distribution(
-                    final_df,
-                    category_col='Dataset Name',
-                    label_col='Ground Truth',
-                    save_path=save_stacked_plot
-                )
+    if args.predictions_only:
+        final_df = final_df[final_df['Ground Truth'] == 1]
+        print(f"Filtered to predictions only: {final_df.shape}")
 
+    save_stacked_plot = os.path.join(args.save_path, args.output_name)
+    if 'Dataset Name' in final_df.columns:
+        print("Plotting stacked Dataset Name distribution...")
+        DataVisualizing.plot_stacked_distribution(
+            final_df,
+            category_col='Dataset Name',
+            label_col='Ground Truth',
+            save_path=save_stacked_plot
+        )
     print("\n" + "="*60 + "\n")

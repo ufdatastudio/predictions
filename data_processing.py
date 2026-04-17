@@ -1254,7 +1254,7 @@ class DataProcessing:
         df = df[priority_cols + remaining_cols]
         return df
 
-    def load_predictions_dataset(script_dir, sep=','):
+    def load_synthetic_predictions_dataset(script_dir, sep=','):
         print("\n" + "="*60)
         print("LOAD PREDICTIONS DATASET")
         print("="*60)
@@ -1279,7 +1279,7 @@ class DataProcessing:
         print(f"\nPreview:\n{predictions_df.head(3)}\n")
         return predictions_df
 
-    def load_non_predictions_dataset(script_dir, sep=','):
+    def load_synthetic_non_predictions_dataset(script_dir, sep=','):
         print("\n" + "="*60)
         print("LOAD NON-PREDICTIONS DATASET")
         print("="*60)
@@ -1304,7 +1304,38 @@ class DataProcessing:
         print(f"\nPreview:\n{non_predictions_df.head(3)}\n")
         return non_predictions_df
 
-    def load_financial_phrasebank_dataset(script_dir, sep=',', encoding='latin', predictions_only: bool = True):
+    def load_synthetic_dataset(script_dir, sep=',', predictions_only: bool = True, visualize: bool = True, **kwargs):
+        print("\n" + "="*60)
+        print("LOAD SYNTHETIC DATASET")
+        print("="*60)
+
+        predictions_df     = DataProcessing.load_synthetic_predictions_dataset(script_dir, sep=sep)
+        non_predictions_df = DataProcessing.load_synthetic_non_predictions_dataset(script_dir, sep=sep)
+
+        if predictions_only:
+            print(f"Filtered shape (predictions only): {predictions_df.shape}")
+            return predictions_df
+
+        synthetic_df = DataProcessing.concat_dfs([predictions_df, non_predictions_df])
+        print(f"Combined shape: {synthetic_df.shape}")
+
+        if visualize:
+            from data_visualizing import DataVisualizing
+            DataVisualizing.plot_class_distribution(
+                df=synthetic_df,
+                label_col='Ground Truth',
+                title='Synthetic Dataset Class Distribution'
+            )
+
+        print("\nGround Truth distribution:")
+        print(synthetic_df['Ground Truth'].value_counts())
+
+        synthetic_df['Dataset Name'] = 'synthetic'
+        print(f"\nPreview:\n{synthetic_df.head(7)}\n")
+
+        return synthetic_df
+
+    def load_financial_phrasebank_dataset(script_dir, sep=',', encoding='latin', predictions_only: bool = True, visualize: bool = True, **kwargs):
         print("\n" + "="*60)
         print("LOAD FINANCIAL PHRASEBANK DATASET")
         print("="*60)
@@ -1340,8 +1371,7 @@ class DataProcessing:
         if predictions_only:
             fpb_df = fpb_df[fpb_df['Ground Truth'] == 1]
             print(f"Filtered shape (predictions only): {fpb_df.shape}")
-        else:
-            print(f"Final shape: {fpb_df.shape}")
+        elif visualize:
             from data_visualizing import DataVisualizing
             DataVisualizing.plot_class_distribution(
                 df=fpb_df,
@@ -1358,8 +1388,7 @@ class DataProcessing:
         
         return fpb_df
 
-
-    def load_chronicle2050_dataset(script_dir, sep=',', encoding='latin', predictions_only: bool = True):
+    def load_chronicle2050_dataset(script_dir, sep=',', encoding='latin', predictions_only: bool = True, visualize: bool = True, **kwargs):
         print("\n" + "="*60)
         print("LOAD CHRONICLE2050 DATASET")
         print("="*60)
@@ -1397,8 +1426,7 @@ class DataProcessing:
         if predictions_only:
             chronicle2050_df = chronicle2050_df[chronicle2050_df['Ground Truth'] == 1]
             print(f"Filtered shape (predictions only): {chronicle2050_df.shape}")
-        else:
-            print(f"Final shape: {chronicle2050_df.shape}")
+        elif visualize:
             from data_visualizing import DataVisualizing
             DataVisualizing.plot_class_distribution(
                 df=chronicle2050_df,
@@ -1415,63 +1443,7 @@ class DataProcessing:
         
         return chronicle2050_df
 
-
-    def load_news_api_dataset(script_dir, sep=',', predictions_only: bool = True):
-        print("\n" + "="*60)
-        print("LOAD NEWS API DATASET")
-        print("="*60)
-        
-        base_data_path = DataProcessing.load_base_data_path(script_dir)
-        news_api_path = os.path.join(base_data_path, "news_api", "annotators")
-        print(f"Loading from: {news_api_path}")
-        
-        dfs = []
-        for filename in os.listdir(news_api_path):
-            if not filename.endswith(".csv"):
-                continue
-            filepath = os.path.join(news_api_path, filename)
-            print(f"Loading: {filename}")
-            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
-            dfs.append(df)
-        
-        if not dfs:
-            print("⚠️ No NewsAPI CSVs found.")
-            return pd.DataFrame()
-        
-        news_api_df = DataProcessing.concat_dfs(dfs)
-        print(f"Loaded shape (all rows): {news_api_df.shape}")
-        
-        if 'Human Annotation' not in news_api_df.columns:
-            raise ValueError("Expected 'Human Annotation' column in NewsAPI dataset")
-        
-        news_api_df = DataProcessing.standardize_columns(
-            df=news_api_df,
-            text_col='Base Sentence',
-            label_col='Human Annotation'
-        )
-        
-        if predictions_only:
-            news_api_df = news_api_df[news_api_df['Ground Truth'] == 1]
-            print(f"Filtered shape (predictions only): {news_api_df.shape}")
-        else:
-            print(f"Final shape: {news_api_df.shape}")
-            from data_visualizing import DataVisualizing
-            DataVisualizing.plot_class_distribution(
-                df=news_api_df,
-                label_col='Ground Truth',
-                title='NewsAPI Class Distribution'
-            )
-        
-        print("\nGround Truth distribution:")
-        print(news_api_df['Ground Truth'].value_counts())
-        
-        news_api_df['Dataset Name'] = 'news_api_predictions'
-        print(f"\nPreview:\n{news_api_df.head(7)}\n")
-        
-        return news_api_df
-
-
-    def load_yt_dataset(script_dir, sep=',', predictions_only: bool = True):
+    def load_yt_dataset(script_dir, sep=',', predictions_only: bool = True, visualize: bool = True, **kwargs):
         print("\n" + "="*60)
         print("LOAD YT DATASET")
         print("="*60)
@@ -1508,8 +1480,7 @@ class DataProcessing:
         if predictions_only:
             yt_df = yt_df[yt_df['Ground Truth'] == 1]
             print(f"Filtered shape (predictions only): {yt_df.shape}")
-        else:
-            print(f"Final shape: {yt_df.shape}")
+        elif visualize:
             from data_visualizing import DataVisualizing
             DataVisualizing.plot_class_distribution(
                 df=yt_df,
@@ -1525,8 +1496,60 @@ class DataProcessing:
         
         return yt_df
 
+    def load_news_api_dataset(script_dir, sep=',', predictions_only: bool = True, visualize: bool = True, **kwargs):
+        print("\n" + "="*60)
+        print("LOAD NEWS API DATASET")
+        print("="*60)
+        
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        news_api_path = os.path.join(base_data_path, "news_api", "annotators")
+        print(f"Loading from: {news_api_path}")
+        
+        dfs = []
+        for filename in os.listdir(news_api_path):
+            if not filename.endswith(".csv"):
+                continue
+            filepath = os.path.join(news_api_path, filename)
+            print(f"Loading: {filename}")
+            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
+            dfs.append(df)
+        
+        if not dfs:
+            print("⚠️ No NewsAPI CSVs found.")
+            return pd.DataFrame()
+        
+        news_api_df = DataProcessing.concat_dfs(dfs)
+        print(f"Loaded shape (all rows): {news_api_df.shape}")
+        
+        if 'Human Annotation' not in news_api_df.columns:
+            raise ValueError("Expected 'Human Annotation' column in NewsAPI dataset")
+        
+        news_api_df = DataProcessing.standardize_columns(
+            df=news_api_df,
+            text_col='Base Sentence',
+            label_col='Human Annotation'
+        )
+        
+        if predictions_only:
+            news_api_df = news_api_df[news_api_df['Ground Truth'] == 1]
+            print(f"Filtered shape (predictions only): {news_api_df.shape}")
+        elif visualize:
+            from data_visualizing import DataVisualizing
+            DataVisualizing.plot_class_distribution(
+                df=news_api_df,
+                label_col='Ground Truth',
+                title='NewsAPI Class Distribution'
+            )
+        
+        print("\nGround Truth distribution:")
+        print(news_api_df['Ground Truth'].value_counts())
+        
+        news_api_df['Dataset Name'] = 'news_api_predictions'
+        print(f"\nPreview:\n{news_api_df.head(7)}\n")
+        
+        return news_api_df
 
-    def load_timebank_dataset(script_dir, sep=',', predictions_only: bool = True):
+    def load_timebank_dataset(script_dir, sep=',', predictions_only: bool = True, visualize: bool = True, **kwargs):
         print("\n" + "="*60)
         print("LOAD TIMEBANK DATASET")
         print("="*60)
@@ -1563,8 +1586,7 @@ class DataProcessing:
         if predictions_only:
             tb_df = tb_df[tb_df['Ground Truth'] == 1]
             print(f"Filtered shape (predictions only): {tb_df.shape}")
-        else:
-            print(f"Final shape: {tb_df.shape}")
+        elif visualize:
             from data_visualizing import DataVisualizing
             DataVisualizing.plot_class_distribution(
                 df=tb_df,
