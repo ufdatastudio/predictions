@@ -1,5 +1,6 @@
 import re
 import os
+import ast
 import json
 
 import numpy as np
@@ -662,43 +663,49 @@ class DataProcessing:
         return next_num
     
     def save_to_file(data, 
-                     path: str, 
-                     prefix: str, 
-                     save_file_type: str, 
-                     include_version: bool = True, 
-                     **kwargs: dict) -> None:
+                    path: str, 
+                    prefix: str, 
+                    save_file_type: str, 
+                    include_version: bool = True,
+                    append: bool = False,
+                    **kwargs: dict) -> None:
         """ 
         Save data to any file with an incremented filename based on existing files.
 
         Parameters
         ----------
-        data : dict or list
-            The data to be saved in file type format.
+        data : dict, list, or pd.DataFrame
+            The data to be saved.
         path : str
-            Directory path where the file type file will be saved.
+            Directory path where the file will be saved.
         prefix : str
-            Prefix for the filename (e.g., 'siteA' results in 'siteA-1.json', 'siteA-2.json', etc.).
+            Prefix for the filename (e.g., 'results' → 'results.csv' or 'results-v1.csv').
         save_file_type : str
-            File types such as json, csv, png, etc
+            File type: 'json', 'csv', or 'png'.
         include_version : bool, optional
-            If True, uses versioning system (adds -v1, -v2, etc.)
-            If False, saves directly without version suffix (will overwrite)
+            If True, appends version number to filename (e.g., results-v1.csv).
+            If False, saves directly without version suffix.
+            Default is True.
+        append : bool, optional
+            If True, appends to an existing CSV file instead of overwriting.
+            Only applies to CSV files. If file does not exist, creates it.
             Default is False.
         **kwargs : dict
             Additional arguments for specific file types:
             - For PNG: dpi (default=300), bbox_inches (default='tight')
-        Returns
-        -------
-        None
-            Saves the file to disk and prints the file path.
+
+        Notes
+        -----
+        append=True is useful for batch processing pipelines where results
+        are written incrementally (e.g., every BATCH_SIZE sentences) to the
+        same file. The header is only written if the file does not exist yet.
         """
         os.makedirs(path, exist_ok=True)
-        
-        # Determine filename based on versioning
-        if include_version:
+
+        if include_version and not append:
             next_number = DataProcessing.get_next_file_number(path, prefix)
             print(f"Using file number: {next_number}")
-        
+
         if save_file_type == 'json':
             if include_version:
                 file_name = f"{prefix}-v{next_number}.json"
@@ -708,34 +715,39 @@ class DataProcessing:
             print(f"Saving JSON file to: {file_path}")
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
-        
+
         elif save_file_type in ['csv', '.csv']:
-            if include_version:
+            if append:
+                # Append mode — always use the same filename, no versioning
+                file_name = f"{prefix}.csv"
+                file_path = os.path.join(path, file_name)
+                file_exists = os.path.exists(file_path)
+                print(f"Appending to CSV file: {file_path}")
+                data.to_csv(file_path, mode='a', header=not file_exists, index=False)
+            elif include_version:
                 file_name = f"{prefix}-v{next_number}.csv"
+                file_path = os.path.join(path, file_name)
+                print(f"Saving CSV file to: {file_path}")
+                data.to_csv(file_path, index=False)
             else:
                 file_name = f"{prefix}.csv"
-            file_path = os.path.join(path, file_name)
-            print(f"Saving CSV file to: {file_path}")
-            data.to_csv(file_path, index=False)
-        
+                file_path = os.path.join(path, file_name)
+                print(f"Saving CSV file to: {file_path}")
+                data.to_csv(file_path, index=False)
+
         elif save_file_type in ['png', '.png', 'PNG']:
             import matplotlib.pyplot as plt
-            
             if include_version:
                 file_name = f"{prefix}-v{next_number}.png"
             else:
                 file_name = f"{prefix}.png"
             file_path = os.path.join(path, file_name)
             print(f"Saving PNG file to: {file_path}")
-            
-            # Get optional parameters with defaults
             dpi = kwargs.get('dpi', 300)
             bbox_inches = kwargs.get('bbox_inches', 'tight')
-            
-            # Save the current figure
             plt.savefig(file_path, dpi=dpi, bbox_inches=bbox_inches)
             plt.close()
-        
+
         else:
             raise ValueError(f"Unsupported file type: {save_file_type}. Choose from [json, csv, png]")
 
@@ -1135,20 +1147,303 @@ class DataProcessing:
         
         return resampled_df
     
-    def extract_features_for_visualization(df: pd.DataFrame, 
-                                       embedding_col: str, 
-                                       label_col: str) -> pd.DataFrame:
-        """Extract first 2 dimensions from embeddings for visualization."""
-        print("\n" + "="*40)
-        print(f"EXTRACT FEATURES FOR VISUALIZING: {embedding_col} | {label_col}")
-        print("="*40)
-        print(f"df Shape: {df.shape}")
-        print(f"\ndf Preview:\n{df.head(7)}\n")
+    # def extract_features_for_visualization(df: pd.DataFrame, 
+    #                                    embedding_col: str, 
+    #                                    label_col: str) -> pd.DataFrame:
+    #     """Extract first 2 dimensions from embeddings for visualization."""
+    #     print("\n" + "="*40)
+    #     print(f"EXTRACT FEATURES FOR VISUALIZING: {embedding_col} | {label_col}")
+    #     print("="*40)
+    #     print(f"df Shape: {df.shape}")
+    #     print(f"\ndf Preview:\n{df.head(7)}\n")
 
-        embeddings_array = np.stack(df[embedding_col].values)
-        features_df = pd.DataFrame({
-            'Feature_1': embeddings_array[:, 0],
-            'Feature_2': embeddings_array[:, 1],
-            'Label': df[label_col]
-        })
-        return features_df
+    #     embeddings_array = np.stack(df[embedding_col].values)
+    #     features_df = pd.DataFrame({
+    #         'Feature_1': embeddings_array[:, 0],
+    #         'Feature_2': embeddings_array[:, 1],
+    #         'Label': df[label_col]
+    #     })
+    #     return features_df
+
+    def parse_llm_json_response(text: str):
+        """
+        Robustly parse a JSON dictionary from a raw LLM response string.
+
+        Parameters
+        ----------
+        text : str
+            Raw string output from an LLM response.
+
+        Returns
+        -------
+        dict or None
+            Parsed dictionary if successful, or None if parsing fails.
+
+        Notes
+        -----
+        Handles common LLM response formatting issues including:
+        - Markdown code blocks (```json ... ``` or ``` ... ```)
+        - Conversational filler text before or after the JSON
+        - Single-quoted Python dictionary strings via ast.literal_eval fallback
+        """
+        text = str(text).strip()
+
+        match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+        if match:
+            json_str = match.group(1)
+        else:
+            match = re.search(r'(\{.*\})', text, re.DOTALL)
+            json_str = match.group(1) if match else text
+
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            try:
+                return ast.literal_eval(json_str)
+            except:
+                return None
+    
+    # ==============================================================
+    # HELPER: Standardize columns
+    # ==============================================================
+    def standardize_columns(df, text_col, label_col, label_map=None):
+        """
+        Standardize column names and ordering for any dataset.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Raw loaded dataset
+        text_col : str
+            Name of the sentence/text column to map to 'Base Sentence'
+        label_col : str
+            Name of the label column to map to 'Ground Truth'
+        label_map : dict or None
+            Optional mapping to convert raw label values to integers
+            before renaming to 'Ground Truth'. e.g. {'prediction': 1, 'not-prediction': 0}
+
+        Returns
+        -------
+        pd.DataFrame
+            Dataset with standardized column names and ordering
+        """
+        if label_map is not None:
+            if label_col not in df.columns:
+                raise ValueError(f"Expected label column '{label_col}' not found for label_map application.")
+            df[label_col] = df[label_col].str.lower().map(label_map)
+
+        rename_map = {}
+        if text_col != 'Base Sentence' and text_col in df.columns:
+            rename_map[text_col] = 'Base Sentence'
+        if label_col != 'Ground Truth' and label_col in df.columns:
+            rename_map[label_col] = 'Ground Truth'
+        if rename_map:
+            df = df.rename(columns=rename_map)
+
+        if 'Base Sentence' not in df.columns:
+            raise ValueError(f"Expected text column '{text_col}' not found in dataset.")
+        if 'Ground Truth' not in df.columns:
+            raise ValueError(f"Expected label column '{label_col}' not found in dataset.")
+
+        priority_cols = ['Base Sentence', 'Ground Truth']
+        remaining_cols = []
+        for col in df.columns:
+            if col not in priority_cols:
+                remaining_cols.append(col)
+
+        df = df[priority_cols + remaining_cols]
+        return df
+
+    def load_predictions_dataset(script_dir, sep=','):
+        print("\n" + "="*60)
+        print("LOAD PREDICTIONS DATASET")
+        print("="*60)
+        predictions_df = DataProcessing.load_multiple_batches(
+            script_dir,
+            sep=sep,
+            data_type='prediction'
+        )
+        print(f"Shape: {predictions_df.shape}")
+        print(f"Columns: {list(predictions_df.columns)}")
+        skip = ['Base Sentence']
+        for col in predictions_df.columns:
+            if col not in skip:
+                print(f"\n=== {col} value counts ===")
+                print(predictions_df[col].value_counts())
+        predictions_df = DataProcessing.standardize_columns(
+            df=predictions_df,
+            text_col='Base Sentence',
+            label_col='Sentence Label'
+        )
+        predictions_df['Dataset Name'] = 'synthetic_predictions'
+        print(f"\nPreview:\n{predictions_df.head(3)}\n")
+        return predictions_df
+
+    def load_non_predictions_dataset(script_dir, sep=','):
+        print("\n" + "="*60)
+        print("LOAD NON-PREDICTIONS DATASET")
+        print("="*60)
+        non_predictions_df = DataProcessing.load_multiple_batches(
+            script_dir,
+            sep=sep,
+            data_type='observation'
+        )
+        print(f"Shape: {non_predictions_df.shape}")
+        print(f"Columns: {list(non_predictions_df.columns)}")
+        skip = ['Base Sentence']
+        for col in non_predictions_df.columns:
+            if col not in skip:
+                print(f"\n=== {col} value counts ===")
+                print(non_predictions_df[col].value_counts())
+        non_predictions_df = DataProcessing.standardize_columns(
+            df=non_predictions_df,
+            text_col='Base Sentence',
+            label_col='Sentence Label'
+        )
+        non_predictions_df['Dataset Name'] = 'synthetic_non_predictions'
+        print(f"\nPreview:\n{non_predictions_df.head(3)}\n")
+        return non_predictions_df
+
+    def load_financial_phrasebank_dataset(script_dir, sep=',', encoding='latin'):
+        print("\n" + "="*60)
+        print("LOAD FINANCIAL PHRASEBANK DATASET")
+        print("="*60)
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        fpb_path = os.path.join(
+            base_data_path,
+            'financial_phrase_bank/annotators/maya_annotations-financial_phrasebank_statements-v3-final.csv'
+        )
+        print(f"Loading from: {fpb_path}")
+        fpb_df = DataProcessing.load_from_file(fpb_path, 'csv', sep=sep, encoding=encoding)
+        print(f"Loaded shape: {fpb_df.shape}")
+        original_len = len(fpb_df)
+        fpb_df.dropna(inplace=True)
+        dropped_count = original_len - len(fpb_df)
+        if dropped_count > 0:
+            print(f"✓ Dropped {dropped_count} rows without labels")
+        print("\nConverting text labels to binary...")
+        fpb_df = DataProcessing.match_text_label_to_int(
+            fpb_df,
+            text_label_col_name='maya_label',
+            target_label='PREDICTION'
+        )
+        fpb_df = DataProcessing.standardize_columns(
+            df=fpb_df,
+            text_col='statement',
+            label_col='Binary Label'
+        )
+        print(f"Final shape: {fpb_df.shape}")
+        print(f"Columns: {list(fpb_df.columns)}")
+        print(f"\nGround Truth distribution:")
+        print(fpb_df['Ground Truth'].value_counts())
+        fpb_df['Dataset Name'] = 'fpb-imbalanced'
+        print(f"\nPreview:\n{fpb_df.head(3)}\n")
+        return fpb_df
+
+    def load_chronicle2050_dataset(script_dir, sep=',', encoding='latin'):
+        print("\n" + "="*60)
+        print("LOAD CHRONICLE2050 DATASET")
+        print("="*60)
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        chronicle2050_path = os.path.join(
+            base_data_path,
+            'chronicle2050',
+            'annotators',
+            'chronicle2050-shawnick-binary-v2.csv'
+        )
+        print(f"Loading from: {chronicle2050_path}")
+        chronicle2050_df = DataProcessing.load_from_file(
+            chronicle2050_path,
+            'csv',
+            sep=sep,
+            encoding=encoding
+        )
+        print(f"Loaded shape: {chronicle2050_df.shape}")
+        original_len = len(chronicle2050_df)
+        chronicle2050_df.dropna(subset=['shawnick_labels'], inplace=True)
+        dropped_count = original_len - len(chronicle2050_df)
+        if dropped_count > 0:
+            print(f"✓ Dropped {dropped_count} rows without labels")
+        chronicle2050_df = DataProcessing.standardize_columns(
+            df=chronicle2050_df,
+            text_col='sentence',
+            label_col='shawnick_labels',
+            label_map={'prediction': 1, 'not-prediction': 0}
+        )
+        print(f"Final shape: {chronicle2050_df.shape}")
+        print(f"Columns: {list(chronicle2050_df.columns)}")
+        print("\nGround Truth distribution:")
+        print(chronicle2050_df['Ground Truth'].value_counts())
+        chronicle2050_df['Dataset Name'] = 'chronicle2050'
+        print(f"\nPreview:\n{chronicle2050_df.head(7)}\n")
+        return chronicle2050_df
+
+    def load_news_api_dataset(script_dir, sep=','):
+        print("\n" + "="*60)
+        print("LOAD NEWS API DATASET")
+        print("="*60)
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        news_api_path = os.path.join(base_data_path, "news_api", "annotators")
+        print(f"Loading from: {news_api_path}")
+        dfs = []
+        for filename in os.listdir(news_api_path):
+            if not filename.endswith(".csv"):
+                continue
+            filepath = os.path.join(news_api_path, filename)
+            print(f"Loading: {filename}")
+            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
+            dfs.append(df)
+        if not dfs:
+            print("⚠️ No NewsAPI CSVs found.")
+            return pd.DataFrame()
+        news_api_df = DataProcessing.concat_dfs(dfs)
+        print(f"Loaded shape (all rows): {news_api_df.shape}")
+        if 'Human Annotation' not in news_api_df.columns:
+            raise ValueError("Expected 'Human Annotation' column in NewsAPI dataset")
+        news_api_df = news_api_df[news_api_df['Human Annotation'] == 1]
+        print(f"Filtered shape (predictions only): {news_api_df.shape}")
+        news_api_df = DataProcessing.standardize_columns(
+            df=news_api_df,
+            text_col='Base Sentence',
+            label_col='Human Annotation'
+        )
+        print("\nGround Truth distribution:")
+        print(news_api_df['Ground Truth'].value_counts())
+        news_api_df['Dataset Name'] = 'news_api_predictions'
+        print(f"\nPreview:\n{news_api_df.head(7)}\n")
+        return news_api_df
+
+    def load_yt_dataset(script_dir, sep=','):
+        print("\n" + "="*60)
+        print("LOAD YT DATASET")
+        print("="*60)
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        yt_path = os.path.join(base_data_path, "yt", "annotators", "sports")
+        print(f"Loading from: {yt_path}")
+        dfs = []
+        for filename in os.listdir(yt_path):
+            if not filename.endswith(".csv"):
+                continue
+            filepath = os.path.join(yt_path, filename)
+            print(f"Loading: {filename}")
+            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
+            dfs.append(df)
+        if not dfs:
+            print("⚠️ No YT CSVs found.")
+            return pd.DataFrame()
+        yt_df = DataProcessing.concat_dfs(dfs)
+        print(f"Loaded shape (all rows): {yt_df.shape}")
+        if 'Human Annotation' not in yt_df.columns:
+            raise ValueError("Expected 'Human Annotation' column in YT dataset")
+        yt_df = yt_df[yt_df['Human Annotation'] == 1]
+        print(f"Filtered shape (predictions only): {yt_df.shape}")
+        yt_df = DataProcessing.standardize_columns(
+            df=yt_df,
+            text_col='Base Sentence',
+            label_col='Human Annotation'
+        )
+        print("\nGround Truth distribution:")
+        print(yt_df['Ground Truth'].value_counts())
+        yt_df['Dataset Name'] = 'yt_predictions'
+        print(f"\nPreview:\n{yt_df.head(7)}\n")
+        return yt_df
