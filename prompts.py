@@ -43,6 +43,21 @@ class BasePrompt(ABC):
 
     def build(self):
         return self.system_identity(), self.task(), self.format_output()
+    
+    def few_shot(self):
+        source_ex = PredictionProperties.get_source_examples()
+        target_ex = PredictionProperties.get_target_examples()
+        date_ex = PredictionProperties.get_date_examples()
+        outcome_ex = PredictionProperties.get_outcome_examples()
+
+        few_shot_examples = f"""
+        Here are examples of each property to guide you:
+        - Source (1): {source_ex}
+        - Target (2): {target_ex}
+        - Date (3): {date_ex}
+        - Outcome (4): {outcome_ex}
+        """
+        return self.system_identity(), self.task(), self.format_output(), few_shot_examples
 
 class EntityExtractionPrompt(BasePrompt):
 
@@ -59,36 +74,13 @@ class EntityExtractionPrompt(BasePrompt):
         Respond ONLY with valid JSON in this exact format: {0: [word_from_sentence]}, {1: [word_from_sentence]}, {2: [word_from_sentence]}, {3: [word_from_sentence]}, {4: [word_from_sentence]}, where key is int ranging from 0 to 4 and the value is the words_from_sentence, split by a comma/all placed into a list, so {int: [word_from_sentence_1, word_from_sentence_2, ..., word_from_sentence_W]}.
         """
 
-    def few_shot(self):
-        source_ex = PredictionProperties.get_source_examples()
-        target_ex = PredictionProperties.get_target_examples()
-        date_ex = PredictionProperties.get_date_examples()
-        outcome_ex = PredictionProperties.get_outcome_examples()
-
-        few_shot_examples = f"""
-        Here are examples of each property to guide you:
-        - Source (1): {source_ex}
-        - Target (2): {target_ex}
-        - Date (3): {date_ex}
-        - Outcome (4): {outcome_ex}
-        """
-        return self.system_identity(), self.task(), self.format_output(), few_shot_examples
-
 class SentenceClassificationPrompt(BasePrompt):
-
     def default_system_identity(self):
-        # TODO: Define system identity for sentence classification
-        return ""
+        return "You are a linguistic expert that specializes in identifying prediction statements."
 
     def default_task(self):
-        # TODO: Define classification task instructions
-        return ""
+        return """Classify the sentence as either a "prediction": 1 or "non-prediction": 0."""
 
     def default_format_output(self):
-        # TODO: Define expected output format for sentence classification
-        return ""
-
-    def few_shot(self):
-        # TODO: Add few shot examples for sentence classification
-        few_shot_examples = ""
-        return self.system_identity(), self.task(), self.format_output(), few_shot_examples
+        # Matches the expected format in llm-classifiers.py parse_json_response
+        return """Respond ONLY with valid JSON in this exact format: {"predicted_sentence_label": 0} or {"predicted_sentence_label": 1}. Do NOT reason or provide anything other than {"predicted_sentence_label": 0} or {"predicted_sentence_label": 1}."""
