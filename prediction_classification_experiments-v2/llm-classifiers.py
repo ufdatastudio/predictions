@@ -34,6 +34,7 @@ BATCH_SIZE = 50
 # STOP_AFTER = 10
 STOP_AFTER = None
 
+
 def load_dataset(dataset_path, text_column='Base Sentence', label_column='Sentence Label'):
     """
     Load the test split saved by ml-train.py.
@@ -54,7 +55,13 @@ def load_dataset(dataset_path, text_column='Base Sentence', label_column='Senten
     print("="*40)
 
     print(f"Dataset path: {dataset_path}")
-    df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',')
+    df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='latin-1')
+    # Strip all non-ASCII characters entirely from string columns
+    # This is the safest fix when source data has deep unicode corruption
+    for col in df.select_dtypes(include='object').columns:
+        df[col] = df[col].apply(
+            lambda x: x.encode('ascii', errors='ignore').decode('ascii') if isinstance(x, str) else x
+        )
 
     # Validate required columns exist
     if text_column not in df.columns:
@@ -69,6 +76,7 @@ def load_dataset(dataset_path, text_column='Base Sentence', label_column='Senten
 
     return df
 
+
 def build_model(model_name):
     """Initialize single LLM from factory for this SLURM job."""
     tgmf = TextGenerationModelFactory()
@@ -82,83 +90,11 @@ def build_model(model_name):
     model = tgmf.create_instance(model_name)
     return model
 
-def load_prompts_and_llms(model_names=None):
-    """
-    Build the base prompt and load the language model(s).
-    The base prompt combines:
-    - Who the model is (system identity)
-    - What a prediction looks like (prediction properties)
-    - Rules the model must follow (requirements)
-    - Examples to guide the model (few-shot examples)
-
-    Parameters
-    ----------
-    model_names : str or list of str, optional
-        One or more model names to load. Defaults to 'llama-3.1-8b-instant'.
-
-    Returns
-    -------
-    base_prompt : str
-        The full prompt sent to the model before each sentence.
-    task : str
-        The labeling instruction for the model.
-    format_output : str
-        The expected JSON output format.
-    models : list
-        List of loaded model instances.
-    """
-    print("\n" + "="*50)
-    print("STEP: LOAD PROMPTS & MODELS")
-    print("="*50)
-
-    # Get prediction properties and requirements from PredictionProperties
-    prediction_properties, prediction_requirements = PredictionProperties.get_prediction_properties_and_requirements()
-
-    # Build the prompt using SentenceClassificationPrompt with few-shot examples
-    prompt = SentenceClassificationPrompt()
-    system_identity, task, format_output, examples = prompt.few_shot()
-
-    # Combine everything into one base prompt that will be sent before each sentence
-    base_prompt = f"""{system_identity}
-    Prediction Properties:
-    {prediction_properties}
-    Requirements:
-    {prediction_requirements}
-    Examples:
-    {examples}
-    """
-
-    print("\n--- Base Prompt ---")
-    print(base_prompt)
-    print("--- End Base Prompt ---\n")
-    print("✓ Prompts loaded")
-
-    # Load the model(s)
-    tgmf = TextGenerationModelFactory()
-    if model_names is None:
-        model_names = ['llama-3.1-8b-instant']
-    elif isinstance(model_names, str):
-        model_names = [model_names]
-
-    models = []
-    for model_name in model_names:
-        try:
-            model = tgmf.create_instance(model_name=model_name)
-            models.append(model)
-            print(f"✓ Loaded: {model.__name__()}")
-        except ValueError as e:
-            print(f"✗ Failed to load {model_name}: {e}")
-
-    if not models:
-        raise ValueError("No models were successfully loaded.")
-
-    print(f"\n✓ Total models loaded: {len(models)}\n")
-    return base_prompt, task, format_output, models
 
 def load_prompts(model_name):
     """
     Build the base prompt using SentenceClassificationPrompt with few-shot examples.
-    Used when loading a single model via --model_name argparse argument.
+    Combines system identity, prediction properties, requirements, and examples.
 
     Parameters
     ----------
@@ -203,267 +139,6 @@ def load_prompts(model_name):
 
     return base_prompt, task, format_output
 
-def get_remaining_data(df, results_path):
-    """
-    Filter the dataset to only include sentences that have NOT been processed yet.
-    This allows the pipeline to resume from where it left off if it was
-    interrupted (e.g., SLURM job timeout, rate limit crash, etc.).
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The full dataset.
-    results_path : str
-        Path to the existing results CSV file (if it exists).
-
-    Returns
-    -------
-    pd.DataFrame
-        A filtered DataFrame containing only unprocessed sentences.
-    """
-    if not os.path.exists(results_path):
-        print("No existing results found. Starting from scratch.")
-        return df
-
-    try:
-        # Load only the Input_Index column to save memory.
-        # Input_Index tracks which row numbers have already been processed.
-        existing_df = pd.read_csv(results_path, usecols=['Input_Index'])
-        processed_indices = set(existing_df['Input_Index'].unique())
-        print(f"Found {len(processed_indices)} already processed sentences.")
-
-        # Keep only rows whose index is NOT in the processed set
-        df_remaining = df[~df.index.isin(processed_indices)]
-        print(f"Resuming. {len(df_remaining)} sentences remaining.")
-        return df_remaining
-
-    except ValueError:
-        # If Input_Index column does not exist, fall back to row counting
-        print("Warning: 'Input_Index' column not found. Falling back to row counting.")
-        with open(results_path, 'r') as f:
-            row_count = sum(1 for row in f) - 1  # subtract header row
-        return df.iloc[max(0, row_count):]
-
-    except Exception as e:
-        print(f"Error reading existing results file: {e}. Starting from scratch.")
-        return df
-
-def join_property(values):
-    """
-    Convert a list of property values to a pipe-separated string.
-
-    Parameters
-    ----------
-    values : list or str
-        The extracted property values from the LLM response.
-
-    Returns
-    -------
-    str
-        A pipe-separated string of values.
-        Example: ['stock price', 'remain stable'] -> 'stock price|remain stable'
-
-    Examples
-    --------
-    >>> join_property(['stock price', 'remain stable'])
-    'stock price|remain stable'
-    >>> join_property('Analyst Michael Chen')
-    'Analyst Michael Chen'
-    >>> join_property([])
-    ''
-    """
-    if isinstance(values, list):
-        return '|'.join([str(v).strip() for v in values if v])
-    if isinstance(values, str):
-        return values.strip()
-    return ''
-
-def process_single_result(input_index, text, raw_response, model_name) -> pd.DataFrame:
-    """
-    Convert a single LLM response into a structured one-row DataFrame.
-    The LLM returns a raw string (hopefully JSON). This function parses
-    that string and maps each key to the correct property column.
-
-    Parameters
-    ----------
-    input_index : int
-        The row number of this sentence in the original dataset.
-        Stored so the resume logic can skip this row on future runs.
-    text : str
-        The original sentence that was sent to the model.
-    raw_response : str
-        The raw string response returned by the model.
-    model_name : str
-        The name of the model that generated the response.
-
-    Returns
-    -------
-    pd.DataFrame
-        A single-row DataFrame with columns:
-        Input_Index, Sentence, Raw Response, Model Name,
-        No Property, Source, Target, Date, Outcome.
-    """
-    # Start with an empty structure — we will fill in the properties below
-    data = {
-        'Input_Index': [input_index],
-        'Sentence': [text],
-        'Raw Response': [raw_response],
-        'Model Name': [model_name],
-        'No Property': [''],
-        'Source': [''],
-        'Target': [''],
-        'Date': [''],
-        'Outcome': ['']
-    }
-    results_df = pd.DataFrame(data)
-
-    # Try to parse the raw LLM response as a JSON dictionary
-    parsed = DataProcessing.parse_llm_json_response(raw_response)
-    if parsed and isinstance(parsed, dict):
-        try:
-            # The model returns keys 0-4 (sometimes as int, sometimes as string)
-            # 0 = no property, 1 = source, 2 = target, 3 = date, 4 = outcome
-            results_df.at[0, 'No Property'] = join_property(parsed.get(0, []) or parsed.get("0", []))
-            results_df.at[0, 'Source']      = join_property(parsed.get(1, []) or parsed.get("1", []))
-            results_df.at[0, 'Target']      = join_property(parsed.get(2, []) or parsed.get("2", []))
-            results_df.at[0, 'Date']        = join_property(parsed.get(3, []) or parsed.get("3", []))
-            results_df.at[0, 'Outcome']     = join_property(parsed.get(4, []) or parsed.get("4", []))
-        except Exception as e:
-            print(f"Error mapping JSON to columns for index {input_index}: {e}")
-    else:
-        # If we could not parse the response, mark it so we can review it later
-        results_df.at[0, 'No Property'] = "PARSE_ERROR"
-
-    return results_df
-
-def save_batch(batch_dfs, results_path):
-    """
-    Write a list of single-row DataFrames to the results CSV file.
-    Instead of writing to disk after every sentence (slow), we collect
-    BATCH_SIZE rows in memory and flush them all at once here.
-
-    Parameters
-    ----------
-    batch_dfs : list of pd.DataFrame
-        A list of single-row DataFrames to save.
-    results_path : str
-        Path to the results CSV file.
-    """
-    if not batch_dfs:
-        return
-
-    batch_df = pd.concat(batch_dfs, ignore_index=True)
-    results_dir = os.path.dirname(results_path)
-    prefix = os.path.basename(results_path).split('.')[0]  # e.g., "results"
-
-    DataProcessing.save_to_file(
-        data=batch_df,
-        path=results_dir,
-        prefix=prefix,
-        save_file_type='csv',
-        include_version=False,
-        append=True
-    )
-
-def extract_properties(df, text_column, base_prompt, task, format_output, models, results_path, dataset_basename, stop_after=None):
-    """
-    Process sentences with batch saving and robust error handling.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The filtered DataFrame of sentences still needing processing.
-    text_column : str
-        The column name containing the sentences to extract properties from.
-    base_prompt : str
-        The full prompt sent before each sentence.
-    task : str
-        The labeling instruction for the model.
-    format_output : str
-        The expected JSON output format.
-    models : list
-        List of loaded model instances.
-    results_path : str
-        Path to the results CSV file.
-    dataset_basename : str
-        The dataset name, stored in results so we know which dataset each row came from.
-    stop_after : int or None
-        If set, stop processing after this many sentences. Useful for testing.
-        Default is None (process all sentences).
-    """
-    print("\n" + "="*50)
-    print("STEP: EXTRACT PROPERTIES")
-    print("="*50)
-    print(f"Sentences to process: {len(df)}")
-
-    if stop_after:
-        print(f"⚠️  STOP_AFTER={stop_after}: Will stop after {stop_after} sentences for testing.")
-
-    batch_results = []
-    sentences_processed = 0
-
-    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing"):
-
-        # Stop early if stop_after is set
-        if stop_after is not None and sentences_processed >= stop_after:
-            print(f"\n⚠️  Reached STOP_AFTER={stop_after}. Stopping early.")
-            break
-
-        text = row[text_column]
-
-        for model in models:
-            prompt = f"""{base_prompt}
-            Sentence to extract the prediction properties: '{text}'
-            {task}
-            {format_output}
-            """
-
-            if idx < 2:
-                print(f"\n--- Sample Prompt (idx={idx}) ---")
-                print(prompt[:500] + "..." if len(prompt) > 500 else prompt)
-
-            input_prompt = model.user(prompt)
-            raw_response = model.safe_chat_completion([input_prompt], idx=idx)
-            time.sleep(7)  # rest before next prompt so model doesn't hit rate limit fast
-
-            if raw_response is None:
-                raw_response = str({"0": ["ERROR_MAX_RETRIES"], "1": [], "2": [], "3": [], "4": []})
-
-            single_df = process_single_result(idx, text, raw_response, model.__name__())
-            single_df['Dataset Source'] = dataset_basename
-            batch_results.append(single_df)
-
-        sentences_processed += 1
-
-        if len(batch_results) >= BATCH_SIZE:
-            save_batch(batch_results, results_path)
-            batch_results = []
-
-    if batch_results:
-        save_batch(batch_results, results_path)
-
-    print(f"\n✓ Processing complete. Results saved to {results_path}\n")
-
-def parse_json_response(response, reasoning=False):
-    """Parse JSON response from LLM to extract predicted_sentence_label."""
-    try:
-        if response is None:
-            return (None, None) if reasoning else None
-
-        # Extract JSON if there's extra text around it
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group())
-            if reasoning:
-                return data.get('predicted_sentence_label'), data.get('reasoning')
-            else:
-                return data.get('predicted_sentence_label')
-    except Exception as e:
-        print(f"Error parsing JSON: {e}")
-        if reasoning:
-            return None, None
-        else:
-            return None
 
 def _llm_classifier(
         sentence_to_classify,
@@ -471,13 +146,15 @@ def _llm_classifier(
         model,
         task,
         format_output,
-        is_first,
-        max_attempts=5,
-        base_wait_time=300,
-        max_total_wait=43200):
+        is_first):
     """
     Send a single sentence to the LLM and return the raw response and parsed label.
-    Includes progressive retry logic for rate limiting.
+
+    Uses model.safe_chat_completion which already handles rate limiting,
+    progressive retries, and bad request errors internally.
+
+    Uses DataProcessing.parse_llm_json_response for robust JSON parsing which
+    handles markdown code blocks, single quotes, and conversational filler text.
 
     Parameters
     ----------
@@ -493,20 +170,15 @@ def _llm_classifier(
         The expected JSON output format.
     is_first : bool
         If True, print the full prompt to terminal for debugging.
-    max_attempts : int
-        Maximum number of retry attempts on failure. Default is 5.
-    base_wait_time : int
-        Base seconds to wait on rate limit. Multiplied by attempt number.
-        Default is 300 (5 minutes) to allow API quota window to fully clear.
-    max_total_wait : int
-        Maximum cumulative seconds to wait before giving up.
-        Defaults to 43200 (12 hours) to stay within SLURM job time limits.
 
     Returns
     -------
     tuple
         (raw_text_llm_generation, label) or (None, None) on unrecoverable failure.
     """
+    # Sanitize sentence to prevent Unicode encoding errors crashing the API call
+    sentence_to_classify = sentence_to_classify.encode('ascii', errors='ignore').decode('ascii')
+
     prompt = f"""{base_prompt}
 
     Sentence to label: '{sentence_to_classify}'
@@ -520,51 +192,20 @@ def _llm_classifier(
 
     input_prompt = model.user(prompt)
 
-    attempt = 0
-    total_waited = 0
+    # safe_chat_completion handles rate limiting, retries, and bad request errors internally
+    # Returns None if all attempts fail
+    raw_text_llm_generation = model.safe_chat_completion([input_prompt])
 
-    while attempt < max_attempts:
-        try:
-            if attempt > 0:
-                print(f"Executing LLM request (Attempt {attempt + 1})...")
+    if raw_text_llm_generation is None:
+        return None, None
 
-            # max_tokens=15 enforces a hard stop since output is only {"predicted_sentence_label": 0}
-            # This prevents Llama-style models from endlessly generating text (~85s per call)
-            raw_text_llm_generation = model.chat_completion([input_prompt], max_tokens=15)
-            label = parse_json_response(raw_text_llm_generation, reasoning=False)
+    # Use DataProcessing.parse_llm_json_response for robust JSON parsing
+    # Handles markdown code blocks, single quotes, and conversational filler
+    parsed = DataProcessing.parse_llm_json_response(raw_text_llm_generation)
+    label = parsed.get('predicted_sentence_label') if parsed else None
 
-            return raw_text_llm_generation, label
+    return raw_text_llm_generation, label
 
-        except Exception as e:
-            error_msg = str(e).lower()
-            attempt += 1
-
-            if "rate limit" in error_msg or "429" in error_msg:
-                # Progressively increase wait time e.g., 300s, 600s, 900s...
-                current_wait_time = base_wait_time * attempt
-
-                if total_waited + current_wait_time > max_total_wait:
-                    print(f"Max total wait time ({max_total_wait}s) exceeded. Stopping retry to prevent exceeding SLURM time.")
-                    return None, None
-
-                print(f"Rate limit detected. Waiting {current_wait_time} seconds before retry...")
-                time.sleep(current_wait_time)
-                total_waited += current_wait_time
-
-            elif "badrequesterror" in error_msg:
-                print(f"Bad Request Error. Stopping processing for this sentence.")
-                print(f"Error details: {e}")
-                return None, None
-
-            else:
-                print(f"An unexpected error occurred: {e}")
-                if attempt < max_attempts:
-                    print(f"Retrying in 10 seconds...")
-                    time.sleep(10)
-                    total_waited += 10
-                else:
-                    print(f"Max attempts ({max_attempts}) reached. Skipping this sentence to prevent pipeline failure.")
-                    return None, None
 
 def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output, save_directory):
     """
@@ -649,7 +290,7 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
         if loop_idx < 3:
             print(f"\tLabel: {llm_label} via Model: {model_name}")
 
-        # Checkpoint save every BATCH_SIZE rows so we don't lose progress
+        # Checkpoint save every BATCH_SIZE rows so we don't lose progress on timeout
         if len(batch_buffer) >= BATCH_SIZE:
             pd.DataFrame(batch_buffer).to_csv(checkpoint_file, mode='a', header=False, index=False)
             print(f"✓ Checkpoint saved: {len(batch_buffer)} rows flushed to disk.")
@@ -674,6 +315,7 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
     print(f"\nPreview:\n{results_with_llm_label_df}\n")
 
     return results_with_llm_label_df
+
 
 def create_results_dataframe(X_test_df, y_hat_df, model_name):
     """
@@ -709,6 +351,7 @@ def create_results_dataframe(X_test_df, y_hat_df, model_name):
 
     return results_df
 
+
 def evaluate_models(
     results_df,
     model_name,
@@ -719,7 +362,7 @@ def evaluate_models(
     # y_val_df=None
 ):
     """
-    Evaluate all model predictions and save unified metrics.
+    Evaluate LLM predictions and save unified metrics to disk.
 
     Parameters
     ----------
@@ -859,6 +502,7 @@ def evaluate_models(
     print(f"✓ Saved metrics summary: metrics_summary_{model_name}.csv\n")
 
     return metrics_summary_df
+
 
 if __name__ == "__main__":
     """
