@@ -821,6 +821,7 @@ def generate_all_explanations(
         print(f"  ✓ Explanations saved for {model_name}")
         
     print("\n✓ All model explanations complete\n")
+
 if __name__ == "__main__":
     """
     usage: 
@@ -971,6 +972,28 @@ if __name__ == "__main__":
 
     model_checkpoint_path = os.path.join(seed_dir, 'model_checkpoints')
     os.makedirs(model_checkpoint_path, exist_ok=True)
+
+    # ============================================================
+    # 4b. SAVE IN-DOMAIN TEST SPLIT FOR LLM PIPELINE
+    # ============================================================
+    # LLM classifiers load this file directly so they evaluate
+    # on the exact same test sentences as the ML models.
+    if X_test_df is not None and y_test_df is not None:
+        in_domain_test_dir = os.path.join(seed_dir, 'in_domain')
+        os.makedirs(in_domain_test_dir, exist_ok=True)
+
+        # Combine X and y into one file so LLM script only needs one path
+        x_y_test_df = X_test_df.copy()
+        x_y_test_df[args.label_column] = y_test_df[args.label_column].values
+
+        DataProcessing.save_to_file(
+            x_y_test_df,
+            path=in_domain_test_dir,
+            prefix='x_y_test_set',
+            save_file_type='csv',
+            include_version=False
+        )
+        print(f"✓ Saved in-domain test set to: {os.path.join(in_domain_test_dir, 'x_y_test_set.csv')}")
 
     if all_folds is None:
         # ============================================================
