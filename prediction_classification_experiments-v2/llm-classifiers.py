@@ -207,7 +207,7 @@ def _llm_classifier(
     return raw_text_llm_generation, label
 
 
-def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output, save_directory):
+def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output, save_directory, seed):
     """
     Run inference over all sentences in test_df with incremental checkpointing.
     Automatically resumes from checkpoint if the job was previously interrupted.
@@ -255,7 +255,8 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
         remaining_df = test_df.copy()
         results = []
         # Initialize empty CSV with headers so append mode works correctly later
-        pd.DataFrame(columns=['original_index', 'text', 'raw_response', 'llm_label', 'llm_name']).to_csv(checkpoint_file, index=False)
+        # Initialize empty CSV with headers so append mode works correctly later
+        pd.DataFrame(columns=['seed', 'original_index', 'text', 'raw_response', 'llm_label', 'llm_name', model_name]).to_csv(checkpoint_file, index=False)
 
     print(f"Rows remaining to process: {len(remaining_df)}\n")
     print(model_name, model)
@@ -278,6 +279,7 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
         )
 
         result_dict = {
+            'seed': seed,
             'original_index': idx,
             'text': text,
             'raw_response': raw_response,
@@ -317,7 +319,7 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
     return results_with_llm_label_df
 
 
-def create_results_dataframe(X_test_df, y_hat_df, model_name):
+def create_results_dataframe(X_test_df, y_hat_df, model_name, seed):
     """
     Combine test data with model predictions.
 
@@ -340,6 +342,7 @@ def create_results_dataframe(X_test_df, y_hat_df, model_name):
     print("="*40)
 
     results_df = X_test_df.copy()
+    results_df['seed'] = seed
 
     # Map predictions back into the original dataframe
     # y_hat_df is guaranteed to be in the same order as X_test_df (reindexed in llm_classifer)
@@ -458,6 +461,7 @@ def evaluate_models(
 
     # Build unified metrics row matching ML pipeline's metrics_summary_ml_models.csv format
     metrics_row = {
+        'seed': seed,
         'model': model_name,
         # Train & val metrics are N/A for zero-shot LLMs
         'train_accuracy': None,
@@ -556,6 +560,12 @@ if __name__ == "__main__":
         help='The column name in the dataset containing the true labels.'
     )
 
+    parser.add_argument(
+        '--seed',
+        type=int,
+        help='Seed so experiments can be reproduced. Get from ML folder name e.g. seed3 -> 3'
+    )
+
     # Placeholder for val datasets arguments
     # parser.add_argument('--val_datasets', default=None, help='Paths to validation datasets.')
 
@@ -565,7 +575,6 @@ if __name__ == "__main__":
     # 2. EXPERIMENT SETUP
     # ============================================================
     current_date = datetime.now().strftime('%Y-%m-%d')
-    seed_value = 42  # Default random seed for tracking
 
     # Save results alongside the test file so ML and LLM outputs sit in the same folder
     save_directory = os.path.dirname(args.test_dataset)
@@ -596,13 +605,14 @@ if __name__ == "__main__":
         base_prompt=base_prompt,
         sentence_label_task=sentence_label_task,
         sentence_label_format_output=sentence_label_format_output,
-        save_directory=save_directory
+        save_directory=save_directory,
+        seed=args.seed
     )
 
     # ============================================================
     # 5. CREATE RESULTS DATAFRAME
     # ============================================================
-    results_df = create_results_dataframe(test_df, y_hat_df, args.model_name)
+    results_df = create_results_dataframe(test_df, y_hat_df, args.model_name, args.seed)
 
     # ============================================================
     # 6. EVALUATE MODELS
@@ -612,7 +622,7 @@ if __name__ == "__main__":
         model_name=args.model_name,
         label_col_name=args.label_column,
         save_path=save_directory,
-        seed=seed_value
+        seed=args.seed
         # X_val_df=val_df,
         # y_val_df=val_df[[args.label_column]] if val_df is not None else None
     )

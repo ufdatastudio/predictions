@@ -605,6 +605,7 @@ def evaluate_models(
              
         # Build unified metrics row
         metrics_row = {
+            'seed': seed,
             'model': model_name,
             # Get train & val metrics
             'train_accuracy': train_val_data.get('train_accuracy', None),
@@ -623,7 +624,7 @@ def evaluate_models(
             'tp': tp,
             # Get auc metrics
             'roc_auc': roc_auc_score,
-            'pr_auc': pr_auc_score
+            'pr_auc': pr_auc_score,
         }
         metrics_summary.append(metrics_row)
     
