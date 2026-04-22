@@ -727,55 +727,51 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             word_split_sentences.append(words)
         return word_split_sentences
     
-    def split_into_sentences(self) -> pd.DataFrame:
+
+    def split_into_sentences(self, sentence_col_name) -> pd.DataFrame:
         """
-        Split a text column with multiple sentences into sentence-level rows using spaCy sentence
-        boundary detection.
+        Split a text column into sentence-level rows using spaCy sentence
+        boundary detection, with progress tracking.
 
         Parameters
         ----------
-        df : pd.DataFrame
-            Input DataFrame containing the text to be split.
-        text_column : str
-            Name of the column containing the text (e.g., ``"Base Sentence"``).
-        nlp : spacy.language.Language
-            A loaded spaCy language model with sentence boundary detection enabled.
+        sentence_col_name : str
+            Name of the output column that will contain individual sentences.
 
         Returns
         -------
         pd.DataFrame
-            A new DataFrame where each row corresponds to a single sentence
-            derived from the original text column. All other columns are
-            duplicated as needed to preserve metadata.
+            A new DataFrame where each row corresponds to a single sentence.
+            All non-text columns are duplicated to preserve row-level metadata.
 
         Notes
         -----
-        - This function does not modify the original DataFrame.
-        - Sentence segmentation is performed using spaCy's built-in
-        sentence boundary detection, which is more reliable than
-        rule-based or regex-only approaches.
+        - The original DataFrame stored in ``self.df_to_vectorize`` is not modified.
+        - Sentence segmentation is performed using spaCy's built-in sentence
+        boundary detection.
+        - Progress is displayed using ``tqdm``.
         """
-        
         df = self.df_to_vectorize.copy()
         text_column = self.col_name_to_vectorize
-        
+
         sentence_lists = []
 
-        for text in df[text_column]:
+        for text in tqdm(
+            df[text_column],
+            total=len(df),
+            desc="Splitting into sentences"
+        ):
             sentences = []
 
-            if isinstance(text, str) and text.strip() != "":
+            if isinstance(text, str) and text.strip():
                 doc = self.nlp(text)
-
                 for sent in doc.sents:
-                    sentence_text = sent.text.strip()
-                    # if len(sentence_text) > 3:
-                    sentences.append(sentence_text)
+                    sentences.append(sent.text.strip())
 
             sentence_lists.append(sentences)
 
-        df[text_column] = sentence_lists
-        df = df.explode(text_column).reset_index(drop=True)
+        df[sentence_col_name] = sentence_lists
+        df = df.explode(sentence_col_name).reset_index(drop=True)
 
         return df
 
