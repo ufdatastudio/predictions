@@ -1383,7 +1383,7 @@ class DataProcessing:
         print(f"\nGround Truth distribution:")
         print(fpb_df['Ground Truth'].value_counts())
         
-        fpb_df['Dataset Name'] = 'fpb-imbalanced'
+        fpb_df['Dataset Name'] = 'financial_phrasebank'
         print(f"\nPreview:\n{fpb_df.head(3)}\n")
         
         return fpb_df
@@ -1398,7 +1398,7 @@ class DataProcessing:
             base_data_path,
             'chronicle2050',
             'annotators',
-            'chronicle2050-shawnick-binary-v2.csv'
+            'chronicle2050-shawnick-binary-v3.csv'
         )
         print(f"Loading from: {chronicle2050_path}")
         
@@ -1491,7 +1491,7 @@ class DataProcessing:
         print("\nGround Truth distribution:")
         print(yt_df['Ground Truth'].value_counts())
         
-        yt_df['Dataset Name'] = 'yt_predictions'
+        yt_df['Dataset Name'] = 'yt'
         print(f"\nPreview:\n{yt_df.head(7)}\n")
         
         return yt_df
@@ -1544,7 +1544,7 @@ class DataProcessing:
         print("\nGround Truth distribution:")
         print(news_api_df['Ground Truth'].value_counts())
         
-        news_api_df['Dataset Name'] = 'news_api_predictions'
+        news_api_df['Dataset Name'] = 'news_api'
         print(f"\nPreview:\n{news_api_df.head(7)}\n")
         
         return news_api_df
@@ -1602,3 +1602,51 @@ class DataProcessing:
         print(f"\nPreview:\n{tb_df.tail(7)}\n")
         
         return tb_df
+
+    def load_mf_climate_dataset(script_dir, sep=',', encoding='latin', predictions_only: bool = True, visualize: bool = True, **kwargs):
+        print("\n" + "="*60)
+        print("LOAD MF CLIMATE DATASET")
+        print("="*60)
+        
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        mf_climate_path = os.path.join(
+            base_data_path,
+            'paper_mf/data/climate_forecasts/climate_forecasts-v1.csv'
+        )
+        
+        print(f"Loading from: {mf_climate_path}")
+        mf_climate_df = DataProcessing.load_from_file(mf_climate_path, 'csv', sep=sep, encoding=encoding)
+        print(f"Loaded shape: {mf_climate_df.shape}")
+        
+        original_len = len(mf_climate_df)
+        mf_climate_df.dropna(inplace=True)
+        dropped_count = original_len - len(mf_climate_df)
+        if dropped_count > 0:
+            print(f"✓ Dropped {dropped_count} rows without labels")
+        
+
+        mf_climate_df = DataProcessing.standardize_columns(
+            df=mf_climate_df,
+            text_col='clean sentence',
+            label_col='label'
+        )
+        
+        if predictions_only:
+            mf_climate_df = mf_climate_df[mf_climate_df['Ground Truth'] == 1]
+            print(f"Filtered shape (predictions only): {mf_climate_df.shape}")
+        elif visualize:
+            from data_visualizing import DataVisualizing
+            DataVisualizing.plot_class_distribution(
+                df=mf_climate_df,
+                label_col='Ground Truth',
+                title='MF Climate Class Distribution'
+            )
+        
+        print(f"Columns: {list(mf_climate_df.columns)}")
+        print(f"\nGround Truth distribution:")
+        print(mf_climate_df['Ground Truth'].value_counts())
+        
+        mf_climate_df['Dataset Name'] = 'mf_climate'
+        print(f"\nPreview:\n{mf_climate_df.head(3)}\n")
+        
+        return mf_climate_df

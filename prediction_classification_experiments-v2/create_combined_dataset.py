@@ -155,7 +155,8 @@ if __name__ == "__main__":
         'chronicle2050':        DataProcessing.load_chronicle2050_dataset,
         'news_api':             DataProcessing.load_news_api_dataset,
         'yt':                   DataProcessing.load_yt_dataset,
-        'timebank':             DataProcessing.load_timebank_dataset
+        'timebank':             DataProcessing.load_timebank_dataset,
+        'mf_climate':           DataProcessing.load_mf_climate_dataset
     }
 
     parser = argparse.ArgumentParser(
@@ -169,12 +170,13 @@ if __name__ == "__main__":
             news_api             - Real news API annotated sentences
             yt                   - Real YouTube annotated sentences
             timebank             - TimeBank 1.2 annotated sentences
+            mf_climate           - Real MF climate forecast predictions [B. Moe, 2024]
 
         Examples:
             python3 create_combined_dataset.py --datasets synthetic
             python3 create_combined_dataset.py --datasets synthetic financial_phrasebank
             python3 create_combined_dataset.py --datasets synthetic --filter_domain finance
-            python3 create_combined_dataset.py --datasets synthetic financial_phrasebank chronicle2050 news_api yt timebank --output_name all-combined
+            python3 create_combined_dataset.py --datasets synthetic financial_phrasebank chronicle2050 news_api yt timebank mf_climate --output_name all-combined
         """
     )
     parser.add_argument(
