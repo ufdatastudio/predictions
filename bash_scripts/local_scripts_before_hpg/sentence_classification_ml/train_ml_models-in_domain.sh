@@ -21,8 +21,8 @@ echo "Pre-generating combined dataset..."
 echo "======================================"
 
 python3 create_combined_dataset.py \
-    --datasets synthetic financial_phrasebank chronicle2050 news_api yt timebank \
-    --output_name synthetic-fpb-chronicle2050-yt-news-timebank \
+    --datasets synthetic financial_phrasebank chronicle2050 news_api yt timebank mf_climate \
+    --output_name synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate \
     --no_version
 
 echo "Dataset ready."
@@ -42,7 +42,7 @@ for seed in 3 7 33; do
 
     echo ">>> Running Baseline (Standard)"
     python ml-train.py \
-        --dataset ../data/combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank/synthetic-fpb-chronicle2050-yt-news-timebank.csv \
+        --dataset ../data/combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
         --val_size 0.2 \
         --seed $seed
 done
@@ -55,7 +55,7 @@ echo "======================================"
 echo "All training complete. Aggregating results..."
 echo "======================================"
 
-EXPERIMENT="synthetic-fpb-chronicle2050-yt-news-timebank_$(date +%Y-%m-%d)"
+EXPERIMENT="synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate_$(date +%Y-%m-%d)"
 
 mkdir -p ../data/classification_results/${EXPERIMENT}/averaged/in_dataset_comparisons/
 

@@ -9,7 +9,7 @@ set -e
 
 cd ../../../prediction_classification_experiments-v2
 
-EXPERIMENT="synthetic-fpb-chronicle2050-yt-news-timebank_$(date +%Y-%m-%d)"
+EXPERIMENT="synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate_$(date +%Y-%m-%d)"
 BASE_RESULTS="../data/classification_results/${EXPERIMENT}"
 
 echo "============================================================"
@@ -26,26 +26,27 @@ for seed in 3 7 33; do
     python llm-classifiers.py \
         --model_name mistral-small-3.1 \
         --test_dataset ${BASE_RESULTS}/seed${seed}/in_domain/x_y_test_set.csv \
-        --label_column 'Ground Truth'
+        --label_column 'Ground Truth' \
+        --seed $seed
 done
 
 # ============================================================
 # AGGREGATE RESULTS
 # ============================================================
-echo ""
-echo "======================================"
-echo "All classification complete. Aggregating results..."
-echo "======================================"
+# echo ""
+# echo "======================================"
+# echo "All classification complete. Aggregating results..."
+# echo "======================================"
 
-python average_classification_results.py \
-    --mode single \
-    --experiment ${EXPERIMENT} \
-    --experiments seed3 seed7 seed33
+# python average_classification_results.py \
+#     --mode single \
+#     --experiment ${EXPERIMENT} \
+#     --experiments seed3 seed7 seed33
 
 echo ""
 echo "======================================"
 echo "PIPELINE COMPLETE"
 echo "======================================"
 echo "✓ LLM classification completed for seeds: 3, 7, 33"
-echo "✓ Results aggregated and saved"
+# echo "✓ Results aggregated and saved"
 echo ""

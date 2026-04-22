@@ -2,8 +2,8 @@
 # run_llm_classifiers.sh - Run LLM sentence classification for all seeds and average
 #
 # Usage:
-#   chmod +x run_sc_gemma.sh
-#   bash run_sc_gemma.sh
+#   chmod +x run_sc_granite-8b-instruct.sh
+#   bash run_sc_granite-8b-instruct.sh
 
 set -e
 
@@ -13,7 +13,7 @@ EXPERIMENT="synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate_$(date +%Y-%
 BASE_RESULTS="../data/classification_results/${EXPERIMENT}"
 
 echo "============================================================"
-echo "     SENTENCE CLASSIFICATION (LOCAL): gemma-3-27b-it"
+echo "     SENTENCE CLASSIFICATION (LOCAL): granite-3.3-8b-instruct"
 echo "============================================================"
 
 for seed in 3 7 33; do
@@ -24,7 +24,7 @@ for seed in 3 7 33; do
     echo ""
 
     python llm-classifiers.py \
-        --model_name gemma-3-27b-it \
+        --model_name granite-3.3-8b-instruct \
         --test_dataset ${BASE_RESULTS}/seed${seed}/in_domain/x_y_test_set.csv \
         --label_column 'Ground Truth' \
         --seed $seed
