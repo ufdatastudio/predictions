@@ -284,7 +284,8 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
             'text': text,
             'raw_response': raw_response,
             'llm_label': llm_label,
-            'llm_name': model_name
+            'llm_name': model_name,
+            model_name: llm_label
         }
         batch_buffer.append(result_dict)
         results.append(result_dict)
