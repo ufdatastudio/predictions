@@ -1,0 +1,2 @@
+seed,model,train_accuracy,val_accuracy,test_accuracy,precision_class_0,precision_class_1,recall_class_0,recall_class_1,f1_class_0,f1_class_1,tn,fp,fn,tp,roc_auc,pr_auc
+3,granite-3.3-8b-instruct,,,0.8536012526096033,0.721327967806841,0.8999295278365046,0.7162837162837162,0.9021547156481808,0.718796992481203,0.901040747927324,1434,568,554,5108,0.8092192159659486,0.8841616798148395

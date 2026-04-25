@@ -1,0 +1,28 @@
+{
+  "experiment": "synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate_2026-04-25 \u2192 in_domain [ml]",
+  "model_type": "ml",
+  "n_seeds": 3,
+  "seeds_used": [
+    {
+      "seed": 7,
+      "folder": "in_domain",
+      "version": "0"
+    },
+    {
+      "seed": 3,
+      "folder": "in_domain",
+      "version": "0"
+    },
+    {
+      "seed": 33,
+      "folder": "in_domain",
+      "version": "0"
+    }
+  ],
+  "date_averaged": "2026-04-25 16:20:09",
+  "files_generated": {
+    "mean": "mean.csv",
+    "std": "std.csv",
+    "mean_std": "mean_std.csv"
+  }
+}
