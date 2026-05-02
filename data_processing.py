@@ -1398,7 +1398,7 @@ class DataProcessing:
             base_data_path,
             'chronicle2050',
             'annotators',
-            'chronicle2050-shawnick-binary-v3.csv'
+            'chronicle2050-shawnick-binary-v4.csv'
         )
         print(f"Loading from: {chronicle2050_path}")
         
@@ -1650,3 +1650,148 @@ class DataProcessing:
         print(f"\nPreview:\n{mf_climate_df.head(3)}\n")
         
         return mf_climate_df
+        
+    def load_clients_rivals_rouges_dataset(
+        script_dir,
+        sep="\t",
+        encoding="utf-8",
+        predictions_only: bool = True,
+        visualize: bool = False,
+        **kwargs
+    ):
+        print("\n" + "="*60)
+        print("LOAD CLIENTS, RIVALS, ROUGES DATASET")
+        print("="*60)
+
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        dataset_path = os.path.join(
+            base_data_path,
+            "clients_rivals_rogues/clients_rivals_rogues.tsv"
+        )
+
+        print(f"Loading from: {dataset_path}")
+        df = DataProcessing.load_from_file(
+            dataset_path,
+            file_type="csv",
+            sep=sep,
+            encoding=encoding,
+            **kwargs
+        )
+
+        print(f"Loaded shape: {df.shape}")
+        print(f"Columns: {list(df.columns)}")
+
+        # ---- Safety check BEFORE standardization ----
+        required_cols = {
+            "Theory",
+            "Theory prediction",
+            "Empirical support",
+            "Human Annotation"
+        }
+        missing = required_cols - set(df.columns)
+        if missing:
+            raise ValueError(f"Missing required columns: {missing}")
+
+        # ---- Standardize ----
+        df = DataProcessing.standardize_columns(
+            df=df,
+            text_col="Theory prediction",
+            label_col="Human Annotation"
+        )
+
+        # ---- Optional filtering / visualization ----
+        if predictions_only:
+            df = df[df["Ground Truth"] == 1]
+            print(f"Filtered shape (predictions only): {df.shape}")
+
+        elif visualize:
+            from data_visualizing import DataVisualizing
+            DataVisualizing.plot_class_distribution(
+                df=df,
+                label_col="Ground Truth",
+                title="Clients, Rivals, Rouges Class Distribution"
+            )
+
+        # ---- Rename remaining metadata ----
+        df = df.rename(columns={
+            "Theory": "Source Theory",
+            "Empirical support": "Empirical Support"
+        })
+
+        print("\nGround Truth distribution:")
+        print(df["Ground Truth"].value_counts())
+
+        df["Dataset Name"] = "clients_rivals_rouges"
+
+        print(f"\nPreview:\n{df.head(3)}\n")
+        return df
+
+    def load_smart_hospitals_dataset(
+        script_dir,
+        sep="\t",
+        encoding="utf-8",
+        predictions_only: bool = True,
+        visualize: bool = False,
+        **kwargs
+    ):
+        print("\n" + "="*60)
+        print("LOAD SMART HOSPITALS DATASET")
+        print("="*60)
+
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        dataset_path = os.path.join(
+            base_data_path,
+            "smart_hospitals/smart_hospitals.tsv"
+        )
+
+        print(f"Loading from: {dataset_path}")
+        df = DataProcessing.load_from_file(
+            dataset_path,
+            file_type="csv",
+            sep=sep,
+            encoding=encoding,
+            **kwargs
+        )
+
+        print(f"Loaded shape: {df.shape}")
+        print(f"Columns: {list(df.columns)}")
+
+        # ---- Safety check BEFORE standardization ----
+        required_cols = {
+            "Base Sentence",
+            "Human Annotation",
+            "Domain",
+            "Dimensionality",
+            "Time Horizon"
+        }
+        missing = required_cols - set(df.columns)
+        if missing:
+            raise ValueError(f"Missing required columns: {missing}")
+
+        # ---- Standardize ----
+        df = DataProcessing.standardize_columns(
+            df=df,
+            text_col="Base Sentence",
+            label_col="Human Annotation"
+        )
+
+        if predictions_only:
+            df = df[df["Ground Truth"] == 1]
+            print(f"Filtered shape (predictions only): {df.shape}")
+
+        elif visualize:
+            from data_visualizing import DataVisualizing
+            DataVisualizing.plot_class_distribution(
+                df=df,
+                label_col="Ground Truth",
+                title="Smart Hospitals Class Distribution"
+            )
+
+        df["Dataset Name"] = "smart_hospitals"
+
+        print("\nGround Truth distribution:")
+        print(df["Ground Truth"].value_counts())
+
+        print(f"\nPreview:\n{df.head(3)}\n")
+
+        return df
