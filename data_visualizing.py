@@ -120,9 +120,10 @@ class DataVisualizing:
             total    = non_pred + pred
             non_pct  = non_pred / total * 100
             pred_pct = pred / total * 100
+            dataset_pct = total / len(df) * 100
 
             # Label below the bar: non-pred% | pred%  n=total (non_pred | pred)
-            label = f'{non_pct:.1f}% non-pred  |  {pred_pct:.1f}% pred    n={total} ({non_pred} | {pred})'
+            label = f'{non_pct:.2f}% non-pred  |  {pred_pct:.2f}% pred    n={total} ({non_pred} | {pred}) | {dataset_pct:.2f}% dataset = ({total} | {len(df)})'
             ax.text(0, i - bar_height * 0.85, label,
                     ha='left', va='top', fontsize=8.5, color='#333333')
 
