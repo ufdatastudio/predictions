@@ -670,15 +670,21 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         sentence_embeddings = []
 
         for sentence in tqdm(text_to_vectorize):
-            doc = self.nlp(sentence)
-            sentence_embeddings.append(doc.vector)
-
-        embeddings_array = np.array(sentence_embeddings)
+            if not isinstance(sentence, float) and pd.notna(sentence):
+                doc = self.nlp(sentence)
+                sentence_embeddings.append(doc.vector)
+            else:
+                sentence_embeddings.append(None)
 
         if attach_to_df:
-            self.df_to_vectorize[f"{self.col_name_to_vectorize} Embedding"] = list(embeddings_array)
+            self.df_to_vectorize[f"{self.col_name_to_vectorize} Embedding"] = sentence_embeddings
             return self.df_to_vectorize
         else:
+            clean_embeddings = []
+            for embedding in sentence_embeddings:
+                if embedding is not None:
+                    clean_embeddings.append(embedding)
+            embeddings_array = np.array(clean_embeddings)
             return embeddings_array
                 
     def word_feature_scores(self):
