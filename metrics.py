@@ -173,7 +173,7 @@ class EvaluationMetric:
         return pd.DataFrame(cohens_kappa_scores)
 
 # EMBEDDINGS
-    def get_cosine_similarity(x_embeddings: np.array, y_embeddings: np.array, per_row: bool) -> list:
+    def get_cosine_similarity(x_embeddings: np.array, y_embeddings: np.array, per_row: bool, idx: int) -> list:
         assert len(x_embeddings) == len(y_embeddings)
 
         model_scores = []
@@ -188,7 +188,10 @@ class EvaluationMetric:
 
             return model_scores
         else: 
-            cos_sim = cosine_similarity(x_embeddings, y_embeddings)
+            # make them (1 × vector_dim) for sklearn
+            x_embeddings_reshaped = x_embeddings[idx].reshape(1, -1)
+            y_embeddings_reshaped = y_embeddings[idx].reshape(1, -1)
+            cos_sim = cosine_similarity(x_embeddings_reshaped, y_embeddings_reshaped)
             return cos_sim
             # model_scores.append(cos_sim)
         
