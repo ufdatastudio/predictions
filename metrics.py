@@ -172,27 +172,56 @@ class EvaluationMetric:
     
         return pd.DataFrame(cohens_kappa_scores)
 
-# EMBEDDINGS
-    def get_cosine_similarity(x_embeddings: np.array, y_embeddings: np.array, per_row: bool, idx: int) -> list:
+    # EMBEDDINGS
+    def get_cosine_similarity(x_embeddings: np.ndarray, y_embeddings: np.ndarray, per_row: bool, idx: int = None) -> list[float] | float:
+        """
+        Compute cosine similarity between two sets of embeddings.
+
+        Parameters
+        ----------
+        x_embeddings : np.ndarray
+            Array of embeddings for the first set of examples.
+        y_embeddings : np.ndarray
+            Array of embeddings for the second set of examples.
+        per_row : bool
+            If True, computes cosine similarity for all rows and returns
+            a list of scores. Loops internally over all examples.
+            If False, computes cosine similarity for a single example
+            at the given idx and returns a scalar float.
+        idx : int, optional
+            Required when per_row is False. Index of the specific example
+            to compute cosine similarity for.
+
+        Returns
+        -------
+        list of float or float
+            If per_row is True, returns a list of float cosine similarity
+            scores, one per row. If per_row is False, returns a single float
+            cosine similarity score for the given idx.
+
+        Raises
+        ------
+        AssertionError
+            If x_embeddings and y_embeddings have different lengths.
+        ValueError
+            If per_row is False and idx is not provided.
+        """
         assert len(x_embeddings) == len(y_embeddings)
 
-        model_scores = []
+        if not per_row and idx is None:
+            raise ValueError("idx must be provided when per_row is False.")
+
         if per_row:
+            model_scores = []
             for i in tqdm(range(len(x_embeddings))):
-
-                # make them (1 × vector_dim) for sklearn
-                x_embeddings_reshaped = x_embeddings[i].reshape(1, -1)
-                y_embeddings_reshaped = y_embeddings[i].reshape(1, -1)
-                cos_sim = cosine_similarity(x_embeddings_reshaped, y_embeddings_reshaped)[0, 0]
+                x_reshaped = x_embeddings[i].reshape(1, -1)
+                y_reshaped = y_embeddings[i].reshape(1, -1)
+                cos_sim = float(cosine_similarity(x_reshaped, y_reshaped)[0, 0])
                 model_scores.append(cos_sim)
-
             return model_scores
-        else: 
-            # make them (1 × vector_dim) for sklearn
-            x_embeddings_reshaped = x_embeddings[idx].reshape(1, -1)
-            y_embeddings_reshaped = y_embeddings[idx].reshape(1, -1)
-            cos_sim = cosine_similarity(x_embeddings_reshaped, y_embeddings_reshaped)
-            return cos_sim
-            # model_scores.append(cos_sim)
-        
+        else:
+            x_reshaped = x_embeddings[idx].reshape(1, -1)
+            y_reshaped = y_embeddings[idx].reshape(1, -1)
+            return float(cosine_similarity(x_reshaped, y_reshaped)[0, 0])
+            
         
