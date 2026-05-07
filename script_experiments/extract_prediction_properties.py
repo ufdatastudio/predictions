@@ -24,7 +24,6 @@ BATCH_SIZE = 10
 # STOP_AFTER = 10
 STOP_AFTER = None
 
-
 def load_dataset(base_data_path, dataset_name):
     """
     Load a dataset from a CSV file into a pandas DataFrame.
@@ -51,7 +50,7 @@ def load_dataset(base_data_path, dataset_name):
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
 
     # Sample 300 rows for testing
-    # df = df.sample(n=40, random_state=42).reset_index(drop=True)
+    df = df.sample(n=7, random_state=42).reset_index(drop=True)
     print(f"\n✓ Sampled dataset shape: {df.shape}")
 
 
@@ -64,7 +63,6 @@ def load_dataset(base_data_path, dataset_name):
     print(f"\nFirst 7 rows:\n{df.head(7)}\n")
     print(f"\nLast 7 rows:\n{df.tail(7)}\n")
     return df
-
 
 def load_prompts_and_llms(model_names=None):
     """
@@ -115,12 +113,13 @@ def load_prompts_and_llms(model_names=None):
     Examples:
     {examples}
     """
+    
 
     print("\n--- Base Prompt ---")
     print(base_prompt)
     print("--- End Base Prompt ---\n")
     print("✓ Prompts loaded")
-
+    # sys.exit(1)
     # Load the model(s)
     tgmf = TextGenerationModelFactory()
 
@@ -143,7 +142,6 @@ def load_prompts_and_llms(model_names=None):
 
     print(f"\n✓ Total models loaded: {len(models)}\n")
     return base_prompt, task, format_output, models
-
 
 def get_remaining_data(df, results_path):
     """
@@ -222,7 +220,6 @@ def join_property(values):
     if isinstance(values, str):
         return values.strip()
     return ''
-
 
 def process_single_result(input_index, text, raw_response, model_name) -> pd.DataFrame:
     """
@@ -375,7 +372,7 @@ def extract_properties(df, text_column, base_prompt, task, format_output, models
 
             input_prompt = model.user(prompt)
             raw_response = model.safe_chat_completion([input_prompt], idx=idx)
-            time.sleep(7)
+            time.sleep(7) # rest before next prompt input so model don't run out of tokens fast
 
             if raw_response is None:
                 raw_response = str({"0": ["ERROR_MAX_RETRIES"], "1": [], "2": [], "3": [], "4": []})
@@ -395,10 +392,21 @@ def extract_properties(df, text_column, base_prompt, task, format_output, models
 
     print(f"\n✓ Processing complete. Results saved to {results_path}\n")
 
-
 if __name__ == "__main__":
+    """Usage:
+    Terminal commands
+    Be sure before to run source .venv_predictions/bin/activate
+
+    # Load via named loader
+    python3 extract_prediction_properties.py --dataset chronicle2050 --models "openai/gpt-oss-120b"
+
+    # Load via pre-saved CSV
+    python3 extract_prediction_properties.py \
+        --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
+        --models "openai/gpt-oss-120b"
+    """
     print("\n" + "="*50)
-    print("LABEL GROUND TRUTH — PREDICTION PROPERTY EXTRACTION")
+    print("PREDICTION PROPERTY EXTRACTION")
     print("="*50)
 
     # ============================================================
@@ -408,12 +416,17 @@ if __name__ == "__main__":
     base_data_path = DataProcessing.load_base_data_path(script_dir)
 
     dataset_loader_map = {
-        'predictions':          DataProcessing.load_predictions_dataset,
-        'non_predictions':      DataProcessing.load_non_predictions_dataset,
+        'synthetic':            DataProcessing.load_synthetic_dataset,
         'financial_phrasebank': DataProcessing.load_financial_phrasebank_dataset,
         'chronicle2050':        DataProcessing.load_chronicle2050_dataset,
         'news_api':             DataProcessing.load_news_api_dataset,
-        'yt':                   DataProcessing.load_yt_dataset
+        'yt':                   DataProcessing.load_yt_dataset,
+        'timebank':             DataProcessing.load_timebank_dataset,
+    }
+
+    task_loader_map = {
+        'ground_truth': 'ground_truth',
+        'evaluation': 'evaluation'
     }
 
     parser = argparse.ArgumentParser(description='Extract prediction properties from sentences using LLMs')
@@ -421,8 +434,15 @@ if __name__ == "__main__":
         '--dataset',
         type=str,
         choices=list(dataset_loader_map.keys()),
-        default='predictions',
+        default=None,
         help='Dataset to process.'
+    )
+    # For a pre-saved CSV file path
+    parser.add_argument(
+        '--dataset_path',
+        type=str,
+        default=None,
+        help='Path to a pre-saved CSV file relative to base_data_path. e.g. combined_datasets/combined-full_synthetic-v1.csv'
     )
     parser.add_argument(
         '--models',
@@ -435,6 +455,11 @@ if __name__ == "__main__":
         type=str,
         default='Base Sentence',
         help='Column name containing the sentences to extract properties from.'
+    )
+    parser.add_argument(
+        '--task_name',
+        choices=list(task_loader_map.keys()),
+        help='Either ground truth, so we can have pre-labels or multi-class classification so we can evaluate.'
     )
     args = parser.parse_args()
 
@@ -449,35 +474,51 @@ if __name__ == "__main__":
     # ============================================================
     # 3. Setup Output Directory and Metadata
     # ============================================================
-    dataset_basename = os.path.basename(args.dataset).split('.')[0]
     cleaned_model_names = []
     for model in models:
-        # Replace "/" with "_" to avoid creating nested folders
-        # e.g., "openai/gpt-oss-120b" becomes "openai_gpt-oss-120b"
         clean_name = model.__name__().replace('/', '_')
         cleaned_model_names.append(clean_name)
-
     model_names_str = '-'.join(cleaned_model_names)
 
-    # Output folder structure:
-    # data/extract_prediction_properties/ground_truth/{dataset}/{model}/
+    # ============================================================
+    # 4. Load Dataset
+    # ============================================================
+    if args.dataset is not None and args.dataset_path is not None:
+        print("❌ ERROR: Please specify either --dataset or --dataset_path, not both.")
+        sys.exit(1)
+
+    elif args.dataset is not None:
+        loader = dataset_loader_map[args.dataset]
+        df = loader(script_dir)
+        dataset_basename = args.dataset
+
+    elif args.dataset_path is not None:
+        df = load_dataset(base_data_path, args.dataset_path)
+        dataset_basename = os.path.basename(args.dataset_path).split('.')[0]
+
+    else:
+        print("❌ ERROR: Please specify either --dataset or --dataset_path.")
+        sys.exit(1)
+
+    # ============================================================
+    # 3b. Finish Output Directory Setup (needs dataset_basename from Step 4)
+    # ============================================================
     output_dir = os.path.join(
         base_data_path,
         "extract_prediction_properties",
-        "ground_truth",
+        args.task_name,
         dataset_basename,
         model_names_str
     )
     os.makedirs(output_dir, exist_ok=True)
 
-    results_path = os.path.join(output_dir, "results.csv")
+    results_path = os.path.join(output_dir, "extracted_properties.csv")
     print(f"Output Directory: {output_dir}")
     print(f"Results File: {results_path}")
 
-    # Save a metadata file so we can always trace back what settings were used
     metadata = {
         "timestamp": pd.Timestamp.now().isoformat(),
-        "dataset": args.dataset,
+        "dataset": args.dataset or args.dataset_path,
         "dataset_basename": dataset_basename,
         "text_column": args.text_column,
         "models_used": [m.__name__() for m in models],
@@ -488,29 +529,13 @@ if __name__ == "__main__":
         }
     }
 
-    metadata_path = os.path.join(output_dir, "metadata.json")
+    metadata_path = os.path.join(output_dir, "extracted_properties_metadata.json")
     if not os.path.exists(metadata_path):
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=4)
         print(f"✓ Metadata saved to: {metadata_path}")
     else:
         print(f"Metadata already exists at: {metadata_path}")
-
-    # ============================================================
-    # 4. Load Dataset
-    # ============================================================
-    loader = dataset_loader_map[args.dataset]
-    df = loader(script_dir)
-    dataset_basename = args.dataset
-
-    # Sample 300 rows for testing
-    # df = df.sample(n=300, random_state=42).reset_index(drop=True)
-    print(f"\n✓ Sampled dataset shape: {df.shape}")
-
-    if args.text_column not in df.columns:
-        print(f"\n❌ ERROR: Text column '{args.text_column}' not found in dataset.")
-        print(f"Available columns: {list(df.columns)}")
-        sys.exit(1)
 
     # ============================================================
     # 5. Resume Check — Skip Already Processed Sentences
