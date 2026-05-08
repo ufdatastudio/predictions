@@ -1203,6 +1203,70 @@ class DataProcessing:
             except:
                 return None
     
+    def expand_pipe_separated_rows(df: pd.DataFrame, col_names: list) -> pd.DataFrame:
+        """
+        Expand pipe-separated values in property columns into separate rows.
+
+        Each pipe-separated value gets its own row, with all other columns duplicated from the original row. A Token_Index column is added to
+        track the position of each token within its original sentence row, allowing traceability back to the original Input_Index.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame containing pipe-separated property columns.
+        col_names : list of str
+            Column names to expand (e.g., ['No Property', 'Source', 'Target', 'Date', 'Outcome']).
+
+        Returns
+        -------
+        pd.DataFrame
+            Expanded DataFrame where each pipe-separated value has its own row
+            with a Token_Index column added.
+
+        Examples
+        --------
+        Input:
+            Input_Index | Sentence  | Source   | Outcome
+            0           | Apple...  | JPMorgan | stock price|remain stable
+
+        Output:
+            Input_Index | Token_Index | Sentence  | Source   | Outcome
+            0           | 0           | Apple...  | JPMorgan | stock price
+            0           | 1           | Apple...  | JPMorgan | remain stable
+        """
+        expanded_df = df.copy()
+
+        # Split each property column on pipe into a list
+        for col_name in col_names:
+            if col_name in expanded_df.columns:
+                expanded_df[col_name] = expanded_df[col_name].astype(str).str.split('|')
+
+        # Add Token_Index based on the length of the first property column list
+        first_col = next((c for c in col_names if c in expanded_df.columns), None)
+        if first_col:
+            expanded_df['Token_Index'] = expanded_df[first_col].apply(
+                lambda x: list(range(len(x))) if isinstance(x, list) else [0]
+            )
+
+        # Explode each property column
+        for col_name in col_names:
+            if col_name in expanded_df.columns:
+                expanded_df = expanded_df.explode(col_name).reset_index(drop=True)
+
+        # Explode Token_Index to match
+        expanded_df = expanded_df.explode('Token_Index').reset_index(drop=True)
+
+        # Strip whitespace
+        for col_name in col_names:
+            if col_name in expanded_df.columns:
+                expanded_df[col_name] = expanded_df[col_name].str.strip()
+
+        # Reorder so Input_Index and Token_Index are first
+        priority_cols = ['Input_Index', 'Token_Index']
+        remaining_cols = [col for col in expanded_df.columns if col not in priority_cols]
+        expanded_df = expanded_df[priority_cols + remaining_cols]
+
+        return expanded_df
     # ==============================================================
     # HELPER: Standardize columns
     # ==============================================================
