@@ -179,7 +179,7 @@ class TextGenerationModelFactory(ABC):
             'llama-3.3-70b-versatile',
             'openai/gpt-oss-120b',
             'openai/gpt-oss-20b',
-            'whisper-large-v3',
+            # 'whisper-large-v3', not working
             'whisper-large-v3-turbo',
         ]
 
