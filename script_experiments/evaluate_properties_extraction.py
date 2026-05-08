@@ -202,8 +202,8 @@ if __name__ == "__main__":
     """
     Usage:
         python3 evaluate_properties_extraction.py \
-            --y_path extract_prediction_properties/ground_truth/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/openai_gpt-oss-120b/extracted_properties.csv \
-            --y_hat_path extract_prediction_properties/evaluation/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/openai_gpt-oss-120b/extracted_properties.csv \
+            --y_path extract_properties/ground_truth/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/llama-3.1-8b-instant/extracted_properties.csv \
+            --y_hat_path extract_properties/classification/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/openai_gpt-oss-120b/extracted_properties.csv \
             --model_name "openai/gpt-oss-120b" \
             --seed 42
     """
@@ -259,7 +259,7 @@ if __name__ == "__main__":
     print(f"Model prediction shape: {y_hat_df.shape}")
 
     # Property columns to evaluate (columns 4 through 8)
-    col_names = y_df.loc[:, ["No Label", "Source", "Target", "Date", "Outcome"]].columns.tolist()
+    col_names = y_df.loc[:, ["No Property", "Source", "Target", "Date", "Outcome"]].columns.tolist()
     print(f"Property columns: {col_names}")
 
     # ============================================================
@@ -288,12 +288,28 @@ if __name__ == "__main__":
     print("STEP: SAVE RESULTS")
     print("="*50)
 
-    eval_save_path = os.path.join(base_data_path, 'classification_results', 'properties')
+    # Extract dataset folder name from y_path
+    # e.g., "extract_properties/ground_truth/synthetic-fpb-.../llama.../extracted_properties.csv"
+    # -> "synthetic-fpb-..."
+    path_parts = args.y_path.split('/')
+    dataset_folder = path_parts[2]
+
+    # Replace "/" with "_" in model name to avoid nested folder creation
+    # e.g., "openai/gpt-oss-120b" -> "openai_gpt-oss-120b"
+    clean_model_name = args.model_name.replace('/', '_')
+
+    eval_save_path = os.path.join(
+        base_data_path,
+        'classification_results',
+        dataset_folder,
+        'properties'
+    )
+    os.makedirs(eval_save_path, exist_ok=True)
 
     DataProcessing.save_to_file(
         metrics_summary_df,
         path=eval_save_path,
-        prefix='metrics_summary_llms',
+        prefix=f'metrics_summary_{clean_model_name}',
         save_file_type='csv',
         include_version=True
     )

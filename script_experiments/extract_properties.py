@@ -24,6 +24,7 @@ BATCH_SIZE = 10
 # STOP_AFTER = 10
 STOP_AFTER = None
 
+
 def load_dataset(base_data_path, dataset_name):
     """
     Load a dataset from a CSV file into a pandas DataFrame.
@@ -48,11 +49,7 @@ def load_dataset(base_data_path, dataset_name):
     print(f"Dataset path: {dataset_name}")
 
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-
-    # Sample 300 rows for testing
-    df = df.sample(n=7, random_state=42).reset_index(drop=True)
-    print(f"\n✓ Sampled dataset shape: {df.shape}")
-
+    df = df.sample(n=7, random_state=42)
 
     # Reset index so we have a clean 0, 1, 2, ... row numbers.
     # This is important for the resume logic later — we track which
@@ -64,9 +61,10 @@ def load_dataset(base_data_path, dataset_name):
     print(f"\nLast 7 rows:\n{df.tail(7)}\n")
     return df
 
-def load_prompts_and_llms(model_names=None):
+
+def load_prompts_and_llm(model_name=None):
     """
-    Build the base prompt and load the language model(s).
+    Build the base prompt and load a single language model.
 
     The base prompt combines:
     - Who the model is (system identity)
@@ -76,8 +74,8 @@ def load_prompts_and_llms(model_names=None):
 
     Parameters
     ----------
-    model_names : str or list of str, optional
-        One or more model names to load. Defaults to 'llama-3.1-8b-instant'.
+    model_name : str, optional
+        Model name to load. Defaults to 'llama-3.1-8b-instant'.
 
     Returns
     -------
@@ -87,11 +85,11 @@ def load_prompts_and_llms(model_names=None):
         The labeling instruction for the model.
     format_output : str
         The expected JSON output format.
-    models : list
-        List of loaded model instances.
+    model : object
+        Loaded model instance.
     """
     print("\n" + "="*50)
-    print("STEP: LOAD PROMPTS & MODELS")
+    print("STEP: LOAD PROMPTS & MODEL")
     print("="*50)
 
     # Get prediction properties and requirements from PredictionProperties
@@ -103,45 +101,34 @@ def load_prompts_and_llms(model_names=None):
 
     # Combine everything into one base prompt that will be sent before each sentence
     base_prompt = f"""{system_identity}
-
     Prediction Properties:
     {prediction_properties}
-
     Requirements:
     {prediction_requirements}
-
     Examples:
     {examples}
     """
-    
 
     print("\n--- Base Prompt ---")
     print(base_prompt)
     print("--- End Base Prompt ---\n")
     print("✓ Prompts loaded")
-    # sys.exit(1)
-    # Load the model(s)
+
+    # Load the single model
+    if model_name is None:
+        model_name = 'llama-3.1-8b-instant'
+
     tgmf = TextGenerationModelFactory()
 
-    if model_names is None:
-        model_names = ['llama-3.1-8b-instant']
-    elif isinstance(model_names, str):
-        model_names = [model_names]
+    try:
+        model = tgmf.create_instance(model_name=model_name)
+        print(f"✓ Loaded: {model.__name__()}")
+    except ValueError as e:
+        raise ValueError(f"✗ Failed to load {model_name}: {e}")
 
-    models = []
-    for model_name in model_names:
-        try:
-            model = tgmf.create_instance(model_name=model_name)
-            models.append(model)
-            print(f"✓ Loaded: {model.__name__()}")
-        except ValueError as e:
-            print(f"✗ Failed to load {model_name}: {e}")
+    print(f"\n✓ Model loaded: {model.__name__()}\n")
+    return base_prompt, task, format_output, model
 
-    if not models:
-        raise ValueError("No models were successfully loaded.")
-
-    print(f"\n✓ Total models loaded: {len(models)}\n")
-    return base_prompt, task, format_output, models
 
 def get_remaining_data(df, results_path):
     """
@@ -171,12 +158,10 @@ def get_remaining_data(df, results_path):
         # Input_Index tracks which row numbers have already been processed.
         existing_df = pd.read_csv(results_path, usecols=['Input_Index'])
         processed_indices = set(existing_df['Input_Index'].unique())
-
         print(f"Found {len(processed_indices)} already processed sentences.")
 
         # Keep only rows whose index is NOT in the processed set
         df_remaining = df[~df.index.isin(processed_indices)]
-
         print(f"Resuming. {len(df_remaining)} sentences remaining.")
         return df_remaining
 
@@ -190,6 +175,7 @@ def get_remaining_data(df, results_path):
     except Exception as e:
         print(f"Error reading existing results file: {e}. Starting from scratch.")
         return df
+
 
 def join_property(values):
     """
@@ -221,6 +207,7 @@ def join_property(values):
         return values.strip()
     return ''
 
+
 def process_single_result(input_index, text, raw_response, model_name) -> pd.DataFrame:
     """
     Convert a single LLM response into a structured one-row DataFrame.
@@ -249,15 +236,15 @@ def process_single_result(input_index, text, raw_response, model_name) -> pd.Dat
     """
     # Start with an empty structure — we will fill in the properties below
     data = {
-        'Input_Index': [input_index],
-        'Sentence': [text],
+        'Input_Index':  [input_index],
+        'Sentence':     [text],
         'Raw Response': [raw_response],
-        'Model Name': [model_name],
-        'No Property': [''],
-        'Source': [''],
-        'Target': [''],
-        'Date': [''],
-        'Outcome': ['']
+        'Model Name':   [model_name],
+        'No Property':  [''],
+        'Source':       [''],
+        'Target':       [''],
+        'Date':         [''],
+        'Outcome':      ['']
     }
     results_df = pd.DataFrame(data)
 
@@ -281,6 +268,7 @@ def process_single_result(input_index, text, raw_response, model_name) -> pd.Dat
 
     return results_df
 
+
 def save_batch(batch_dfs, results_path):
     """
     Write a list of single-row DataFrames to the results CSV file.
@@ -301,7 +289,7 @@ def save_batch(batch_dfs, results_path):
     batch_df = pd.concat(batch_dfs, ignore_index=True)
 
     results_dir = os.path.dirname(results_path)
-    prefix = os.path.basename(results_path).split('.')[0]  # e.g., "results"
+    prefix = os.path.basename(results_path).split('.')[0]  # e.g., "extracted_properties"
 
     DataProcessing.save_to_file(
         data=batch_df,
@@ -312,7 +300,8 @@ def save_batch(batch_dfs, results_path):
         append=True
     )
 
-def extract_properties(df, text_column, base_prompt, task, format_output, models, results_path, dataset_basename, stop_after=None):
+
+def extract_properties(df, text_column, base_prompt, task, format_output, model, results_path, dataset_basename, stop_after=None):
     """
     Process sentences with batch saving and robust error handling.
 
@@ -328,8 +317,8 @@ def extract_properties(df, text_column, base_prompt, task, format_output, models
         The labeling instruction for the model.
     format_output : str
         The expected JSON output format.
-    models : list
-        List of loaded model instances.
+    model : object
+        Loaded model instance.
     results_path : str
         Path to the results CSV file.
     dataset_basename : str
@@ -342,6 +331,7 @@ def extract_properties(df, text_column, base_prompt, task, format_output, models
     print("STEP: EXTRACT PROPERTIES")
     print("="*50)
     print(f"Sentences to process: {len(df)}")
+
     if stop_after:
         print(f"⚠️  STOP_AFTER={stop_after}: Will stop after {stop_after} sentences for testing.")
 
@@ -357,29 +347,29 @@ def extract_properties(df, text_column, base_prompt, task, format_output, models
 
         text = row[text_column]
 
-        for model in models:
-            prompt = f"""{base_prompt}
+        prompt = f"""{base_prompt}
+        Sentence to extract the prediction properties: '{text}'
+        {task}
+        {format_output}
+        """
 
-            Sentence to extract the prediction properties: '{text}'
-            {task}
+        if idx < 2:
+            print(f"\n--- Sample Prompt (idx={idx}) ---")
+            print(prompt[:500] + "..." if len(prompt) > 500 else prompt)
 
-            {format_output}
-            """
+        input_prompt = model.user(prompt)
+        raw_response = model.safe_chat_completion([input_prompt], idx=idx)
 
-            if idx < 2:
-                print(f"\n--- Sample Prompt (idx={idx}) ---")
-                print(prompt[:500] + "..." if len(prompt) > 500 else prompt)
+        # Proactive sleep to stay within Groq TPM limits
+        # Groq recommends ~6.21s between requests for openai/gpt-oss-120b
+        time.sleep(7)
 
-            input_prompt = model.user(prompt)
-            raw_response = model.safe_chat_completion([input_prompt], idx=idx)
-            time.sleep(7) # rest before next prompt input so model don't run out of tokens fast
+        if raw_response is None:
+            raw_response = str({"0": ["ERROR_MAX_RETRIES"], "1": [], "2": [], "3": [], "4": []})
 
-            if raw_response is None:
-                raw_response = str({"0": ["ERROR_MAX_RETRIES"], "1": [], "2": [], "3": [], "4": []})
-
-            single_df = process_single_result(idx, text, raw_response, model.__name__())
-            single_df['Dataset Source'] = dataset_basename
-            batch_results.append(single_df)
+        single_df = process_single_result(idx, text, raw_response, model.__name__())
+        single_df['Dataset Source'] = dataset_basename
+        batch_results.append(single_df)
 
         sentences_processed += 1
 
@@ -392,22 +382,32 @@ def extract_properties(df, text_column, base_prompt, task, format_output, models
 
     print(f"\n✓ Processing complete. Results saved to {results_path}\n")
 
+
 if __name__ == "__main__":
-    """Usage:
-    Terminal commands
-    Be sure before to run source .venv_predictions/bin/activate
+    """
+    Usage:
+        Be sure to run: source .venv_predictions/bin/activate
 
-    # Load via named loader
-    python3 extract_properties.py --dataset chronicle2050 --models "openai/gpt-oss-120b"
+        # Load via named loader
+        python3 extract_properties.py \
+            --dataset chronicle2050 \
+            --model_name "openai/gpt-oss-120b" \
+            --task_name ground_truth
 
-    # Load via pre-saved CSV
-    python3 extract_properties.py \
-        --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
-        --models "openai/gpt-oss-120b" \
-        --task_name evaluation
+        # Load via pre-saved CSV — ground truth
+        python3 extract_properties.py \
+            --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
+            --model_name "llama-3.1-8b-instant" \
+            --task_name ground_truth
+
+        # Load via pre-saved CSV — classification
+        python3 extract_properties.py \
+            --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
+            --model_name "openai/gpt-oss-120b" \
+            --task_name classification
     """
     print("\n" + "="*50)
-    print("PREDICTION PROPERTY EXTRACTION")
+    print("SENTENCE PROPERTY EXTRACTION")
     print("="*50)
 
     # ============================================================
@@ -417,39 +417,38 @@ if __name__ == "__main__":
     base_data_path = DataProcessing.load_base_data_path(script_dir)
 
     dataset_loader_map = {
-        'synthetic':            DataProcessing.load_synthetic_dataset,
+        # 'synthetic':          DataProcessing.load_synthetic_dataset,    # TODO
         'financial_phrasebank': DataProcessing.load_financial_phrasebank_dataset,
         'chronicle2050':        DataProcessing.load_chronicle2050_dataset,
         'news_api':             DataProcessing.load_news_api_dataset,
         'yt':                   DataProcessing.load_yt_dataset,
-        'timebank':             DataProcessing.load_timebank_dataset,
+        # 'timebank':           DataProcessing.load_timebank_dataset,      # TODO
     }
 
-    task_loader_map = {
-        'ground_truth': 'ground_truth',
-        'evaluation': 'evaluation'
+    task_name_map = {
+        'ground_truth':   'ground_truth',
+        'classification': 'classification'
     }
 
-    parser = argparse.ArgumentParser(description='Extract prediction properties from sentences using LLMs')
+    parser = argparse.ArgumentParser(description='Extract properties from sentences using a single LLM.')
     parser.add_argument(
         '--dataset',
         type=str,
         choices=list(dataset_loader_map.keys()),
         default=None,
-        help='Dataset to process.'
+        help='Named dataset to load via DataProcessing loader.'
     )
-    # For a pre-saved CSV file path
     parser.add_argument(
         '--dataset_path',
         type=str,
         default=None,
-        help='Path to a pre-saved CSV file relative to base_data_path. e.g. combined_datasets/combined-full_synthetic-v1.csv'
+        help='Path to a pre-saved CSV file relative to base_data_path.'
     )
     parser.add_argument(
-        '--models',
-        nargs='+',
-        default=['openai/gpt-oss-120b'],
-        help='Model name(s) to use for extraction.'
+        '--model_name',
+        type=str,
+        default='llama-3.1-8b-instant',
+        help='Single model name to use for extraction.'
     )
     parser.add_argument(
         '--text_column',
@@ -459,27 +458,28 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '--task_name',
-        choices=list(task_loader_map.keys()),
-        help='Either ground truth, so we can have pre-labels or multi-class classification so we can evaluate.'
+        type=str,
+        choices=list(task_name_map.keys()),
+        default='ground_truth',
+        help='Either ground_truth for pre-labeling or classification for evaluation.'
     )
     args = parser.parse_args()
 
-    dataset_basename = args.dataset
-    print(f"Selected dataset: {args.dataset}")
+    print(f"Task       : {args.task_name}")
+    print(f"Model      : {args.model_name}")
+    print(f"Dataset    : {args.dataset or args.dataset_path}")
 
     # ============================================================
-    # 2. Load Prompts and Models
+    # 2. Load Prompts and Model
     # ============================================================
-    base_prompt, task, format_output, models = load_prompts_and_llms(args.models)
+    base_prompt, task, format_output, model = load_prompts_and_llm(args.model_name)
 
     # ============================================================
-    # 3. Setup Output Directory and Metadata
+    # 3. Setup Model Name for Output Directory
     # ============================================================
-    cleaned_model_names = []
-    for model in models:
-        clean_name = model.__name__().replace('/', '_')
-        cleaned_model_names.append(clean_name)
-    model_names_str = '-'.join(cleaned_model_names)
+    # Replace "/" with "_" to avoid creating nested folders
+    # e.g., "openai/gpt-oss-120b" becomes "openai_gpt-oss-120b"
+    clean_model_name = args.model_name.replace('/', '_')
 
     # ============================================================
     # 4. Load Dataset
@@ -501,31 +501,37 @@ if __name__ == "__main__":
         print("❌ ERROR: Please specify either --dataset or --dataset_path.")
         sys.exit(1)
 
+    if args.text_column not in df.columns:
+        print(f"\n❌ ERROR: Text column '{args.text_column}' not found in dataset.")
+        print(f"Available columns: {list(df.columns)}")
+        sys.exit(1)
+
     # ============================================================
     # 3b. Finish Output Directory Setup (needs dataset_basename from Step 4)
     # ============================================================
     output_dir = os.path.join(
         base_data_path,
-        "extract_prediction_properties",
+        "extract_properties",
         args.task_name,
         dataset_basename,
-        model_names_str
+        clean_model_name
     )
     os.makedirs(output_dir, exist_ok=True)
 
     results_path = os.path.join(output_dir, "extracted_properties.csv")
-    print(f"Output Directory: {output_dir}")
-    print(f"Results File: {results_path}")
+    print(f"Output Directory : {output_dir}")
+    print(f"Results File     : {results_path}")
 
     metadata = {
-        "timestamp": pd.Timestamp.now().isoformat(),
-        "dataset": args.dataset or args.dataset_path,
+        "timestamp":        pd.Timestamp.now().isoformat(),
+        "dataset":          args.dataset or args.dataset_path,
         "dataset_basename": dataset_basename,
-        "text_column": args.text_column,
-        "models_used": [m.__name__() for m in models],
+        "text_column":      args.text_column,
+        "task_name":        args.task_name,
+        "model_used":       args.model_name,
         "prompts": {
-            "base_prompt": base_prompt,
-            "task": task,
+            "base_prompt":   base_prompt,
+            "task":          task,
             "format_output": format_output
         }
     }
@@ -555,7 +561,7 @@ if __name__ == "__main__":
             base_prompt,
             task,
             format_output,
-            models,
+            model,
             results_path,
             dataset_basename,
             stop_after=STOP_AFTER
@@ -573,10 +579,10 @@ if __name__ == "__main__":
 
             summary = {
                 "total_processed": len(final_df),
-                "shape": final_df.shape,
-                "columns": list(final_df.columns),
-                "models_used": list(final_df['Model Name'].unique()),
-                "sample_results": final_df[['Sentence', 'Source', 'Target', 'Date', 'Model Name']].head(3).to_dict('records') if not final_df.empty else []
+                "shape":           final_df.shape,
+                "columns":         list(final_df.columns),
+                "model_used":      list(final_df['Model Name'].unique()),
+                "sample_results":  final_df[['Sentence', 'Source', 'Target', 'Date', 'Model Name']].head(3).to_dict('records') if not final_df.empty else []
             }
 
             print(json.dumps(summary, indent=2))
