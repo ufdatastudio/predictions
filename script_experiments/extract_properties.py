@@ -398,12 +398,13 @@ if __name__ == "__main__":
     Be sure before to run source .venv_predictions/bin/activate
 
     # Load via named loader
-    python3 extract_prediction_properties.py --dataset chronicle2050 --models "openai/gpt-oss-120b"
+    python3 extract_properties.py --dataset chronicle2050 --models "openai/gpt-oss-120b"
 
     # Load via pre-saved CSV
-    python3 extract_prediction_properties.py \
+    python3 extract_properties.py \
         --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
-        --models "openai/gpt-oss-120b"
+        --models "openai/gpt-oss-120b" \
+        --task_name evaluation
     """
     print("\n" + "="*50)
     print("PREDICTION PROPERTY EXTRACTION")
