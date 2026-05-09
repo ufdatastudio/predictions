@@ -1407,7 +1407,7 @@ class DataProcessing:
         base_data_path = DataProcessing.load_base_data_path(script_dir)
         fpb_path = os.path.join(
             base_data_path,
-            'financial_phrase_bank/annotators/maya_annotations-financial_phrasebank_statements-v3-final.csv'
+            'financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv'
         )
         
         print(f"Loading from: {fpb_path}")
