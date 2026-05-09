@@ -9,15 +9,24 @@ echo "llama-3.1-8b-instant"
 echo "============================================"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/../../../script_experiments"
+cd "$SCRIPT_DIR/../../../properties_extraction_experiments"
 
 START_TIME=$(date +%s)
 echo "Start time: $(date)"
 
-python3 extract_properties.py \
-    --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
-    --model_name "llama-3.1-8b-instant" \
-    --task_name ground_truth
+for seed in 3 7 33; do
+    echo ""
+    echo "============================================================"
+    echo "                      SEED: $seed"
+    echo "============================================================"
+
+    python3 extract_properties.py \
+        --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
+        --model_name "llama-3.1-8b-instant" \
+        --task_name ground_truth \
+        --seed $seed
+
+done
 
 END_TIME=$(date +%s)
 ELAPSED=$((END_TIME - START_TIME))

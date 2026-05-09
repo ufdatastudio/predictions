@@ -124,7 +124,7 @@ def map_words_to_labels(y_df, y_hat_df, col_name):
     return tps, fns, fps, tns
 
 
-def evaluate_properties(property_results, seed, model_name):
+def evaluate_properties(property_results, model_name, seed):
     """
     Compute classification metrics per property column.
 
@@ -136,10 +136,10 @@ def evaluate_properties(property_results, seed, model_name):
     property_results : list of dict
         Output from embed_properties(). Each dict contains
         property_name, y_data, y_hat_data.
-    seed : int
-        Random seed used for reproducibility tracking.
     model_name : str
         Name of the model being evaluated.
+    seed : int
+        Random seed used for reproducibility tracking.
 
     Returns
     -------
@@ -202,10 +202,10 @@ if __name__ == "__main__":
     """
     Usage:
         python3 evaluate_properties_extraction.py \
-            --y_path extract_properties/ground_truth/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/llama-3.1-8b-instant/extracted_properties.csv \
-            --y_hat_path extract_properties/classification/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/openai_gpt-oss-120b/extracted_properties.csv \
+            --y_path classification_results/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/extract_properties/seed3/ground_truth/llama-3.1-8b-instant/extracted_properties.csv \
+            --y_hat_path classification_results/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/extract_properties/seed3/classification/openai_gpt-oss-120b/extracted_properties.csv \
             --model_name "openai/gpt-oss-120b" \
-            --seed 42
+            --seed 3
     """
     print("\n" + "="*50)
     print("PROPERTY EXTRACTION EVALUATION")
@@ -236,6 +236,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--seed',
         type=int,
+        default=7, 
         help='Random seed for reproducibility tracking.'
     )
     args = parser.parse_args()
@@ -278,7 +279,7 @@ if __name__ == "__main__":
     print("STEP: EVALUATE PROPERTIES")
     print("="*50)
 
-    metrics_summary_df = evaluate_properties(property_results, args.seed, args.model_name)
+    metrics_summary_df = evaluate_properties(property_results, args.model_name, args.seed)
     print(f"\nMetrics Summary:\n{metrics_summary_df}\n")
 
     # ============================================================
@@ -292,7 +293,10 @@ if __name__ == "__main__":
     # e.g., "extract_properties/ground_truth/synthetic-fpb-.../llama.../extracted_properties.csv"
     # -> "synthetic-fpb-..."
     path_parts = args.y_path.split('/')
-    dataset_folder = path_parts[2]
+    # print(f"PATH PARTS: {type(path_parts)}, {path_parts}, \n\n{path_parts[1]}\n\n{path_parts[:-1]}")
+    # dataset_folder = path_parts[1] + path_parts[2]
+    dataset_folders = path_parts[:-4]
+    dataset_folder = '/'.join(dataset_folders)
 
     # Replace "/" with "_" in model name to avoid nested folder creation
     # e.g., "openai/gpt-oss-120b" -> "openai_gpt-oss-120b"
@@ -300,9 +304,10 @@ if __name__ == "__main__":
 
     eval_save_path = os.path.join(
         base_data_path,
-        'classification_results',
         dataset_folder,
-        'properties'
+        'classification',
+        f'seed{args.seed}',
+        clean_model_name
     )
     os.makedirs(eval_save_path, exist_ok=True)
 

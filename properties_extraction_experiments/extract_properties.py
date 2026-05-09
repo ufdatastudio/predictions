@@ -61,7 +61,6 @@ def load_dataset(base_data_path, dataset_name):
     print(f"\nLast 7 rows:\n{df.tail(7)}\n")
     return df
 
-
 def load_prompts_and_llm(model_name=None):
     """
     Build the base prompt and load a single language model.
@@ -129,7 +128,6 @@ def load_prompts_and_llm(model_name=None):
     print(f"\n✓ Model loaded: {model.__name__()}\n")
     return base_prompt, task, format_output, model
 
-
 def get_remaining_data(df, results_path):
     """
     Filter the dataset to only include sentences that have NOT been processed yet.
@@ -176,7 +174,6 @@ def get_remaining_data(df, results_path):
         print(f"Error reading existing results file: {e}. Starting from scratch.")
         return df
 
-
 def join_property(values):
     """
     Convert a list of property values to a pipe-separated string.
@@ -207,8 +204,7 @@ def join_property(values):
         return values.strip()
     return ''
 
-
-def process_single_result(input_index, text, raw_response, model_name) -> pd.DataFrame:
+def process_single_result(input_index, text, raw_response, model_name, seed) -> pd.DataFrame:
     """
     Convert a single LLM response into a structured one-row DataFrame.
 
@@ -236,6 +232,7 @@ def process_single_result(input_index, text, raw_response, model_name) -> pd.Dat
     """
     # Start with an empty structure — we will fill in the properties below
     data = {
+        'Seed':         [seed],
         'Input_Index':  [input_index],
         'Sentence':     [text],
         'Raw Response': [raw_response],
@@ -268,7 +265,6 @@ def process_single_result(input_index, text, raw_response, model_name) -> pd.Dat
 
     return results_df
 
-
 def save_batch(batch_dfs, results_path):
     """
     Write a list of single-row DataFrames to the results CSV file.
@@ -299,9 +295,19 @@ def save_batch(batch_dfs, results_path):
         include_version=False,
         append=True
     )
+    # print(f"✓ Saved metrics summary to: {results_dir}")
 
-
-def extract_properties(df, text_column, base_prompt, task, format_output, model, results_path, dataset_basename, stop_after=None):
+def extract_properties(
+        df, 
+        text_column, 
+        base_prompt, 
+        task, 
+        format_output, 
+        model, 
+        results_path, 
+        dataset_basename, 
+        seed,
+        stop_after=None):
     """
     Process sentences with batch saving and robust error handling.
 
@@ -367,7 +373,7 @@ def extract_properties(df, text_column, base_prompt, task, format_output, model,
         if raw_response is None:
             raw_response = str({"0": ["ERROR_MAX_RETRIES"], "1": [], "2": [], "3": [], "4": []})
 
-        single_df = process_single_result(idx, text, raw_response, model.__name__())
+        single_df = process_single_result(idx, text, raw_response, model.__name__(), seed)
         single_df['Dataset Source'] = dataset_basename
         batch_results.append(single_df)
 
@@ -382,7 +388,6 @@ def extract_properties(df, text_column, base_prompt, task, format_output, model,
 
     print(f"\n✓ Processing complete. Results saved to {results_path}\n")
 
-
 if __name__ == "__main__":
     """
     Usage:
@@ -392,19 +397,22 @@ if __name__ == "__main__":
         python3 extract_properties.py \
             --dataset chronicle2050 \
             --model_name "openai/gpt-oss-120b" \
-            --task_name ground_truth
+            --task_name ground_truth \
+            --seed 3
 
         # Load via pre-saved CSV — ground truth
         python3 extract_properties.py \
             --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
             --model_name "llama-3.1-8b-instant" \
-            --task_name ground_truth
+            --task_name ground_truth \
+            --seed 3
 
         # Load via pre-saved CSV — classification
         python3 extract_properties.py \
             --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
             --model_name "openai/gpt-oss-120b" \
-            --task_name classification
+            --task_name classification \
+            --seed 3
     """
     print("\n" + "="*50)
     print("SENTENCE PROPERTY EXTRACTION")
@@ -417,12 +425,12 @@ if __name__ == "__main__":
     base_data_path = DataProcessing.load_base_data_path(script_dir)
 
     dataset_loader_map = {
-        # 'synthetic':          DataProcessing.load_synthetic_dataset,    # TODO
+        'synthetic':          DataProcessing.load_synthetic_dataset,
         'financial_phrasebank': DataProcessing.load_financial_phrasebank_dataset,
         'chronicle2050':        DataProcessing.load_chronicle2050_dataset,
         'news_api':             DataProcessing.load_news_api_dataset,
         'yt':                   DataProcessing.load_yt_dataset,
-        # 'timebank':           DataProcessing.load_timebank_dataset,      # TODO
+        'timebank':           DataProcessing.load_timebank_dataset 
     }
 
     task_name_map = {
@@ -462,6 +470,12 @@ if __name__ == "__main__":
         choices=list(task_name_map.keys()),
         default='ground_truth',
         help='Either ground_truth for pre-labeling or classification for evaluation.'
+    )
+    parser.add_argument(
+        '--seed', 
+        type=int, 
+        default=7, 
+        help='Random seed for reproducibility tracking.'
     )
     args = parser.parse_args()
 
@@ -509,11 +523,15 @@ if __name__ == "__main__":
     # ============================================================
     # 3b. Finish Output Directory Setup (needs dataset_basename from Step 4)
     # ============================================================
+
+    # eventually, store same as binary classification
     output_dir = os.path.join(
         base_data_path,
-        "extract_properties",
-        args.task_name,
+        "classification_results",
         dataset_basename,
+        "extract_properties", # vs ~binary_classification (bc)
+        args.task_name,
+        f"seed{args.seed}", # vs seeds within (bc)
         clean_model_name
     )
     os.makedirs(output_dir, exist_ok=True)
@@ -564,6 +582,7 @@ if __name__ == "__main__":
             model,
             results_path,
             dataset_basename,
+            args.seed,
             stop_after=STOP_AFTER
         )
 
