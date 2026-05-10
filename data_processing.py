@@ -1863,3 +1863,24 @@ class DataProcessing:
         print(f"\nPreview:\n{df.head(3)}\n")
 
         return df
+    
+    def load_forecast_bench_dataset(script_dir, sep=','):
+        print("\n" + "="*60)
+        print("LOAD FORECAST BENCH (QUESTIONS) DATASET")
+        print("="*60)
+        
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        forecast_bench_path = os.path.join(
+            base_data_path,
+            'forecast_bench',
+            'forecast_bench_questions.csv'
+        )
+        print(f"Loading from: {forecast_bench_path}")
+        
+        forecast_bench_df = DataProcessing.load_from_file(
+            forecast_bench_path,
+            'csv'
+        )
+        print(f"Loaded shape: {forecast_bench_df.shape}")
+
+        return forecast_bench_df
