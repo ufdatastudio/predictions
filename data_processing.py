@@ -782,6 +782,10 @@ class DataProcessing:
         if file_type == 'csv': 
             df = pd.read_csv(path, sep=sep, encoding=encoding, **kwargs)
             return df
+        elif file_type == 'json':
+            data = pd.read_json(path)
+            df = pd.DataFrame(data)
+            return df
         else:
             return 'Did not properly load'
 
