@@ -1456,7 +1456,7 @@ class DataProcessing:
         
         return fpb_df
 
-    def load_chronicle2050_dataset(script_dir, sep=',', encoding='latin', predictions_only: bool = True, visualize: bool = True, **kwargs):
+    def load_chronicle2050_dataset(script_dir, sep=',', encoding='utf-8', predictions_only: bool = True, visualize: bool = True, **kwargs):
         print("\n" + "="*60)
         print("LOAD CHRONICLE2050 DATASET")
         print("="*60)
@@ -1466,7 +1466,7 @@ class DataProcessing:
             base_data_path,
             'chronicle2050',
             'annotators',
-            'chronicle2050-shawnick-binary-v4.csv'
+            'chronicle2050-shawnick-binary-v6.csv'
         )
         print(f"Loading from: {chronicle2050_path}")
         
