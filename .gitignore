@@ -2,12 +2,11 @@
 *.pyc
 .env
 *.log
-*.csv
+/data/
 /data/misc
 /data/others
 *.DS_Store
 misc/open_data.ipynb
-*.png
 /web_app
 /predictions_app
 /models
@@ -39,7 +38,6 @@ data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/data_level0
 *checkpoint.py
 *checkpoint.ipynb
 *.sqlite3
-/data
 /output
 /research_system
 .env
@@ -48,7 +46,5 @@ data/chroma/chroma_langchain_db/a886d25f-608b-493d-9c6f-baa8f5f49e4e/data_level0
 *.err
 *.pkl
 logs/
-data/classification_results/
-data/combined_datasets/
 *.txt
 misc/tasks-20March.md

@@ -1,8 +1,8 @@
 # NOTE: This script only classifies. Run after all LLM classifiers complete, then run run_avg_llm.sbatch to combine and average.
 #!/bin/bash
-#SBATCH --job-name=run_sc_granite
-#SBATCH --output=../logs/sentence_classification_llms/run_sc_granite_logs/logs_%x_%j.out
-#SBATCH --error=../logs/sentence_classification_llms/run_sc_granite_logs/logs_%x_%j.err
+#SBATCH --job-name=run_sc_llama_31_70b
+#SBATCH --output=../logs/sentence_classification_llms/run_sc_llama_31_70b_logs/logs_%x_%j.out
+#SBATCH --error=../logs/sentence_classification_llms/run_sc_llama_31_70b_logs/logs_%x_%j.err
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -17,7 +17,7 @@ EXPERIMENT="emnlp_2026_results_$(date +%Y-%m-%d)"
 BASE_RESULTS="../data/classification_results/${EXPERIMENT}"
 
 echo "============================================================"
-echo "     SENTENCE CLASSIFICATION (HPG): granite-3.3-8b-instruct"
+echo "     SENTENCE CLASSIFICATION (HPG): llama-3.1-70b-instruct"
 echo "============================================================"
 for seed in 3 7 33; do
     echo ""
@@ -26,7 +26,7 @@ for seed in 3 7 33; do
     echo "============================================================"
     echo ""
     python llm-classifiers.py \
-        --model_name granite-3.3-8b-instruct \
+        --model_name llama-3.1-70b-instruct \
         --test_dataset ${BASE_RESULTS}/seed${seed}/in_domain/x_y_test_set.csv \
         --label_column 'Ground Truth' \
         --seed $seed
@@ -36,5 +36,5 @@ echo ""
 echo "======================================"
 echo "PIPELINE COMPLETE"
 echo "======================================"
-echo "✓ Granite classification completed for seeds: 3, 7, 33"
+echo "✓ Llama 3.1 70B classification completed for seeds: 3, 7, 33"
 echo ""

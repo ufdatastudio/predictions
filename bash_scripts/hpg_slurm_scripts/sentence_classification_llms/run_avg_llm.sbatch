@@ -1,3 +1,4 @@
+# NOTE: Run all LLM classifier scripts (run_sc_gemma.sbatch, run_sc_granite.sbatch, etc.) before running this.
 #!/bin/bash
 #SBATCH --job-name=run_sc_avg_llm
 #SBATCH --output=../logs/sentence_classification_llms/run_sc_avg_llm_logs/logs_%x_%j.out
@@ -9,19 +10,33 @@
 #SBATCH --mem=8G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=dj.brinkley@ufl.edu
-
 set -e
-
 cd ../../../prediction_classification_experiments-v2
 
-EXPERIMENT="synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate_$(date +%Y-%m-%d)"
+EXPERIMENT="emnlp_2026_results_$(date +%Y-%m-%d)"
 
 echo "============================================================"
-echo "     AVERAGE LLM CLASSIFICATION RESULTS"
+echo "     COMBINE & AVERAGE LLM CLASSIFICATION RESULTS"
 echo "============================================================"
 echo "Experiment: ${EXPERIMENT}"
 echo ""
 
+# ============================================================
+# COMBINE LLM OUTPUTS
+# ============================================================
+echo "======================================"
+echo "Combining LLM classifier outputs..."
+echo "======================================"
+python combine_llm_classifiers_output.py \
+    --experiment ${EXPERIMENT}
+
+# ============================================================
+# AGGREGATE RESULTS
+# ============================================================
+echo ""
+echo "======================================"
+echo "Aggregating results..."
+echo "======================================"
 python average_classification_results.py \
     --mode single \
     --experiment ${EXPERIMENT} \
@@ -32,6 +47,7 @@ echo ""
 echo "======================================"
 echo "PIPELINE COMPLETE"
 echo "======================================"
+echo "✓ LLM outputs combined for seeds: 3, 7, 33"
 echo "✓ LLM results averaged for seeds: 3, 7, 33"
 echo "✓ Results saved to: ../data/classification_results/${EXPERIMENT}/averaged/"
 echo ""
