@@ -1,5 +1,5 @@
-# NOTE: Run all LLM classifier scripts (run_sc_gemma.sbatch, run_sc_granite.sbatch, etc.) before running this.
 #!/bin/bash
+# NOTE: Run all LLM classifier scripts (run_sc_gemma.sbatch, run_sc_granite.sbatch, etc.) before running this.
 #SBATCH --job-name=run_sc_avg_llm
 #SBATCH --output=../logs/sentence_classification_llms/run_sc_avg_llm_logs/logs_%x_%j.out
 #SBATCH --error=../logs/sentence_classification_llms/run_sc_avg_llm_logs/logs_%x_%j.err
