@@ -87,10 +87,23 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
     print(f"Looking for: {target_files}\n")
 
     if mode == 'single':
-        if not target_experiment:
-            raise ValueError("--experiment required for mode='single'")
         experiment_dirs = [target_experiment]
-        print(f"Target experiment: {target_experiment}\n")
+        exp_dir_path = os.path.join(results_dir, target_experiment)
+        
+        # Collect only the seed folders that match the requested seeds
+        all_seed_folders = []
+        for f in os.listdir(exp_dir_path):
+            
+            # Only look at folders that are seed runs (e.g. seed3, seed7, seed33)
+            # This ignores folders like averaged/ or model_checkpoints/
+            if f.startswith('seed'):
+                
+                # If --experiments was passed (e.g. seed3 seed7 seed33), only keep those
+                # If nothing was passed, keep all seed folders
+                if filter_experiments is None or f in filter_experiments:
+                    all_seed_folders.append(f)
+        
+        seed_folders = all_seed_folders
     else:
         experiment_dirs = []
         for item in os.listdir(results_dir):
@@ -116,11 +129,10 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
 
                         # Tag eval key with model type so ml and llm stay separate
                         file_tag = 'ml' if 'ml_models' in target_file else 'llm'
-                        eval_key = f"{exp_dir_name}__TEST__{rel_path}__{file_tag}"
+                        eval_key = (exp_dir_name, rel_path, file_tag)
 
                         if eval_key not in experiments:
                             experiments[eval_key] = []
-
                         df = DataProcessing.load_from_file(csv_path, 'csv', sep=',')
                         experiments[eval_key].append({
                             'seed': seed,
@@ -318,31 +330,9 @@ def save_averaged_results(results_dir, experiments, mode='cross_dataset'):
     """
     all_summaries = []
 
-    for raw_exp_name, exp_data in experiments.items():
-        # Parse the Train -> Test relationship and model type tag
-        # Format: {exp_dir_name}__TEST__{rel_path}__{file_tag}
-        if "__TEST__" in raw_exp_name:
-            parts = raw_exp_name.split("__TEST__")
-            base_exp_name = parts[0]
-            rest = parts[1]
-
-            # Extract file_tag (ml or llm) from the end
-            if rest.endswith('__ml'):
-                test_set_name = rest[:-4]
-                file_tag = 'ml'
-            elif rest.endswith('__llm'):
-                test_set_name = rest[:-5]
-                file_tag = 'llm'
-            else:
-                test_set_name = rest
-                file_tag = 'ml'
-
-            display_name = f"{base_exp_name} → {test_set_name} [{file_tag}]"
-        else:
-            base_exp_name = raw_exp_name
-            test_set_name = ""
-            file_tag = 'ml'
-            display_name = base_exp_name
+    for (base_exp_name, test_set_name, file_tag), exp_data in experiments.items():
+        # Build a human-readable display name for logging and LaTeX output
+        display_name = f"{base_exp_name} → {test_set_name} [{file_tag}]"
 
         print(f"\n{'='*50}")
         print(f"Averaging: {display_name}")
@@ -496,7 +486,7 @@ def print_latex_summary(summaries, model_margins_df=None):
         mean_df = summary['mean']
         std_df = summary['std']
 
-        print(f"% {exp_name} [{model_type}]")
+        print(f"% {exp_name}")
         print(f"% Seeds: {summary['n_seeds']}\n")
 
         combined_df = mean_df.copy()
@@ -652,10 +642,12 @@ if __name__ == "__main__":
     if not experiments:
         print("\n❌ No experiments found to average.")
         sys.exit(0)
+    else:
+        for exp_name, exp_data in experiments.items():
+            print(f"  - {exp_name}: {len(exp_data)} seed(s)")
 
     print(f"\nFound {len(experiments)} experiment(s) to average:")
-    for exp_name, exp_data in experiments.items():
-        print(f"  - {exp_name}: {len(exp_data)} seed(s)")
+
 
     # Save averaged results
     summaries = save_averaged_results(results_dir, experiments, mode=args.mode)
@@ -691,8 +683,8 @@ if __name__ == "__main__":
     print(f"Total experiments averaged: {len(summaries)}")
 
     if args.mode == 'single':
-        for exp_name in experiments.keys():
-            print(f"\nResults saved to: {os.path.join(results_dir, exp_name, 'averaged/')}")
+        for (base_exp_name, test_set_name, file_tag) in experiments.keys():
+            print(f"\nResults saved to: {os.path.join(results_dir, base_exp_name, 'averaged', test_set_name, file_tag)}")
     else:
         if len(summaries) >= 2:
             print(f"\nCross-dataset comparison saved to: cross_dataset_comparisons/")

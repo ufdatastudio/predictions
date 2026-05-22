@@ -58,7 +58,7 @@ def load_dataset(script_dir, dataset_path):
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
 
-    # df = df.sample(n=300) 
+    df = df.sample(n=40)
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
@@ -975,8 +975,27 @@ if __name__ == "__main__":
     os.makedirs(model_checkpoint_path, exist_ok=True)
 
     # ============================================================
-    # 4b. SAVE IN-DOMAIN TEST SPLIT FOR LLM PIPELINE
+    # 4b. FOR LLM PIPELINE, SAVE IN-DOMAIN TRAIN (few-shot) TEST (evaluation) SPLITs
     # ============================================================
+
+    # LLM classifiers load this file directly into few-shot prompt
+    if X_train_df is not None and y_train_df is not None:
+        in_domain_test_dir = os.path.join(seed_dir, 'in_domain')
+        os.makedirs(in_domain_test_dir, exist_ok=True)
+
+        # Combine X and y into one file so LLM script only needs one path
+        x_y_train_df = X_train_df.copy()
+        x_y_train_df[args.label_column] = y_train_df[args.label_column].values
+
+        DataProcessing.save_to_file(
+            x_y_train_df,
+            path=in_domain_test_dir,
+            prefix='x_y_train_set',
+            save_file_type='csv',
+            include_version=False
+        )
+        print(f"✓ Saved in-domain test set to: {os.path.join(in_domain_test_dir, 'x_y_train_set.csv')}")
+
     # LLM classifiers load this file directly so they evaluate
     # on the exact same test sentences as the ML models.
     if X_test_df is not None and y_test_df is not None:

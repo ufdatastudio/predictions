@@ -150,13 +150,16 @@ if __name__ == "__main__":
     default_save_path = os.path.join(base_data_path, 'combined_datasets/')
 
     dataset_loader_map = {
-        'synthetic':            DataProcessing.load_synthetic_dataset,
-        'financial_phrasebank': DataProcessing.load_financial_phrasebank_dataset,
-        'chronicle2050':        DataProcessing.load_chronicle2050_dataset,
-        'news_api':             DataProcessing.load_news_api_dataset,
-        'yt':                   DataProcessing.load_yt_dataset,
-        'timebank':             DataProcessing.load_timebank_dataset,
-        'mf_climate':           DataProcessing.load_mf_climate_dataset
+        'synthetic':                       DataProcessing.load_synthetic_dataset,
+        'financial_phrasebank':            DataProcessing.load_financial_phrasebank_dataset,
+        'chronicle2050':                   DataProcessing.load_chronicle2050_dataset,
+        'timebank':                        DataProcessing.load_timebank_dataset,
+        'yt':                              DataProcessing.load_yt_dataset,
+        'news_api':                        DataProcessing.load_news_api_dataset,
+        'mf_climate':                      DataProcessing.load_mf_climate_dataset,
+        'clients_rivals_rouges':           DataProcessing.load_clients_rivals_rouges_dataset,
+        'forecast_bench':                  DataProcessing.load_forecast_bench_dataset,
+        'smart_hospitals':                 DataProcessing.load_smart_hospitals_dataset
     }
 
     parser = argparse.ArgumentParser(
@@ -167,16 +170,21 @@ if __name__ == "__main__":
             synthetic            - LLM-generated predictions + observations [Brinkley et al. (...)]
             financial_phrasebank - Real financial statements [Malo et al. (2014)]
             chronicle2050        - Real statements from Longbets, Horizons, etc. [Regev et al. (2024)]
-            news_api             - Real news API annotated sentences
-            yt                   - Real YouTube annotated sentences
             timebank             - TimeBank 1.2 annotated sentences
+            yt                   - Real YouTube annotated sentences
+            news_api             - Real news API annotated sentences
             mf_climate           - Real MF climate forecast predictions [B. Moe, 2024]
+            clients_rivals_rouges
+            forecast_bench
+            smart_hospitals
 
         Examples:
             python3 create_combined_dataset.py --datasets synthetic
             python3 create_combined_dataset.py --datasets synthetic financial_phrasebank
             python3 create_combined_dataset.py --datasets synthetic --filter_domain finance
-            python3 create_combined_dataset.py --datasets synthetic financial_phrasebank chronicle2050 news_api yt timebank mf_climate --output_name all-combined
+            python3 create_combined_dataset.py \
+            --datasets synthetic financial_phrasebank chronicle2050 timebank yt news_api mf_climate clients_rivals_rouges forecast_bench --output_name all-combined \
+            --predictions_only_datasets yt news_api mf_climate clients_rivals_rouges forecast_bench
         """
     )
     parser.add_argument(
@@ -187,10 +195,11 @@ if __name__ == "__main__":
         help='One or more datasets to combine. Default: synthetic.'
     )
     parser.add_argument(
-        '--predictions_only',
-        action='store_true',
-        default=False,
-        help='Only load prediction-labeled rows (default: False).'
+        '--predictions_only_datasets',
+        nargs='+',
+        choices=list(dataset_loader_map.keys()),
+        default=['yt'],
+        help='One or more datasets to combine. Default: yt.'
     )
     parser.add_argument(
         '--filter_domain',
@@ -236,7 +245,7 @@ if __name__ == "__main__":
     # ============================================================
     print(f"\nConfiguration:")
     print(f"  Datasets to combine : {', '.join(args.datasets)}")
-    print(f"  Predictions only    : {args.predictions_only}")
+    print(f"  Predictions only datasets    : {args.predictions_only_datasets}")
     print(f"  Domain filter       : {args.filter_domain if args.filter_domain else 'None (all domains)'}")
     print(f"  Save path           : {args.save_path}")
     print(f"  Output name         : {args.output_name}")
@@ -255,11 +264,16 @@ if __name__ == "__main__":
 
     for dataset_key in args.datasets:
         loader = dataset_loader_map[dataset_key]
-        df = loader(script_dir, predictions_only=False, visualize=False)  # always load all, never plot
+        if dataset_key in args.predictions_only_datasets:
+            df = loader(script_dir, predictions_only=True, visualize=False)
+        else:
+            df = loader(script_dir, predictions_only=False, visualize=False)  
         if args.filter_domain and dataset_key in domain_filterable:
             df = filter_by_domain(df, args.filter_domain)
+        
         datasets_to_combine.append(df)
         dataset_names.append(dataset_key)
+
     # ============================================================
     # 4. Validate Dataset Selection
     # ============================================================
@@ -329,9 +343,9 @@ if __name__ == "__main__":
         print(f"  Prediction Count     (Label=1): {pred_count} ({round(pred_count/total*100, 2)}%)")
         print(f"  Non-Prediction Count (Label=0): {non_pred_count} ({round(non_pred_count/total*100, 2)}%)")
 
-    if args.predictions_only:
-        final_df = final_df[final_df['Ground Truth'] == 1]
-        print(f"Filtered to predictions only: {final_df.shape}")
+    # if args.predictions_only:
+    #     final_df = final_df[final_df['Ground Truth'] == 1]
+    #     print(f"Filtered to predictions only: {final_df.shape}")
 
     save_stacked_plot = os.path.join(args.save_path, args.output_name)
     if 'Dataset Name' in final_df.columns:

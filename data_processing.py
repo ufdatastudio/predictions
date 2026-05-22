@@ -782,6 +782,9 @@ class DataProcessing:
         if file_type == 'csv': 
             df = pd.read_csv(path, sep=sep, encoding=encoding, **kwargs)
             return df
+        elif file_type == 'xlsx': 
+            df = pd.read_excel(path, **kwargs)
+            return df
         elif file_type == 'json':
             data = pd.read_json(path)
             df = pd.DataFrame(data)
@@ -864,9 +867,9 @@ class DataProcessing:
         """Path to data/"""
         return os.path.join(notebook_dir, "../data")
         
-    def _build_batch_path(notebook_dir: str, data_type: str, batch_idx: int) -> str:
+    def _build_batch_path(notebook_dir: str, data_type: str, batch_idx: int) -> list:
         """
-        Build the file path for a specific batch.
+        Build the file paths for a specific batch across all annotator directories.
         
         Parameters
         ----------
@@ -879,53 +882,78 @@ class DataProcessing:
         
         Returns
         -------
-        str
-            Full path to the batch CSV file
+        list
+            List of full paths to the batch CSV files that exist
         """
         if data_type not in ['prediction', 'observation']:
             raise ValueError("data_type must be either 'prediction' or 'observation'")
         
         base_data_path = DataProcessing.load_base_data_path(notebook_dir)
-        batch_folder = f"batch_{batch_idx}-{data_type}"
-        data_folder = f"{data_type}_logs"
+        batch_folder_name = f"batch_{batch_idx}-{data_type}"
         file_name = f"batch_{batch_idx}-from_df.csv"
         
-        return os.path.join(base_data_path, data_folder, batch_folder, file_name)
+        # Create a list of all potential directories to search
+        data_folders = []
+        data_folders.append(f"{data_type}_logs")
+        data_folders.append(f"{data_type}_logs-abigail")
+        data_folders.append(f"{data_type}_logs-adriano")
+        
+        found_paths = []
+        
+        # Check each folder to see if the file exists there
+        for data_folder in data_folders:
+            potential_path = os.path.join(base_data_path, data_folder, batch_folder_name, file_name)
+            if os.path.exists(potential_path):
+                found_paths.append(potential_path)
+                
+        # If the loop finishes and no paths were found, raise an error
+        if len(found_paths) == 0:
+            raise FileNotFoundError(f"Batch {batch_idx} ({file_name}) not found in any log directories.")
+            
+        return found_paths
 
     def load_single_synthetic_data(notebook_dir: str, 
                                    batch_idx: int, 
                                    sep: str, 
                                    data_type: str = 'prediction',
-                                   return_as: str = 'dataframe') -> pd.DataFrame:
+                                   return_as: str = 'dataframe'):
         """
-        Load a single batch of synthetic data.
+        Load a single batch of synthetic data (including all annotators).
         
         Parameters
         ----------
         notebook_dir : str
             Base notebook directory
-        data_type : str
-            Either 'prediction' or 'observation'. Default is 'prediction'.
         batch_idx : int
             Batch index number to load. Default is 7.
         sep : str
             Separator for CSV file
+        data_type : str
+            Either 'prediction' or 'observation'. Default is 'prediction'.
         return_as : str
             Either 'dataframe' or 'path'. Default is 'dataframe'.
         
         Returns
         -------
-        pd.DataFrame or str
-            DataFrame containing the batch data or path string
+        pd.DataFrame or list
+            DataFrame containing the batch data or list of path strings
         """
-        file_path = DataProcessing._build_batch_path(notebook_dir, data_type, batch_idx)
+        # This will now get a list of ALL correct paths from the directories for this batch index
+        file_paths = DataProcessing._build_batch_path(notebook_dir, data_type, batch_idx)
         
         if return_as.lower() in ['path', 'string']:
-            return file_path
+            return file_paths
         else:  # default to dataframe
-            print(f"Loading: {file_path}")
-            df = DataProcessing.load_from_file(file_path, 'csv', sep)
-            return df
+            dataframes_to_combine = []
+            
+            for file_path in file_paths:
+                print(f"Loading: {file_path}")
+                df = DataProcessing.load_from_file(file_path, 'csv', sep)
+                dataframes_to_combine.append(df)
+            
+            # Combine all annotators for this specific batch index
+            combined_batch_df = DataProcessing.concat_dfs(dataframes_to_combine)
+            return combined_batch_df
 
     def load_multiple_batches(notebook_dir: str, sep: str = ',', data_type: str = 'prediction', 
                             batch_indices: list = None, start_idx: int = 1, 
@@ -966,30 +994,46 @@ class DataProcessing:
             # Auto-detect the number of available batches if end_idx is None
             if end_idx is None:
                 base_data_path = DataProcessing.load_base_data_path(notebook_dir)
-                log_directory = os.path.join(base_data_path, f"{data_type}_logs")
                 
-                if not os.path.exists(log_directory):
-                    raise FileNotFoundError(f"Directory not found: {log_directory}")
+                log_directories = []
+                log_directories.append(os.path.join(base_data_path, f"{data_type}_logs"))
+                log_directories.append(os.path.join(base_data_path, f"{data_type}_logs-abigail"))
+                log_directories.append(os.path.join(base_data_path, f"{data_type}_logs-adriano"))
                 
-                # Count directories that match the pattern batch_N-{data_type}
-                batch_dirs = [d for d in os.listdir(log_directory) 
-                            if os.path.isdir(os.path.join(log_directory, d)) 
-                            and d.startswith('batch_') 
-                            and d.endswith(f'-{data_type}')]
+                valid_directories = []
+                for directory in log_directories:
+                    if os.path.exists(directory):
+                        valid_directories.append(directory)
+                        
+                if len(valid_directories) == 0:
+                    raise FileNotFoundError("No log directories found.")
                 
-                if not batch_dirs:
-                    raise ValueError(f"No batch directories found in {log_directory}")
+                batch_dirs = []
+                for valid_directory in valid_directories:
+                    for directory_name in os.listdir(valid_directory):
+                        full_path = os.path.join(valid_directory, directory_name)
+                        if os.path.isdir(full_path):
+                            if directory_name.startswith('batch_'):
+                                if directory_name.endswith(f'-{data_type}'):
+                                    batch_dirs.append(directory_name)
+                
+                if len(batch_dirs) == 0:
+                    raise ValueError("No batch directories found in the log directories.")
                 
                 # Extract batch numbers and find the maximum
                 batch_numbers = []
-                for d in batch_dirs:
+                for directory_name in batch_dirs:
                     try:
-                        num = int(d.split('_')[1].split('-')[0])
+                        num_str = directory_name.split('_')[1].split('-')[0]
+                        num = int(num_str)
                         batch_numbers.append(num)
                     except (IndexError, ValueError):
                         continue
                 
-                end_idx = max(batch_numbers) if batch_numbers else start_idx
+                if len(batch_numbers) > 0:
+                    end_idx = max(batch_numbers)
+                else:
+                    end_idx = start_idx
             
             indices = range(start_idx, end_idx + 1)
         
@@ -1014,7 +1058,7 @@ class DataProcessing:
                     print(f"⚠ Error locating batch {idx}: {e}")
                     continue
             
-            if not paths:
+            if len(paths) == 0:
                 raise ValueError("No batch paths were found")
             
             print(f"\nFound {len(paths)} batch file(s)")
@@ -1040,7 +1084,7 @@ class DataProcessing:
                 print(f"⚠ Error loading batch {idx}: {e}")
                 continue
         
-        if not dfs:
+        if len(dfs) == 0:
             raise ValueError("No batches were successfully loaded")
         
         # Concatenate all dataframes
@@ -1372,7 +1416,7 @@ class DataProcessing:
         print(f"\nPreview:\n{non_predictions_df.head(3)}\n")
         return non_predictions_df
 
-    def load_synthetic_dataset(script_dir, sep=',', predictions_only: bool = True, visualize: bool = True, **kwargs):
+    def load_synthetic_dataset(script_dir, sep=',', predictions_only: bool = False, visualize: bool = True, **kwargs):
         print("\n" + "="*60)
         print("LOAD SYNTHETIC DATASET")
         print("="*60)
@@ -1403,7 +1447,7 @@ class DataProcessing:
 
         return synthetic_df
 
-    def load_financial_phrasebank_dataset(script_dir, sep=',', encoding='latin', predictions_only: bool = True, visualize: bool = True, **kwargs):
+    def load_financial_phrasebank_dataset(script_dir, sep=',', encoding='utf-8', predictions_only: bool = False, visualize: bool = True, **kwargs):
         print("\n" + "="*60)
         print("LOAD FINANCIAL PHRASEBANK DATASET")
         print("="*60)
@@ -1411,11 +1455,12 @@ class DataProcessing:
         base_data_path = DataProcessing.load_base_data_path(script_dir)
         fpb_path = os.path.join(
             base_data_path,
-            'financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv'
+            # 'financial_phrase_bank/annotators/fpb-maya-binary-imbalanced-96d-v1.csv'
+            'financial_phrase_bank/annotators/fpb-maya-with_sentiment-final.xlsx'
         )
         
         print(f"Loading from: {fpb_path}")
-        fpb_df = DataProcessing.load_from_file(fpb_path, 'csv', sep=sep, encoding=encoding)
+        fpb_df = DataProcessing.load_from_file(fpb_path, 'xlsx', sep=None, encoding=None)
         print(f"Loaded shape: {fpb_df.shape}")
         
         original_len = len(fpb_df)
@@ -1456,7 +1501,7 @@ class DataProcessing:
         
         return fpb_df
 
-    def load_chronicle2050_dataset(script_dir, sep=',', encoding='utf-8', predictions_only: bool = True, visualize: bool = True, **kwargs):
+    def load_chronicle2050_dataset(script_dir, sep=',', encoding='utf-8', predictions_only: bool = False, visualize: bool = True, **kwargs):
         print("\n" + "="*60)
         print("LOAD CHRONICLE2050 DATASET")
         print("="*60)
@@ -1466,7 +1511,7 @@ class DataProcessing:
             base_data_path,
             'chronicle2050',
             'annotators',
-            'chronicle2050-shawnick-binary-v6.csv'
+            'chronicle2050-shawnick-binary-v7.csv'
         )
         print(f"Loading from: {chronicle2050_path}")
         
@@ -1511,113 +1556,7 @@ class DataProcessing:
         
         return chronicle2050_df
 
-    def load_yt_dataset(script_dir, sep=',', predictions_only: bool = True, visualize: bool = True, **kwargs):
-        print("\n" + "="*60)
-        print("LOAD YT DATASET")
-        print("="*60)
-        
-        base_data_path = DataProcessing.load_base_data_path(script_dir)
-        yt_path = os.path.join(base_data_path, "yt", "annotators", "sports")
-        print(f"Loading from: {yt_path}")
-        
-        dfs = []
-        for filename in os.listdir(yt_path):
-            if not filename.endswith(".csv"):
-                continue
-            filepath = os.path.join(yt_path, filename)
-            print(f"Loading: {filename}")
-            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
-            dfs.append(df)
-        
-        if not dfs:
-            print("⚠️ No YT CSVs found.")
-            return pd.DataFrame()
-        
-        yt_df = DataProcessing.concat_dfs(dfs)
-        print(f"Loaded shape (all rows): {yt_df.shape}")
-        
-        if 'Human Annotation' not in yt_df.columns:
-            raise ValueError("Expected 'Human Annotation' column in YT dataset")
-        
-        yt_df = DataProcessing.standardize_columns(
-            df=yt_df,
-            text_col='Base Sentence',
-            label_col='Human Annotation'
-        )
-        
-        if predictions_only:
-            yt_df = yt_df[yt_df['Ground Truth'] == 1]
-            print(f"Filtered shape (predictions only): {yt_df.shape}")
-        elif visualize:
-            from data_visualizing import DataVisualizing
-            DataVisualizing.plot_class_distribution(
-                df=yt_df,
-                label_col='Ground Truth',
-                title='YT Class Distribution'
-            )
-        
-        print("\nGround Truth distribution:")
-        print(yt_df['Ground Truth'].value_counts())
-        
-        yt_df['Dataset Name'] = 'yt'
-        print(f"\nPreview:\n{yt_df.head(7)}\n")
-        
-        return yt_df
-
-    def load_news_api_dataset(script_dir, sep=',', predictions_only: bool = True, visualize: bool = True, **kwargs):
-        print("\n" + "="*60)
-        print("LOAD NEWS API DATASET")
-        print("="*60)
-        
-        base_data_path = DataProcessing.load_base_data_path(script_dir)
-        news_api_path = os.path.join(base_data_path, "news_api", "annotators")
-        print(f"Loading from: {news_api_path}")
-        
-        dfs = []
-        for filename in os.listdir(news_api_path):
-            if not filename.endswith(".csv"):
-                continue
-            filepath = os.path.join(news_api_path, filename)
-            print(f"Loading: {filename}")
-            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
-            dfs.append(df)
-        
-        if not dfs:
-            print("⚠️ No NewsAPI CSVs found.")
-            return pd.DataFrame()
-        
-        news_api_df = DataProcessing.concat_dfs(dfs)
-        print(f"Loaded shape (all rows): {news_api_df.shape}")
-        
-        if 'Human Annotation' not in news_api_df.columns:
-            raise ValueError("Expected 'Human Annotation' column in NewsAPI dataset")
-        
-        news_api_df = DataProcessing.standardize_columns(
-            df=news_api_df,
-            text_col='Base Sentence',
-            label_col='Human Annotation'
-        )
-        
-        if predictions_only:
-            news_api_df = news_api_df[news_api_df['Ground Truth'] == 1]
-            print(f"Filtered shape (predictions only): {news_api_df.shape}")
-        elif visualize:
-            from data_visualizing import DataVisualizing
-            DataVisualizing.plot_class_distribution(
-                df=news_api_df,
-                label_col='Ground Truth',
-                title='NewsAPI Class Distribution'
-            )
-        
-        print("\nGround Truth distribution:")
-        print(news_api_df['Ground Truth'].value_counts())
-        
-        news_api_df['Dataset Name'] = 'news_api'
-        print(f"\nPreview:\n{news_api_df.head(7)}\n")
-        
-        return news_api_df
-
-    def load_timebank_dataset(script_dir, sep=',', predictions_only: bool = True, visualize: bool = True, **kwargs):
+    def load_timebank_dataset(script_dir, sep=',', predictions_only: bool = False, visualize: bool = True, **kwargs):
         print("\n" + "="*60)
         print("LOAD TIMEBANK DATASET")
         print("="*60)
@@ -1670,20 +1609,137 @@ class DataProcessing:
         print(f"\nPreview:\n{tb_df.tail(7)}\n")
         
         return tb_df
+    
+    def load_yt_dataset(script_dir, sep=',', predictions_only: bool = False, visualize: bool = True, **kwargs):
+        print("\n" + "="*60)
+        print("LOAD YT DATASET")
+        print("="*60)
+        
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        yt_path = os.path.join(base_data_path, "yt", "annotators", "sports")
+        print(f"Loading from: {yt_path}")
+        
+        dfs = []
+        for filename in os.listdir(yt_path):
+            if not filename.endswith(".csv"):
+                continue
+            filepath = os.path.join(yt_path, filename)
+            print(f"Loading: {filename}")
+            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
+            dfs.append(df)
+        
+        if not dfs:
+            print("⚠️ No YT CSVs found.")
+            return pd.DataFrame()
+        
+        yt_df = DataProcessing.concat_dfs(dfs)
+        print(f"Loaded shape (all rows): {yt_df.shape}")
+        
+        if 'Human Annotation' not in yt_df.columns:
+            raise ValueError("Expected 'Human Annotation' column in YT dataset")
+        
+        yt_df = DataProcessing.standardize_columns(
+            df=yt_df,
+            text_col='Base Sentence',
+            label_col='Human Annotation'
+        )
+        
+        if predictions_only:
+            yt_df = yt_df[yt_df['Ground Truth'] == 1]
+            print(f"Filtered shape (predictions only): {yt_df.shape}")
+        elif visualize:
+            from data_visualizing import DataVisualizing
+            DataVisualizing.plot_class_distribution(
+                df=yt_df,
+                label_col='Ground Truth',
+                title='YT Class Distribution'
+            )
+        
+        print("\nGround Truth distribution:")
+        print(yt_df['Ground Truth'].value_counts())
+        
+        yt_df['Dataset Name'] = 'yt'
+        print(f"\nPreview:\n{yt_df.head(7)}\n")
+        
+        return yt_df
 
-    def load_mf_climate_dataset(script_dir, sep=',', encoding='latin', predictions_only: bool = True, visualize: bool = True, **kwargs):
+    def load_news_api_dataset(script_dir, sep=',', predictions_only: bool = False, visualize: bool = True, **kwargs):
+        print("\n" + "="*60)
+        print("LOAD NEWS API DATASET")
+        print("="*60)
+        
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        news_api_path = os.path.join(base_data_path, "news_api", "annotators", "all_domains")
+
+        ### Get specific file
+        # news_api_path = os.path.join(base_data_path, "news_api", "annotators", "news_articles_election_vote_polling_legislation_expected_likely_projected_forecast_2026-01-01_to_2026-04-26_predictions-v7_policy_1_human_annotation.csv")
+        # print(f"Loading from: {news_api_path}")
+        # df = DataProcessing.load_from_file(news_api_path, file_type="csv", sep=sep)
+        
+        dfs = []
+        for filename in os.listdir(news_api_path):
+            if not filename.endswith(".csv"):
+                continue
+            filepath = os.path.join(news_api_path, filename)
+            print(f"Loading: {filename}")
+            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
+            print(f"   Loaded shape (all rows): {df.shape}")
+            dfs.append(df)
+        
+        if not dfs:
+            print("⚠️ No NewsAPI CSVs found.")
+            return pd.DataFrame()
+        
+        news_api_df = DataProcessing.concat_dfs(dfs)
+        print(f"Loaded shape (all rows): {news_api_df.shape}")
+        
+        if 'Human Annotation' not in news_api_df.columns:
+            raise ValueError("Expected 'Human Annotation' column in NewsAPI dataset")
+        
+        news_api_df = DataProcessing.standardize_columns(
+            df=news_api_df,
+            text_col='Base Sentence',
+            label_col='Sentence Label'
+        )
+        
+        if predictions_only:
+            news_api_df = news_api_df[news_api_df['Ground Truth'] == 1]
+            print(f"Filtered shape (predictions only): {news_api_df.shape}")
+        elif visualize:
+            from data_visualizing import DataVisualizing
+            DataVisualizing.plot_class_distribution(
+                df=news_api_df,
+                label_col='Ground Truth',
+                title='NewsAPI Class Distribution'
+            )
+        
+        print("\nGround Truth distribution:")
+        print(news_api_df['Ground Truth'].value_counts())
+        
+        news_api_df['Dataset Name'] = 'news_api'
+        print(f"\nPreview:\n{news_api_df.head(7)}\n")
+        
+        return news_api_df
+
+    def load_mf_climate_dataset(script_dir, sep=',', encoding='latin', predictions_only: bool = False, visualize: bool = True, **kwargs):
         print("\n" + "="*60)
         print("LOAD MF CLIMATE DATASET")
         print("="*60)
         
         base_data_path = DataProcessing.load_base_data_path(script_dir)
+        # mf_climate_path = os.path.join(
+        #     base_data_path,
+        #     'multimodal_forecast/climate_forecasts/climate_2014_2023_final.csv'
+        # )
+        
         mf_climate_path = os.path.join(
             base_data_path,
-            'paper_mf/data/climate_forecasts/climate_forecasts-v1.csv'
-        )
-        
+            'multimodal_forecast/climate_forecasts/climate_forecasts-v5.csv'
+        ) # dropped bad sentences -> notebooks -> explore_climate_2014_2023-pre_label.ipynb
+
         print(f"Loading from: {mf_climate_path}")
         mf_climate_df = DataProcessing.load_from_file(mf_climate_path, 'csv', sep=sep, encoding=encoding)
+        mf_climate_df['Ground Truth'] = 1
         print(f"Loaded shape: {mf_climate_df.shape}")
         
         original_len = len(mf_climate_df)
@@ -1695,8 +1751,8 @@ class DataProcessing:
 
         mf_climate_df = DataProcessing.standardize_columns(
             df=mf_climate_df,
-            text_col='clean sentence',
-            label_col='label'
+            text_col='text',
+            label_col='Ground Truth'
         )
         
         if predictions_only:
@@ -1794,6 +1850,36 @@ class DataProcessing:
         print(f"\nPreview:\n{df.head(3)}\n")
         return df
 
+    def load_forecast_bench_dataset(script_dir, sep=',', encoding='utf-8', predictions_only: bool = False, visualize: bool = True):
+        print("\n" + "="*60)
+        print("LOAD FORECAST BENCH (QUESTIONS) DATASET")
+        print("="*60)
+        
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+        forecast_bench_path = os.path.join(
+            base_data_path,
+            'forecast_bench',
+            'forecast_bench_questions.csv'
+        )
+        print(f"Loading from: {forecast_bench_path}")
+        
+        forecast_bench_df = DataProcessing.load_from_file(
+            forecast_bench_path,
+            'csv'
+        )
+        print(f"Loaded shape: {forecast_bench_df.shape}")
+
+                # ---- Standardize ----
+        df = DataProcessing.standardize_columns(
+            df=forecast_bench_df,
+            text_col="question",
+            label_col="Ground Truth"
+        )
+        df['Dataset Name'] = 'forecast_bench'
+
+        return df
+    
+    # not yet
     def load_smart_hospitals_dataset(
         script_dir,
         sep="\t",
@@ -1863,24 +1949,3 @@ class DataProcessing:
         print(f"\nPreview:\n{df.head(3)}\n")
 
         return df
-    
-    def load_forecast_bench_dataset(script_dir, sep=','):
-        print("\n" + "="*60)
-        print("LOAD FORECAST BENCH (QUESTIONS) DATASET")
-        print("="*60)
-        
-        base_data_path = DataProcessing.load_base_data_path(script_dir)
-        forecast_bench_path = os.path.join(
-            base_data_path,
-            'forecast_bench',
-            'forecast_bench_questions.csv'
-        )
-        print(f"Loading from: {forecast_bench_path}")
-        
-        forecast_bench_df = DataProcessing.load_from_file(
-            forecast_bench_path,
-            'csv'
-        )
-        print(f"Loaded shape: {forecast_bench_df.shape}")
-
-        return forecast_bench_df
