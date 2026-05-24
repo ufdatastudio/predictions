@@ -30,27 +30,20 @@ from data_processing import DataProcessing
 load_dotenv()  # Load environment variables from .env file
 
 
-#Code that Son Tran added in to run the MultiLLM task
 def parse_json_response(response: str):
-    """
-    Parse label and reasoning from a JSON string response.
-    
-    Expected format: {"label": 0, "reasoning": "explanation here"}
-    
-    Returns:
-    --------
-    tuple: (label, reasoning) or (None, None) if parsing fails
-    """
+    """Parse label and reasoning from a JSON LLM response."""
     try:
-        # Strip markdown code blocks if present (```json ... ```)
         cleaned = re.sub(r"```json|```", "", response).strip()
         data = json.loads(cleaned)
-        #Convert to a Dictionary
-        label = data.get("label", None)
-        reasoning = data.get("reasoning", None)
-        return label, reasoning
-    except (json.JSONDecodeError, AttributeError):
+        return data.get("label"), data.get("reasoning")
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        json_match = re.search(r"\{.*\}", response, re.DOTALL)
+        if json_match:
+            data = json.loads(json_match.group())
+            return data.get("label"), data.get("reasoning")
         return None, None
+
+
 class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
     

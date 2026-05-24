@@ -252,8 +252,6 @@ def main() -> None:
         df = df.head(args.limit)
 
     factory = TextGenerationModelFactory()
-    #panel_models = factory.create_instances(list(args.panel_models))
-    #Son Tran changes the code
     panel_models = list(factory.create_instances(list(args.panel_models)).values())
     aggregator_model = factory.create_instance(args.aggregator_model)
 
