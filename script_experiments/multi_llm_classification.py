@@ -3,6 +3,19 @@ Multi-LLM prediction classification.
 
 Three NaviGator models classify each sentence independently (with reasoning).
 A fourth NaviGator model aggregates those three opinions into a final label.
+
+Usage:
+    uv run python script_experiments/multi_llm_classification.py --limit 10 --evaluate
+    uv run python script_experiments/multi_llm_classification.py --output script_experiments/output/run.csv
+
+Different dataset:
+    1. Put CSV under data/ (e.g. data/my_dataset/sentences.csv)
+    2. Required column: sentence (one sentence per row)
+    3. Optional column: label (prediction or not-prediction, for --evaluate only)
+    4. Run: uv run python script_experiments/multi_llm_classification.py --dataset my_dataset/sentences.csv
+
+Requires NAVI_GATOR_API_KEY in .env. Other CSV columns are preserved in the output.
+Each row makes 4 LLM calls; use --limit to test before a full run.
 """
 
 import argparse
@@ -218,9 +231,8 @@ def evaluate_results(results_df: pd.DataFrame) -> None:
         print("No rows with both ground truth and final labels; skipping evaluation.")
         return
 
-    metrics = EvaluationMetric()
     print("\nFinal aggregator classification report:")
-    metrics.eval_classification_report(
+    EvaluationMetric.eval_classification_report(
         y_true[valid_mask].astype(int).values,
         results_df.loc[valid_mask, "final_label"].astype(int).values,
     )
@@ -231,7 +243,7 @@ def evaluate_results(results_df: pd.DataFrame) -> None:
         if not panel_mask.any():
             continue
         print(f"\nPanel model {idx} classification report:")
-        metrics.eval_classification_report(
+        EvaluationMetric.eval_classification_report(
             y_true[panel_mask].astype(int).values,
             results_df.loc[panel_mask, panel_col].astype(int).values,
         )
