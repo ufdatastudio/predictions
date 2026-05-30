@@ -9,10 +9,11 @@ from prediction_properties import PredictionProperties
 
 class BasePrompt(ABC):
 
-    def __init__(self, system_identity=None, task=None, format_output=None):
+    def __init__(self, system_identity=None, task=None, format_output=None, prompt_type_name=None):
         self.custom_system_identity = system_identity
         self.custom_task = task
         self.custom_format_output = format_output
+        self.prompt_type_name=prompt_type_name
 
     @abstractmethod
     def default_system_identity(self):
@@ -26,6 +27,10 @@ class BasePrompt(ABC):
     def default_format_output(self):
         pass
 
+    def get_prompt_name(self):
+        # print(self.prompt_type_name)
+        return self.prompt_type_name
+    
     def system_identity(self):
         if self.custom_system_identity is not None:
             return self.custom_system_identity
@@ -40,8 +45,16 @@ class BasePrompt(ABC):
         if self.custom_format_output is not None:
             return self.custom_format_output
         return self.default_format_output()
+    
+    def default_steps(self):
+        if self.custom_system_identity is not None:
+            return self.custom_system_identity
+        return self.default_system_identity()
 
     def build(self):
+        return self.system_identity(), self.task(), self.format_output()
+    
+    def zero_shot(self):
         return self.system_identity(), self.task(), self.format_output()
     
     def few_shot(self):
@@ -58,6 +71,9 @@ class BasePrompt(ABC):
         - Outcome (4): {outcome_ex}
         """
         return self.system_identity(), self.task(), self.format_output(), few_shot_examples
+
+    def chain_of_thought(self):
+        return self.system_identity(), self.task(), self.format_output(), self.default_steps()
 
 class EntityExtractionPrompt(BasePrompt):
 
@@ -83,4 +99,16 @@ class SentenceClassificationPrompt(BasePrompt):
 
     def default_format_output(self):
         # Matches the expected format in llm-classifiers.py parse_json_response
-        return """Respond ONLY with valid JSON in this exact format: {"predicted_sentence_label": 0} or {"predicted_sentence_label": 1}. Do NOT reason or provide anything other than {"predicted_sentence_label": 0} or {"predicted_sentence_label": 1}."""
+        if self.get_prompt_name() == 'zero-shot' or self.get_prompt_name() == 'few-shot':
+            return """Respond ONLY with valid JSON in this exact format: {"predicted_sentence_label": 0} or {"predicted_sentence_label": 1}. Do NOT reason or provide anything other than {"predicted_sentence_label": 0} or {"predicted_sentence_label": 1}."""
+        elif self.get_prompt_name() == 'chain-of-thought':
+            return """Respond ONLY with valid JSON in this exact format: {"predicted_sentence_label": 0, "reasoning": [insert your reasoning]} or {"predicted_sentence_label": 1, "reasoning": [insert your reasoning]}. Be sure to reason and do NOT provide anything other than {"predicted_sentence_label": 0, "reasoning": [insert your reasoning]} or {"predicted_sentence_label": 1, "reasoning": [insert your reasoning]}."""   
+        
+    def default_steps(self):
+        return """
+        - Step 1: Analyze the sentence for future orientation and identify any linguistic indicators or temporal markers.
+        - Step 2: Determine if the statement contains a falsifiable assertion.
+        - Step 3: Evaluate if it reflects probabilistic uncertainty rather than established fact.
+        - Step 4: Check if it represents a "past prediction."
+        - Step 5: Synthesize your findings to classify the sentence as a "prediction": 1 or "non-prediction": 0.
+        """
