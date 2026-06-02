@@ -437,7 +437,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
 
             for token in doc:
                 # baseline token attributes
-                sentences.append(doc)
+                sentences.append(doc.text)
                 words.append(token.text)
                 lemmas.append(token.lemma_)
                 pos_labels.append(token.pos_)
@@ -555,7 +555,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 DataVisualizing.spacy_ner_ent(doc, self.nlp)
 
             for ent in doc.ents:
-                sentences.append(doc)
+                sentences.append(doc.text)
                 words.append(ent.text)
                 labels.append(ent.label_)
                 unique_labels.append(
@@ -670,15 +670,21 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         sentence_embeddings = []
 
         for sentence in tqdm(text_to_vectorize):
-            doc = self.nlp(sentence)
-            sentence_embeddings.append(doc.vector)
-
-        embeddings_array = np.array(sentence_embeddings)
+            if not isinstance(sentence, float) and pd.notna(sentence):
+                doc = self.nlp(sentence)
+                sentence_embeddings.append(doc.vector)
+            else:
+                sentence_embeddings.append(None)
 
         if attach_to_df:
-            self.df_to_vectorize[f"{self.col_name_to_vectorize} Embedding"] = list(embeddings_array)
+            self.df_to_vectorize[f"{self.col_name_to_vectorize} Embedding"] = sentence_embeddings
             return self.df_to_vectorize
         else:
+            clean_embeddings = []
+            for embedding in sentence_embeddings:
+                if embedding is not None:
+                    clean_embeddings.append(embedding)
+            embeddings_array = np.array(clean_embeddings)
             return embeddings_array
                 
     def word_feature_scores(self):
@@ -727,6 +733,55 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             word_split_sentences.append(words)
         return word_split_sentences
     
+
+    def split_into_sentences(self, sentence_col_name) -> pd.DataFrame:
+        """
+        Split a text column into sentence-level rows using spaCy sentence
+        boundary detection, with progress tracking.
+
+        Parameters
+        ----------
+        sentence_col_name : str
+            Name of the output column that will contain individual sentences.
+
+        Returns
+        -------
+        pd.DataFrame
+            A new DataFrame where each row corresponds to a single sentence.
+            All non-text columns are duplicated to preserve row-level metadata.
+
+        Notes
+        -----
+        - The original DataFrame stored in ``self.df_to_vectorize`` is not modified.
+        - Sentence segmentation is performed using spaCy's built-in sentence
+        boundary detection.
+        - Progress is displayed using ``tqdm``.
+        """
+        df = self.df_to_vectorize.copy()
+        text_column = self.col_name_to_vectorize
+
+        sentence_lists = []
+
+        for text in tqdm(
+            df[text_column],
+            total=len(df),
+            desc="Splitting into sentences"
+        ):
+            sentences = []
+
+            if isinstance(text, str) and text.strip():
+                doc = self.nlp(text)
+                for sent in doc.sents:
+                    sentences.append(sent.text.strip())
+
+            sentence_lists.append(sentences)
+
+        df[sentence_col_name] = sentence_lists
+        df = df.explode(sentence_col_name).reset_index(drop=True)
+
+        return df
+
+
 class RobertaFeatureExtraction(FeatureExtractionFactory):
     """An extension of the abstract base class called FeatureExtractionFactory"""
 

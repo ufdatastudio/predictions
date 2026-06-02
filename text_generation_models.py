@@ -8,10 +8,10 @@ Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-
 import os
 import re
 import json
+import time
 import openai
 import pathlib
-import torch
-import ipdb
+
 
 import pandas as pd
 from datetime import date
@@ -23,7 +23,7 @@ from typing import Dict, List
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
+from datetime import datetime
 
 from log_files import LogData
 from data_processing import DataProcessing
@@ -32,14 +32,38 @@ load_dotenv()  # Load environment variables from .env file
 class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
     
-    def __init__(self):
-        """In the init method (also called constructor), initialize our class with variables or attributes."""
-        # Create instance variables or attributes
-        # Standardized model parameters
-        self.temperature = 0.8
-        self.top_p = 0.9
+    def __init__(self, temperature: float = 0.8, top_p: float = 0.9):
+        """In the init method (also called constructor), initialize our class with variables or attributes.
+        
+        Notes:
+            Temperature is like a coach deciding how risky the play call is. In NLP, after the model scores every possible next word, 
+                temperature scales those scores before sampling. 
+                    A low temperature (e.g., 0.1) makes the gap between "will" and "may" 
+                enormous, so the model almost always picks "will". 
+                    A high temperature (e.g., 1.5) flattens those scores so "will", "may", 
+                "could", and even "shall" all look equally attractive, making the output more surprising.
+
+
+            Top-P is like the coach deciding who is even dressed out for the game. In NLP, instead of scaling scores, Top-P cuts the 
+                vocabulary. 
+                    With top_p=0.1, the model only considers the smallest set of words whose combined probability adds up to 10% — 
+                likely just 2-3 dominant words like "will" and "may". 
+                    With top_p=0.95, the eligible pool expands to hundreds of words, 
+                including rare but valid ones like "anticipates" or "envisions."
+
+        **Low temp + High top-p:** Large roster dressed out, but coach almost always runs the ball with the star player anyway. Many words are eligible, but the model still heavily favors the most probable one.
+        **High temp + Low top-p:** Tiny roster of 2-3 players, but coach randomizes who touches the ball every play. Few words are eligible, but the model picks unpredictably among them.
+
+        temperature=0.1, top_p=0.1 — a very conservative, deterministic setting that keeps predictions grounded and realistic.
+        temperature=0.1, top_p=0.6 — use words in sentence, while reasoning about structure and phrasing (ie: Rep. Jasmine Crockett, a congresswoman from Texas)
+        temperature=0.8, top_p=0.9 — more flexible, which helps the model reason across varied sentence structures and phrasing.
+
+
+        """
+        self.temperature = temperature
+        self.top_p = top_p
         self.model_name = None
-   
+    
     def map_platform_to_api(self, platform_name: str):
         """
         Parameter:
@@ -51,40 +75,40 @@ class TextGenerationModelFactory(ABC):
         --------
         api_key : `str`
             The api key of specified platform.
-
         """
         platform_to_api_mappings = {
-            "GROQ_CLOUD" : os.getenv('GROQ_CLOUD_API_KEY'), # https://console.groq.com/docs/models
-            "NAVI_GATOR" : os.getenv('NAVI_GATOR_API_KEY'), # https://it.ufl.edu/ai/navigator-toolkit/
+            "GROQ_CLOUD": os.getenv('GROQ_CLOUD_API_KEY'),   # https://console.groq.com/docs/models
+            "NAVI_GATOR": os.getenv('NAVI_GATOR_API_KEY'),   # https://it.ufl.edu/ai/navigator-toolkit/
             "HUGGING_FACE": os.getenv('HUGGING_FACE_API_KEY') # https://huggingface.co/models?pipeline_tag=text-generation&sort=trending
         }
-
         api_key = platform_to_api_mappings.get(platform_name)
         
         if api_key is None:
             raise ValueError("API_KEY environment variable not set")
         
         return api_key
-    
-    @classmethod        
-    def create_instance(self, model_name):
 
+    @classmethod
+    def create_instance(cls, model_name):
+        # -------------------------------------------------------
         # Groq Cloud models
-        # if model_name == 'distil-whisper-large-v3-en':
-        #     return DistilWhisperLarge3TextGenerationModel()
-        # if model_name == 'gemma2-9b-it':
-        #     return Gemma29bTextGenerationModel()
+        # -------------------------------------------------------
         if model_name == 'llama-3.1-8b-instant':
             return LlamaInstantTextGenerationModel()
         elif model_name == 'llama-3.3-70b-versatile':
             return LlamaVersatileTextGenerationModel()
         elif model_name == 'openai/gpt-oss-120b':
-            return GptOss120bTextGenerationModel()
+            return OpenAIGptOss120bTextGenerationModel()
         elif model_name == 'openai/gpt-oss-20b':
-            return GptOss20bTextGenerationModel()
-   
-        # elif model_name == 'gpt-4o':
-        #     return Gpt4oTextGenerationModel()
+            return OpenAIGptOss20bTextGenerationModel()
+        elif model_name == 'whisper-large-v3':
+            return WhisperLarge3TextGenerationModel()
+        elif model_name == 'whisper-large-v3-turbo':
+            return WhisperLarge3TurboTextGenerationModel()
+        
+        # -------------------------------------------------------
+        # NaviGator models
+        # -------------------------------------------------------
         elif model_name == 'llama-3.1-70b-instruct':
             return Llama3170BInstructTextGenerationModel()
         elif model_name == 'llama-3.1-8b-instruct':
@@ -94,17 +118,17 @@ class TextGenerationModelFactory(ABC):
         elif model_name == 'llama-3.3-70b-instruct':
             return Llama3370BInstructTextGenerationModel()
         elif model_name == 'mistral-7b-instruct':
-            return Mistral7BInstructTextGenerationModel()     
+            return Mistral7BInstructTextGenerationModel()
         elif model_name == 'mistral-small-3.1':
             return MistralSmall31TextGenerationModel()
         elif model_name == 'codestral-22b':
             return Codestral22BTextGenerationModel()
-        elif model_name == 'gemma-3-37b-it':
+        elif model_name == 'gemma-3-27b-it':
             return Gemma337bItTextGenerationModel()
         elif model_name == 'gpt-oss-20b':
-            return GptOss20TextGenerationModel()
+            return GptOss20bTextGenerationModel()
         elif model_name == 'gpt-oss-120b':
-            return GptOss120TextGenerationModel()
+            return GptOss120bTextGenerationModel()
         elif model_name == 'granite-3.3-8b-instruct':
             return Granite338BInstructTextGenerationModel()
         elif model_name == 'sfr-embedding-mistral':
@@ -119,14 +143,11 @@ class TextGenerationModelFactory(ABC):
             return WhisperLargeV3TextGenerationModel()
         elif model_name == 'kokoro':
             return KokoroTextGenerationModel()
-
-        # Hugging Face models
-        # elif model_name == 'DeepSeek-Prover-V2-7B':
-        #     return DeepSeekProverV2TextGenerationModel()
         else:
             raise ValueError(f"Unknown class name: {model_name}")
+
     @classmethod
-    def create_instances(self, model_names=None):
+    def create_instances(cls, model_names=None):
         """
         Create multiple model instances.
         
@@ -134,61 +155,39 @@ class TextGenerationModelFactory(ABC):
             model_names: List of model names to create, or None for all models
             
         Returns:
-            List of model instances
+            Dict of {model_name: model_instance}
         """
         if model_names is None:
-            # Return all available models
-            model_names = self.get_all_model_names()
+            model_names = cls.get_all_model_names()
         
-        models = []
+        models = {}
         for model_name in model_names:
             try:
-                models.append(self.create_instance(model_name))
+                models[model_name] = cls.create_instance(model_name)
             except ValueError as e:
                 print(f"Warning: {e}")
-        
         return models
 
     @classmethod
-    def get_all_model_names(self):
-        """Return list of all available model names"""
+    def get_all_model_names(cls):
+        return cls.get_groq_model_names() + cls.get_navigator_model_names()
+
+    @classmethod
+    def get_groq_model_names(cls):
         return [
-            # Groq Cloud models
-            'distil-whisper-large-v3-en',
-            'gemma2-9b-it',
             'llama-3.1-8b-instant',
             'llama-3.3-70b-versatile',
-            'meta-llama/llama-guard-4-12b',
-            'whisper-large-v3',
-            'whisper-large-v3-turbo',
-            # NaviGator models
-            'gpt-oss-120b',
-            'gpt-4o',
-            'llama-3.1-70b-instruct',
-            'llama-3.3-70b-instruct',
-            'mixtral-8x7b-instruct',
-            'llama-3.1-8b-instruct',
-            'mistral-7b-instruct',
-            'mistral-small-3.1'
-        ]
-    
-    @classmethod
-    def get_groq_model_names(self):
-        """Return list of Groq Cloud model names"""
-        return [
             'openai/gpt-oss-120b',
             'openai/gpt-oss-20b',
-            'whisper-large-v3',
-            'whisper-large-v3-turbo'
+            # 'whisper-large-v3', not working
+            'whisper-large-v3-turbo',
         ]
-    
+
     @classmethod
-    def get_navigator_model_names(self):
-        """Return list of NaviGator model names"""
+    def get_navigator_model_names(cls):
         return [
             'llama-3.1-70b-instruct',
             'llama-3.1-8b-instruct',
-            # 'llama-3.1-nemotron-nano-8B-v1', BadRequestError: Error code: 400 - {'error': {'message': "{'error': '/chat/completions: Invalid model name passed in model=llama-3.1-nemotron-nano-8B-v1. Call `/v1/models` to view available models for your key.'}", 'type': 'None', 'param': 'None', 'code': '400'}}
             'llama-3.3-70b-instruct',
             'mistral-7b-instruct',
             'mistral-small-3.1',
@@ -197,15 +196,8 @@ class TextGenerationModelFactory(ABC):
             'gpt-oss-20b',
             'gpt-oss-120b',
             'granite-3.3-8b-instruct',
-            # 'sfr-embedding-mistral', # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=sfr-embedding-mistral\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
-            # 'nomic-embed-text-v1.5', # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=nomic-embed-text-v1.5\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
-            # 'flux.1-dev', # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=flux.1-dev\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
-            # 'flux.1-schnell', # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=flux.1-schnell\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
-            # 'whisper-large-v3', # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=whisper-large-v3\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
-            # 'kokoro' # NotFoundError: Error code: 404 - {'error': {'message': "litellm.NotFoundError: NotFoundError: OpenAIException - Error code: 404 - {'detail': 'Not Found'}. Received Model Group=kokoro\nAvailable Model Group Fallbacks=None", 'type': None, 'param': None, 'code': '404'}}
-
         ]
-
+    
     def assistant(self, content: str) -> Dict:
         """Create an assistant message.
         
@@ -238,14 +230,19 @@ class TextGenerationModelFactory(ABC):
 
         return {"role": "user", "content": content}
     
-    def chat_completion(self, messages: List[Dict]) -> str:
+    def chat_completion(self, messages: List[Dict], max_tokens: int = None) -> str:
         """Generate a chat completion response.
         
         Parameters:
         -----------
         messages: `List[Dict]`
-            A list of dictionaries representing the chat history.
-        
+            A list of dictionaries representing a single, standalone conversation per sentence.
+            Each sentence is processed independently with no memory of previous sentences.
+
+            Process per sentence, no follow-up or reprompting:
+
+                [{"role": "user", "content": "Extract properties from: 'Apple stock will rise in Q3 2025'"}]
+                
         model: `str`
             The name of the model to use.
         
@@ -269,7 +266,101 @@ class TextGenerationModelFactory(ABC):
         )
         return response.choices[0].message.content
     
-    def generate_predictions(self, prompt_template: str, label: str, domain: str, batch_id: int) -> pd.DataFrame:
+    def safe_chat_completion(self, messages: List[Dict], idx: int = 0, wait_time: int = 200, max_attempts: int = 3) -> str | None:
+        """
+        Wrap chat_completion with retry logic and rate limit handling.
+        Returns None if all attempts fail, letting the caller decide how to handle it.
+
+        Parameters
+        ----------
+        messages : List[Dict]
+            A list of dictionaries representing a single, standalone conversation per sentence.
+            Each sentence is processed independently with no memory of previous sentences.
+
+            Process per sentence, no follow-up or reprompting (your pipeline)::
+
+                [{"role": "user", "content": "Extract properties from: 'Apple stock will rise in Q3 2025'"}]
+
+            Process per sentence, with follow-up or reprompting (not used in this pipeline)::
+
+                [{"role": "user", "content": "Extract properties from: 'Apple stock will rise in Q3 2025'"},
+                {"role": "assistant", "content": "{'0': [], '1': ['Apple'], '2': [], '3': ['Q3 2025'], '4': ['rise']}"},
+                {"role": "user", "content": "Are you sure about the source?"}]
+
+        idx : int, optional
+            The index of the current sentence being processed, by default 0.
+            Used for logging purposes.
+        wait_time : int, optional
+            Fallback seconds to wait if Groq's suggested wait time cannot be parsed,
+            by default 200. Long enough for token bucket to refill for ~10 sentences.
+        max_attempts : int, optional
+            Maximum number of retry attempts per sentence before giving up, by default 3.
+
+        Returns
+        -------
+        str or None
+            The generated response string if successful, or None if all attempts fail.
+
+        Notes
+        -----
+        For each sentence, the pipeline will:
+            1. Try to call the model and get a response.
+            2. If it fails, parse Groq's suggested wait time from the error message.
+            Handles both TPM (e.g., 8.5s) and TPD (e.g., 7m21.936s) rate limits.
+            3. If it fails a second time, wait again and try one last time.
+            4. If all 3 attempts fail, return None and move on to the next sentence.
+
+        The caller is responsible for handling None, e.g., recording ERROR_MAX_RETRIES
+        in the results CSV so the resume logic skips it on the next run.
+
+        Examples
+        --------
+        >>> messages = [model.user("Extract properties from: 'Apple stock will rise in Q3 2025'")]
+        >>> response = model.safe_chat_completion(messages, idx=0)
+        >>> if response is None:
+        ...     print("Failed to get response, recording error and moving on.")
+        """
+        attempt = 0
+
+        while attempt < max_attempts:
+            try:
+                return self.chat_completion(messages)
+
+            except Exception as e:
+                error_msg = str(e).lower()
+                attempt += 1
+                print(f"Attempt {attempt}/{max_attempts} failed for index {idx}. Error: {e}")
+
+                if "rate limit" in error_msg or "429" in error_msg:
+
+                    # Try to parse "7m21.936s" format first (TPD limit)
+                    match_minutes = re.search(r'try again in (\d+)m(\d+\.?\d*)s', str(e))
+
+                    # Then try "8.5875s" format (TPM limit)
+                    match_seconds = re.search(r'try again in (\d+\.?\d*)s', str(e))
+
+                    if match_minutes:
+                        minutes = float(match_minutes.group(1))
+                        seconds = float(match_minutes.group(2))
+                        actual_wait = (minutes * 60) + seconds + 5  # 5s buffer
+                    elif match_seconds:
+                        actual_wait = float(match_seconds.group(1)) + 5  # 5s buffer
+                    else:
+                        actual_wait = wait_time
+
+                    print(f"Rate limit hit. Waiting {actual_wait:.1f}s...")
+                    time.sleep(actual_wait)
+
+                elif "badrequesterror" in error_msg:
+                    print(f"Bad Request. Stopping retry for index {idx}.")
+                    break
+
+                else:
+                    time.sleep(5)
+
+        return None
+    
+    def generate_predictions(self, prompt_template: str, label: str, domain: str, batch_id: int, prediction_date: datetime) -> pd.DataFrame:
         """Generate a completion response and return as a DataFrame.
 
         Parameters:
@@ -286,6 +377,8 @@ class TextGenerationModelFactory(ABC):
         template_number: `int`
             The template number to use for the prediction. For non-prediction prompts, the template number is 0 and for prediction prompts, the template number is 1 to 5.
         
+        prediction_date: `datetime`
+            The date of which the prediction was created. 
         Returns:
         --------
         `pd.DataFrame`
@@ -311,9 +404,15 @@ class TextGenerationModelFactory(ABC):
         df['Model Name'] = self.model_name
         df['API Name'] = self.api_name
         df['Batch ID'] = batch_id
-        df['Temperature'] = getattr(self, 'temperature', None)
-        df['Top P'] = getattr(self, 'top_p', None)
-        df['Generated At'] = date.today().isoformat()
+        df['Temperature'] = self.temperature
+        df['Top P'] = self.top_p
+        df['Prompt Used'] = prompt_template
+        df['Source'] = 1
+        df['Target'] = 1
+        df['Prediction Date'] = 1
+        df['Generation Date'] = prediction_date
+        df['Outcome'] = 1
+        df['Raw Text'] = raw_text
         # print()
         # print(df)
         # ipdb.set_trace()
@@ -350,12 +449,21 @@ class TextGenerationModelFactory(ABC):
         save_batch_name = f"batch_{n}-info.log"
         save_from_df_name = f"batch_{n}-from_df.csv"
         save_from_csv_name = f"batch_{n}-from_csv.log"
-    
+
+        df_to_save = reformat_batch_predictions_df.copy()
+        if "Prompt Used" in df_to_save.columns:
+            df_to_save["Prompt Used"] = (
+                df_to_save["Prompt Used"]
+                .astype(str)
+                .str.replace("\r\n", " ")
+                .str.replace("\n", " ")
+                .str.replace("\r", " ")
+            )
         logger = LogData(base_path, log_file_path, save_batch_directory, save_batch_name)
-        logger.dataframe_to_csv(reformat_batch_predictions_df, save_from_df_name)
+        logger.dataframe_to_csv(df_to_save, save_from_df_name)
         logger.csv_to_log(save_from_df_name, save_from_csv_name)
 
-    def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label, save_path: str):
+    def batch_generate_data(self, N_batches, text_generation_models, domains, prompt_outputs, sentence_label, save_path: str, batch_prediction_date: datetime, prediction_templates: list):
         """Generate a completion response and return as a DataFrame.
 
         Parameters:
@@ -374,13 +482,21 @@ class TextGenerationModelFactory(ABC):
 
         sentence_label: `int`
             The prediction label for the prediction. Either 0 (non-prediction) or 1 (prediction).
+        
+        batch_prediction_date: `datetime`
+            The date of which the prediction was created. 
 
         Returns:
         --------
         `pd.DataFrame`
             The generated completion response formatted as a DataFrame.
     """
-
+        # Apply factory's temperature and top_p to all models for this run
+        for m in text_generation_models:
+            if hasattr(m, 'temperature'):
+                m.temperature = self.temperature
+            if hasattr(m, 'top_p'):
+                m.top_p = self.top_p
         all_batches_df = []   
         for batch_idx in tqdm(range(N_batches)):
             print(f"===================================== Batch {batch_idx} ===============================================")
@@ -394,18 +510,18 @@ class TextGenerationModelFactory(ABC):
                     print(f"{domain} --- {text_generation_model.__name__()} --- {text_generation_model.api_name}")
 
                     prompt_output = prompt_outputs[domain]
-                    model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain, batch_id=batch_idx)
+                    model_df = text_generation_model.generate_predictions(prompt_output, label=sentence_label, domain=domain, batch_id=batch_idx, prediction_date=batch_prediction_date)
 
                     batch_dfs.append(model_df)
                     batch_predictions_df = DataProcessing.concat_dfs(batch_dfs)
-                    reformat_batch_predictions_df = DataProcessing.reformat_df_with_template_number(batch_predictions_df, col_name="Base Sentence")
+                    reformat_batch_predictions_df = DataProcessing.reformat_df_with_template_number(batch_predictions_df, prediction_templates, col_name="Base Sentence")
                 print()
 
                 # print(f"NEW DOMAIN: {domain}")
             # ipdb.set_trace()
 
             self.log_batch_df(reformat_batch_predictions_df, sentence_label, save_path)
-            # print(reformat_batch_predictions_df)
+            #print(reformat_batch_predictions_df)
 
             # Extend the main DataFrame list with the batch DataFrames
             all_batches_df.append(reformat_batch_predictions_df)
@@ -417,28 +533,9 @@ class TextGenerationModelFactory(ABC):
         pass
 
 
-# class DistilWhisperLarge3TextGenerationModel(TextGenerationModelFactory):
-#     def __init__(self):
-#         super().__init__()
-#         self.api_name = "GROQ_CLOUD"
-#         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-#         self.client = Groq(api_key=self.api_key)
-#         self.model_name = self.__name__()
-
-#     def __name__(self):
-#         return "distil-whisper-large-v3-en"
-    
-# class Gemma29bTextGenerationModel(TextGenerationModelFactory):
-#     def __init__(self):
-#         super().__init__()
-#         self.api_name = "GROQ_CLOUD"
-#         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-#         self.client = Groq(api_key=self.api_key)
-#         self.model_name = self.__name__()
-
-#     def __name__(self):
-#         return "gemma2-9b-it"
-    
+# ================================================================
+# GROQ CLOUD MODELS
+# ================================================================
 class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
@@ -449,19 +546,20 @@ class LlamaInstantTextGenerationModel(TextGenerationModelFactory):
 
     def __name__(self):
         return "llama-3.1-8b-instant"
-    
-class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):    
+
+class LlamaVersatileTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_name = "GROQ_CLOUD"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
         self.model_name = self.__name__()
-    
+
     def __name__(self):
         return "llama-3.3-70b-versatile"
 
-class GptOss120bTextGenerationModel(TextGenerationModelFactory):
+class OpenAIGptOss120bTextGenerationModel(TextGenerationModelFactory):
+    """Groq-hosted version of gpt-oss-120b (accessed via openai/ prefix)."""
     def __init__(self):
         super().__init__()
         self.api_name = "GROQ_CLOUD"
@@ -471,8 +569,9 @@ class GptOss120bTextGenerationModel(TextGenerationModelFactory):
 
     def __name__(self):
         return "openai/gpt-oss-120b"
-    
-class GptOss20bTextGenerationModel(TextGenerationModelFactory):
+
+class OpenAIGptOss20bTextGenerationModel(TextGenerationModelFactory):
+    """Groq-hosted version of gpt-oss-20b (accessed via openai/ prefix)."""
     def __init__(self):
         super().__init__()
         self.api_name = "GROQ_CLOUD"
@@ -490,7 +589,7 @@ class WhisperLarge3TextGenerationModel(TextGenerationModelFactory):
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
         self.model_name = self.__name__()
-    
+
     def __name__(self):
         return "whisper-large-v3"
 
@@ -501,79 +600,28 @@ class WhisperLarge3TurboTextGenerationModel(TextGenerationModelFactory):
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = Groq(api_key=self.api_key)
         self.model_name = self.__name__()
-    
+
     def __name__(self):
         return "whisper-large-v3-turbo"
 
-class GptOss120TextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
-        self.model_name = self.__name__()
-    
-    def __name__(self):
-        return "gpt-oss-120b"
 
-class Gpt4oTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
-        self.model_name = self.__name__()
-    
-    def __name__(self):
-        return "gpt-4-turbo"
-
+# ================================================================
+# NAVIGATOR MODELS
+# ================================================================
 class Llama3170BInstructTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_name = "NAVI_GATOR"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"  # LiteLLM Proxy is OpenAI compatible
+        )
         self.model_name = self.__name__()
 
     def __name__(self):
         return "llama-3.1-70b-instruct"
 
-class Llama3370BInstructTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "llama-3.3-70b-instruct"
-
-class Mixtral87BInstructTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
-        self.model_name = self.__name__()
-    
-    def __name__(self):
-        return "mixtral-8x7b-instruct"    
 
 class Llama318BInstructTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -581,155 +629,14 @@ class Llama318BInstructTextGenerationModel(TextGenerationModelFactory):
         self.api_name = "NAVI_GATOR"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
         self.model_name = self.__name__()
 
     def __name__(self):
         return "llama-3.1-8b-instruct"
 
-class Mistral7BInstructTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "mistral-7b-instruct"
-    
-class MistralSmall31TextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" # LiteLLM Proxy is OpenAI compatible, Read More: https://docs.litellm.ai/docs/proxy/user_keys
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "mistral-small-3.1"
-
-class Codestral22BTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" 
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "codestral-22b"
-
-class NomicEmbedTextV15TextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" 
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "nomic-embed-text-v1.5"
-
-class SfrEmbeddingMistralTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu" 
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "sfr-embedding-mistral"
-    
-class GtelargeEnV15TextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu"
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "gte-large-en-v1.5"
-
-class WhisperLargeV3TextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu"
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "whisper-large-v3"
-    
-class Flux1SchnellTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu"
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "flux.1-schnell"
-    
-
-class Flux1DevTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu"
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "flux.1-dev"
-    
-
-class Granite338BInstructTextGenerationModel(TextGenerationModelFactory):
-    def __init__(self):
-        super().__init__()
-        self.api_name = "NAVI_GATOR"
-        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
-        self.client = openai.OpenAI(
-            api_key= self.api_key,
-            base_url="https://api.ai.it.ufl.edu"
-            )
-        self.model_name = self.__name__()
-
-    def __name__(self):
-        return "granite-3.3-8b-instruct"
 
 class Llama31NemotronNano8BTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -737,14 +644,74 @@ class Llama31NemotronNano8BTextGenerationModel(TextGenerationModelFactory):
         self.api_name = "NAVI_GATOR"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = openai.OpenAI(
-            api_key= self.api_key,
+            api_key=self.api_key,
             base_url="https://api.ai.it.ufl.edu"
-            )
+        )
         self.model_name = self.__name__()
 
     def __name__(self):
         return "llama-3.1-nemotron-nano-8B-v1"
-    
+
+
+class Llama3370BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "llama-3.3-70b-instruct"
+
+
+class Mistral7BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "mistral-7b-instruct"
+
+
+class MistralSmall31TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "mistral-small-3.1"
+
+
+class Codestral22BTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "codestral-22b"
+
 
 class Gemma337bItTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
@@ -752,82 +719,163 @@ class Gemma337bItTextGenerationModel(TextGenerationModelFactory):
         self.api_name = "NAVI_GATOR"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = openai.OpenAI(
-            api_key= self.api_key,
+            api_key=self.api_key,
             base_url="https://api.ai.it.ufl.edu"
-            )
+        )
         self.model_name = self.__name__()
 
     def __name__(self):
-        return "gemma-3-27b-it"
-    
+        return "gemma-3-27b-it"  # <--- FIXED: was gemma-3-37b-it
 
 
-class GptOss20TextGenerationModel(TextGenerationModelFactory):
+class GptOss20bTextGenerationModel(TextGenerationModelFactory):
+    """NaviGator-hosted version of gpt-oss-20b."""
     def __init__(self):
         super().__init__()
         self.api_name = "NAVI_GATOR"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = openai.OpenAI(
-            api_key= self.api_key,
+            api_key=self.api_key,
             base_url="https://api.ai.it.ufl.edu"
-            )
+        )
         self.model_name = self.__name__()
 
     def __name__(self):
         return "gpt-oss-20b"
-    
+
+
+class GptOss120bTextGenerationModel(TextGenerationModelFactory):
+    """NaviGator-hosted version of gpt-oss-120b."""
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"  # LiteLLM Proxy is OpenAI compatible
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "gpt-oss-120b"
+
+
+class Granite338BInstructTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "granite-3.3-8b-instruct"
+
+
+class SfrEmbeddingMistralTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "sfr-embedding-mistral"
+
+
+class NomicEmbedTextV15TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "nomic-embed-text-v1.5"
+
+
+class Flux1DevTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "flux.1-dev"
+
+
+class Flux1SchnellTextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "flux.1-schnell"
+
+
+class WhisperLargeV3TextGenerationModel(TextGenerationModelFactory):
+    """NaviGator-hosted version of whisper-large-v3."""
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "whisper-large-v3"
+
+
+class GtelargeEnV15TextGenerationModel(TextGenerationModelFactory):
+    def __init__(self):
+        super().__init__()
+        self.api_name = "NAVI_GATOR"
+        self.api_key = self.map_platform_to_api(platform_name=self.api_name)
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.ai.it.ufl.edu"
+        )
+        self.model_name = self.__name__()
+
+    def __name__(self):
+        return "gte-large-en-v1.5"
+
+
 class KokoroTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_name = "NAVI_GATOR"
         self.api_key = self.map_platform_to_api(platform_name=self.api_name)
         self.client = openai.OpenAI(
-            api_key= self.api_key,
+            api_key=self.api_key,
             base_url="https://api.ai.it.ufl.edu"
-            )
+        )
         self.model_name = self.__name__()
 
     def __name__(self):
         return "kokoro"
-    
-def parse_json_response(response):
-    """Parse JSON response from LLM to extract label and reasoning"""
-    
-    try:
-        # Extract JSON if there's extra text
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group())
-            return data.get('label'), data.get('reasoning')
-    except Exception as e:
-        print(f"Error parsing JSON: {e}")
-        return None, None
-
-def llm_classify_text(data: str, base_prompt: str, model):
-    errors = {}
-    prompt = f""" Given this: {base_prompt}. Also given the sentence '{data}', your task is to analyze the sentence and determine if it is a prediction. If prediction, generate label as 1 and if non-prediction generate label as 0.
-    Respond ONLY with valid JSON in this exact format:
-    {{"label": 0, "reasoning": "your explanation here"}}
-    Examples:
-    - "It will rain tomorrow." → {{"label": 1, "reasoning": "Contains the future tense words 'will' and 'tomorrow'"}}
-    - "The stock market is expected to rise next quarter." → {{"label": 1, "reasoning": "Contains future tense words 'is expected'"}}
-    - "I am going to the store." → {{"label": 0, "reasoning": "Does not contain a future tense word"}}
-    - "Lakers will win the championship." → {{"label": 1, "reasoning": "Contains the future tense word 'will'"}}
-    """
-
-    idx = 1
-    if idx == 1:
-        #   print(f"\tPrompt: {prompt}")
-            idx = idx + 1
-    input_prompt = model.user(prompt)
-    raw_text_llm_generation = model.chat_completion([input_prompt])
-    
-    try: 
-        # Parse the JSON response
-        label, reasoning = parse_json_response(raw_text_llm_generation)
-        return raw_text_llm_generation, label, reasoning
-    except Exception as e:
-        print(f"Error: {e}")
-        errors[data] = e
-
-        

@@ -93,7 +93,7 @@ class LogData:
                             skip_line = True
                             break
                     if not skip_line:
-                        # Assuming the relevant data in the log file is comma-separated
+                        #Assuming the relevant data in the log file is comma-separated
                         # You might need more sophisticated parsing based on your log format
                         parts = line.strip().split(delimiter)
                         extracted_data.append(parts)

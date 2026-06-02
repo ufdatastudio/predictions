@@ -161,7 +161,7 @@ class ChromaVectorStore(BaseVectorStoreBuilder, BaseVectorStoreLoader):
             )
             print(f"\tVector Store (Original): {self.vector_store}")
     
-    def query_vector_store(self, query_string: str, k: int, query_search_type: str) -> dict:
+    def query_vector_store(self, query_string: str, k: int, query_search_type: str = 'all') -> dict:
         """
         Query the vector store using specified search methods and return structured results.
         
@@ -315,7 +315,7 @@ class VectorStoreDirector:
         self._builder.add_documents_to_vector_store()
         print(f"\tDocuments added: {self._builder.vector_store}")
     
-    def query(self, embedding_model_name, query_string, k, query_search_type):
+    def query(self, embedding_model_name, query_string, k, query_search_type: str = 'all'):
         """Retrieves the final vector store from the builder using the loader class."""
         
         print(f"### INITIALIZE CLIENT VECTOR STORE ###")
