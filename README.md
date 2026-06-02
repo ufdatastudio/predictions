@@ -29,6 +29,7 @@ A project to recognize and assess prediction data (text, numerical, audio, visua
 ```
 
 ## Installation
+> Use the package manager you prefer. If [uv package manager]([https://docs.astral.sh/uv/](https://docs.astral.sh/uv/getting-started/installation/#pypi)), follow the below
 
 - > Fork the repo and see latest work in development branch, unless stated otherwise by one of the contributors.
 - > Use the package manager you prefer. If [uv package manager]([https://docs.astral.sh/uv/](https://docs.astral.sh/uv/getting-started/installation/#pypi)), follow the below.
@@ -62,4 +63,6 @@ A project to recognize and assess prediction data (text, numerical, audio, visua
 
 See the [issue](https://github.com/ufdatastudio/predictions/issues) you're working on for details. If no details are provided, then reach out (dj.brinkley@ufl.edu unless we already have another mode of communication).
 
+     - Create a [NaviGator](https://api.ai.it.ufl.edu/) API key -- `NAVI_GATOR_API_KEY = "djb2"`
+     - OPTIONAL: Create a [Groq Cloud](https://console.groq.com/) API key -- `GROQ_CLOUD_API_KEY = "djb"`
 
