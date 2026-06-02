@@ -29,6 +29,21 @@ from log_files import LogData
 from data_processing import DataProcessing
 load_dotenv()  # Load environment variables from .env file
 
+
+def parse_json_response(response: str):
+    """Parse label and reasoning from a JSON LLM response."""
+    try:
+        cleaned = re.sub(r"```json|```", "", response).strip()
+        data = json.loads(cleaned)
+        return data.get("label"), data.get("reasoning")
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        json_match = re.search(r"\{.*\}", response, re.DOTALL)
+        if json_match:
+            data = json.loads(json_match.group())
+            return data.get("label"), data.get("reasoning")
+        return None, None
+
+
 class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
     
