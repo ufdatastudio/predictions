@@ -23,7 +23,7 @@ echo "======================================"
 python3 create_combined_dataset.py \
     --datasets synthetic financial_phrasebank chronicle2050 timebank yt news_api mf_climate clients_rivals_rouges forecast_bench \
     --predictions_only_datasets yt news_api mf_climate clients_rivals_rouges forecast_bench \
-    --output_name emnlp_2026_results \
+    --output_name eacl_2026_results \
     --no_version
 
 
@@ -44,7 +44,7 @@ for seed in 3 7 33; do
 
     echo ">>> Running Baseline (Standard)"
     python ml-train.py \
-        --dataset ../data/combined_datasets/emnlp_2026_results/emnlp_2026_results.csv \
+        --dataset ../data/combined_datasets/eacl_2026_results/eacl_2026_results.csv \
         --val_size 0.2 \
         --seed $seed
 done
@@ -57,7 +57,7 @@ echo "======================================"
 echo "All training complete. Aggregating results..."
 echo "======================================"
 
-EXPERIMENT="emnlp_2026_results_$(date +%Y-%m-%d)"
+EXPERIMENT="eacl_2026_results_$(date +%Y-%m-%d)"
 
 mkdir -p ../data/classification_results/${EXPERIMENT}/averaged/in_dataset_comparisons/
 
