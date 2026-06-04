@@ -58,7 +58,7 @@ def load_dataset(script_dir, dataset_path):
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
 
-    df = df.sample(n=40)
+    df = df.sample(n=300)
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
@@ -411,10 +411,11 @@ def train_and_predict_models(
     Returns
     -------
     tuple
-        (predictions_dict, train_val_metrics_dict, trained_models_dict)
+        (predictions_dict, train_val_metrics_dict, trained_models_dict, removed_embeddings_dict)
         - predictions_dict: {model_name: predictions_array}
         - train_val_metrics_dict: {model_name: {'train_accuracy': float, 'val_accuracy': float}}
         - trained_models_dict: {model_name: model_instance}
+        - removed_embeddings_dict: {'train': df, 'val': df, 'test': df}
     """
     print("\n" + "="*40)
     print("TRAIN & PREDICT MODELS")
@@ -424,69 +425,113 @@ def train_and_predict_models(
     trained_models_with_predictions = {}
     train_val_metrics = {}
     
+    # ============================================================
+    # FILTER MALFORMED EMBEDDINGS
+    # ============================================================
+    expected_size = 300
+
+    X_train_df = X_train_df.reset_index(drop=True)
+    y_train_df = y_train_df.reset_index(drop=True)
+    train_mask = X_train_df[embeddings_col_name].apply(lambda x: np.array(x).ndim > 0 and np.array(x).shape[0] == expected_size)
+    removed_train = X_train_df[~train_mask]
+    X_train_df = X_train_df[train_mask].reset_index(drop=True)
+    y_train_df = y_train_df[train_mask].reset_index(drop=True)
+    print(f"⚠️  Removed {len(removed_train)} malformed train embeddings. Remaining: {len(X_train_df)}")
+
+    if X_val_df is not None and y_val_df is not None:
+        X_val_df = X_val_df.reset_index(drop=True)
+        y_val_df = y_val_df.reset_index(drop=True)
+        val_mask = X_val_df[embeddings_col_name].apply(lambda x: np.array(x).ndim > 0 and np.array(x).shape[0] == expected_size)
+        removed_val = X_val_df[~val_mask]
+        X_val_df = X_val_df[val_mask].reset_index(drop=True)
+        y_val_df = y_val_df[val_mask].reset_index(drop=True)
+        print(f"⚠️  Removed {len(removed_val)} malformed val embeddings. Remaining: {len(X_val_df)}")
+    else:
+        removed_val = pd.DataFrame()
+
+    if X_test_df is not None:
+        X_test_df = X_test_df.reset_index(drop=True)
+        test_mask = X_test_df[embeddings_col_name].apply(lambda x: np.array(x).ndim > 0 and np.array(x).shape[0] == expected_size)
+        removed_test = X_test_df[~test_mask]
+        X_test_df = X_test_df[test_mask].reset_index(drop=True)
+        print(f"⚠️  Removed {len(removed_test)} malformed test embeddings. Remaining: {len(X_test_df)}")
+    else:
+        removed_test = pd.DataFrame()
+
+    removed_embeddings_dict = {
+        'train': removed_train,
+        'val': removed_val,
+        'test': removed_test
+    }
+
     models = build_models(SkLearnModelFactory, ml_model_names, seed=seed, reweight_class=reweight_class)
-    # Prepare train data
-    X_train_list = X_train_df[embeddings_col_name].to_list()
+
+    # ============================================================
+    # PREPARE DATA
+    # ============================================================
+    # Embeddings may have inconsistent shapes — vstack normalizes them into a uniform 2D array
+    X_train_list = np.vstack(X_train_df[embeddings_col_name].to_list())
     y_train_list = y_train_df.values.ravel()
+
     # Prepare validation data if provided
     # No in-domain test set, just train models without predictions
     # We'll generate predictions later on external datasets
     # Ex: synthetic only, so split with train/val and no test.
     if X_val_df is not None and y_val_df is not None:
-        X_val_list = X_val_df[embeddings_col_name].to_list()
+        # Embeddings may have inconsistent shapes — vstack normalizes them into a uniform 2D array
+        X_val_list = np.vstack(X_val_df[embeddings_col_name].to_list())
         y_val_list = y_val_df.values.ravel()
     else:
         X_val_list = None
         y_val_list = None
         val_acc = None
+
     # Prepare test data if provided
     # Train models (predictions on in-domain test if exists, otherwise None)
     # Ex: synthetic + fpb + chronicle2050, we train/test or train/val/test
     # Ex: train only on synthetic, test on fpb + chronicle2050
-    if X_test_df is not None:    
-        X_test_list = X_test_df[embeddings_col_name].to_list()
+    if X_test_df is not None:
+        # Embeddings may have inconsistent shapes — vstack normalizes them into a uniform 2D array
+        X_test_list = np.vstack(X_test_df[embeddings_col_name].to_list())
     else:
         X_test_list = None
-        
+
     print(f"\nTrain size: {len(X_train_list)}")
     print(f"Validation set: {len(X_val_list) if X_val_list is not None else 0}")
     print(f"Test size: {len(X_test_list) if X_test_list is not None else 0}\n")
-    
-    # Training
+
+    # ============================================================
+    # TRAINING
+    # ============================================================
     for model_name, model in models.items():
         print(f"Training {model.get_model_name()}...")
-    
-        # Train model
+
         trained_model = model.train_model(X_train_list, y_train_list)
-        
-        # Compute train accuracy
+
         train_acc = trained_model.get_score(X_train_list, y_train_list)
-        
-        # Compute validation accuracy if data is provided
+
         if X_val_list is not None:
             val_acc = trained_model.get_score(X_val_list, y_val_list)
-        
-        # Store metrics
+
         train_val_metrics[model_name] = {
             'train_accuracy': train_acc,
             'val_accuracy': val_acc
         }
         print(f"Accuracy: {train_val_metrics[model_name]}")
-        
+
         if X_test_list is not None:
-            # Generate predictions
             model_predictions = trained_model.predict(X_test_list)
             trained_models_with_predictions[model_name] = (trained_model, model_predictions)
         else:
             # Still save the model so external datasets can evaluate it later
             trained_models_with_predictions[model_name] = trained_model
-            
+
         checkpoint_file = f"model_checkpoint-{model_name}-{label_name}.pkl"
         checkpoint_path = os.path.join(model_checkpoint_path, checkpoint_file)
         joblib.dump(trained_model, checkpoint_path)
         print(f"  ✓ Saved checkpoint: {checkpoint_file}")
-        
-    return trained_models_with_predictions, train_val_metrics
+
+    return trained_models_with_predictions, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df
 
 def create_results_dataframe(X_test_df, trained_models_with_predictions_dict):
     """Combine test data with model predictions."""
@@ -568,10 +613,11 @@ def evaluate_models(
         confusion_mat, tn, fp, fn, tp = EvaluationMetric.get_confusion_matrix(actual_labels, predictions, by_category=True)
         print(f"Confusion Matrix:\n{confusion_mat}\n")
         # Save confusion matrix visualization
+        save_visualizations_path = os.path.join(save_path, 'visualizations')
         DataVisualizing.confusion_matrix(
             model_name,
             confusion_mat, 
-            save_path, 
+            save_visualizations_path, 
             include_version=False
         )
         print(f"✓ Saved confusion matrix: confusion_matrix_{model_name}.png\n")
@@ -585,7 +631,7 @@ def evaluate_models(
             model,
             X_test_list, 
             y_test_df,
-            save_path, 
+            save_visualizations_path, 
             include_version=False
         )
         print(f"✓ Saved POC-CURVE: pos_curve{model_name}.png\n")
@@ -598,7 +644,7 @@ def evaluate_models(
             model,
             X_test_list, 
             y_test_df,
-            save_path, 
+            save_visualizations_path, 
             include_version=False
         )
         print(f"✓ Saved PR-CURVE: pr_curve{model_name}.png\n")
@@ -823,6 +869,70 @@ def generate_all_explanations(
         
     print("\n✓ All model explanations complete\n")
 
+def create_experiment_log(args, experiment_name, seed_dir, ml_model_names, splits, removed_embeddings_dict):
+    """Generate and save a human-readable experiment log."""
+    log_lines = []
+    log_lines.append("="*40)
+    log_lines.append("EXPERIMENT LOG")
+    log_lines.append("="*40)
+    log_lines.append(f"Timestamp:         {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log_lines.append(f"Experiment:        {experiment_name}")
+    log_lines.append(f"Seed:              {args.seed}")
+    log_lines.append("")
+    log_lines.append("--- Data ---")
+    log_lines.append(f"Dataset:           {args.dataset}")
+    log_lines.append(f"Dataset Type:      {args.dataset_type or 'N/A'}")
+    log_lines.append(f"Text Column:       {args.text_column}")
+    log_lines.append(f"Label Column:      {args.label_column}")
+    log_lines.append("")
+    log_lines.append("--- Splits ---")
+    log_lines.append(f"No Test Split:     {args.no_test_split}")
+    log_lines.append(f"Val Size:          {args.val_size or 'N/A'}")
+    log_lines.append(f"Stratified K-Fold: {args.stratified_kfold or 'N/A'}")
+    for key in ['X_train', 'X_val', 'X_test']:
+        df = splits.get(key)
+        log_lines.append(f"{key} Size:       {len(df) if df is not None else 'N/A'}")
+    if splits.get('folds'):
+        log_lines.append(f"Num Folds:         {len(splits['folds'])}")
+    log_lines.append("")
+    log_lines.append("--- Resampling & Class Weighting ---")
+    log_lines.append(f"Resample Method:   {args.resample_method or 'N/A'}")
+    log_lines.append(f"Reweight Class:    {args.reweight_class or 'N/A'}")
+    log_lines.append("")
+    log_lines.append("--- Models ---")
+    for name in ml_model_names:
+        log_lines.append(f"  - {name}")
+    log_lines.append("")
+    log_lines.append("--- External Test Datasets ---")
+    if args.test_datasets:
+        for path in args.test_datasets:
+            log_lines.append(f"  - {path}")
+    else:
+        log_lines.append("  None")
+    log_lines.append("")
+    log_lines.append("--- Explainability ---")
+    log_lines.append(f"Enabled:           {args.explainability}")
+    log_lines.append("="*40)
+    log_lines.append("--- Malformed Embeddings Removed ---")
+    if removed_embeddings_dict is not None:
+        for split_name, removed_df in removed_embeddings_dict.items():
+            log_lines.append(f"  {split_name}: {len(removed_df)} removed")
+            if len(removed_df) > 0:
+                for idx, row in removed_df.iterrows():
+                    log_lines.append(f"    - Row {idx}: {str(row.get('Base Sentence', 'N/A'))[:80]}")
+    else:
+        log_lines.append("  None")
+    log_lines.append("")
+
+    log_dir = os.path.join(seed_dir, 'in_domain', 'experiment_log')
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, 'experiment_log.txt')
+
+    with open(log_path, 'w') as f:
+        f.write("\n".join(log_lines))
+
+    print(f"✓ Experiment log saved to: {log_path}")
+
 if __name__ == "__main__":
     """
     usage: 
@@ -948,7 +1058,7 @@ if __name__ == "__main__":
     # ============================================================
     splits = split_train_test(
         df=embeddings_df, 
-        test_size=0.0 if args.no_test_split else 0.2,
+        test_size=None if args.no_test_split else 0.2,
         val_size=args.val_size,
         seed=args.seed, 
         stratify_kfold=args.stratified_kfold,
@@ -1020,7 +1130,7 @@ if __name__ == "__main__":
         # 5. TRAIN MODELS
         # ============================================================
         # NOTE: within below, we check if val_df and test_df is None
-        trained_models_with_predictions_dict, train_val_metrics = train_and_predict_models(
+        trained_models_with_predictions_dict, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df = train_and_predict_models(
             ml_model_names, X_train_df, y_train_df, X_test_df,
             embeddings_col_name, args.label_column, model_checkpoint_path,
             seed=args.seed, reweight_class=args.reweight_class, X_val_df=X_val_df, y_val_df=y_val_df
@@ -1065,7 +1175,7 @@ if __name__ == "__main__":
             fold_checkpoint_path = os.path.join(model_checkpoint_path, f'fold_{fold_idx}')
             os.makedirs(fold_checkpoint_path, exist_ok=True)
 
-            trained_models_with_predictions_dict, train_val_metrics = train_and_predict_models(
+            trained_models_with_predictions_dict, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df = train_and_predict_models(
                 ml_model_names, X_train, y_train, X_test_df,
                 embeddings_col_name, args.label_column, fold_checkpoint_path,
                 seed=args.seed, reweight_class=args.reweight_class, X_val_df=X_val, y_val_df=y_val
@@ -1122,7 +1232,7 @@ if __name__ == "__main__":
                 text_col_name=args.text_column,
                 save_path=seed_dir
             )
-    
+    create_experiment_log(args, experiment_name, seed_dir, ml_model_names, splits, removed_embeddings_dict)
     # ============================================================
     # 9. COMPLETE
     # ============================================================

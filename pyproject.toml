@@ -63,6 +63,7 @@ dependencies = [
     "langchain-openai>=0.3.34",
     "pyvis>=0.3.2",
     "imblearn>=0.0",
+    "evaluate>=0.4.6",
 ]
 
 [tool.setuptools.packages.find]
