@@ -540,10 +540,14 @@ def create_results_dataframe(X_test_df, trained_models_with_predictions_dict):
     print("="*40)
     
     results_df = X_test_df.copy()
+
+    # Enforce Ground Truth as int
+    if 'Ground Truth' in results_df.columns:
+        results_df['Ground Truth'] = results_df['Ground Truth'].astype(int)
     
     for model_name, models_and_predictions in trained_models_with_predictions_dict.items():
         _, predictions = models_and_predictions
-        results_df[model_name] = predictions.to_list()
+        results_df[model_name] = np.array(predictions).astype(int).tolist()
         print(f"✓ Added predictions: {model_name}")
     
     print(f"\nFinal shape: {results_df.shape}")
@@ -589,6 +593,7 @@ def evaluate_models(
     
     X_test_list = X_test_df[embeddings_col_name].to_list()
     actual_labels = y_test_df.values
+    actual_labels = np.array(actual_labels).astype(int)
     metrics_summary = []
     
     for model_name, model_and_predictions in trained_models_with_predictions_dict.items():
@@ -598,6 +603,7 @@ def evaluate_models(
         train_val_data = train_val_metrics_dict.get(model_name, {})   
         
         model, predictions = model_and_predictions
+        predictions = np.array(predictions).astype(int)
         # --- GET CONTINUOUS SCORES FOR AUC MATCHING ---
         if hasattr(model.classifer, "predict_proba"):
             continuous_scores = model.classifer.predict_proba(X_test_list)[:, 1]
