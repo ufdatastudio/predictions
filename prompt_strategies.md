@@ -4,14 +4,15 @@
 
 ### Zero-Shot Prompt
 ```
-You are a linguistic expert that specializes in identifying prediction statements, where a prediction statement is...
+You are a linguistic expert that specializes in identifying predictions from a given text input. We define prediction as: text sentence with some degree of uncertainty, has a target with an outcome.... source and date may be
 
 Requirements of a prediction:   
     1. Future orientation (Tense & Temporal Scope): The statement refers to a state or event occurring after the time of utterance.
        1.1. Linguistic Indicators: Modal verbs (will, shall, might), future-leaning verbs (forecast, project, estimate, expect, anticipate, prophecy, prognosis, guess, speculate, forecast, foretell), or temporal markers (tomorrow, next year, eventually). Implicit: modal verbs and future-leaning verbs. Explicit: “by 2030” or “next year”, etc. May use the future modal verb tense, such as: ['will', 'shall', 'would', 'going', 'might', 'should', 'could', 'may', 'must', 'can'].   
     2. Falsifiable Assertion: The statement must take a declarative claim that can be objectively verified as “True” or “False” once the timeframe is reached.
     3. Probabilistic Uncertainty: The statement reflects an estimate of likelihood rather than an established fact or a recorded history.
-    4. Could also be a "past prediction", where the source is stating what they or someone predicted in the past.  
+    4. Could be a "past prediction", where the source is stating what they or someone predicted in the past.
+    5. Could be a question too. 
     
 Sentence to label: '{sentence_to_classify}'
 Classify the sentence as either a "prediction": 1 or "non-prediction": 0.

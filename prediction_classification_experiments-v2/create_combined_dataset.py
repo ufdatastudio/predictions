@@ -286,26 +286,31 @@ if __name__ == "__main__":
     # 5. Combine Datasets
     # ============================================================
     combined_df = combine_datasets(datasets_to_combine, dataset_names)
-
+    # ============================================================
+    # 5b. Split Filtered / Unfiltered
+    # ============================================================
+    null_mask = combined_df['Base Sentence'].isnull()
+    unfiltered_df = combined_df[null_mask].copy()
+    filtered_df = combined_df[~null_mask].copy()
+    print(f"  Removed {null_mask.sum()} rows with null 'Base Sentence'")
+    print(f"  Unfiltered shape : {unfiltered_df.shape}")
+    print(f"  Filtered shape   : {filtered_df.shape}")
     # ============================================================
     # 6. Extract Columns
     # ============================================================
     print("\n" + "="*60)
     print("COLUMN SELECTION")
     print("="*60)
-
     if args.keep_all_columns:
         print("Keeping all columns from source datasets.")
-        final_df = combined_df
+        final_df = filtered_df
     else:
-        final_df = extract_standard_columns(combined_df, args.additional_columns)
-
+        final_df = extract_standard_columns(filtered_df, args.additional_columns)
     print(f"\nFinal dataset:")
     print(f"  Shape  : {final_df.shape}")
     print(f"  Columns: {list(final_df.columns)}")
     print(f"\nPreview:\n{final_df.head(7)}\n")
     print(f"\nTail:\n{final_df.tail(7)}\n")
-
     # ============================================================
     # 7. Save Combined Dataset
     # ============================================================
@@ -321,7 +326,13 @@ if __name__ == "__main__":
             args.output_name,
             include_version=not args.no_version
         )
-
+    if not args.no_save and not unfiltered_df.empty:
+        save_combined_dataset(
+            unfiltered_df,
+            args.save_path,
+            args.output_name + '_unfiltered',
+            include_version=not args.no_version
+        )
     # ============================================================
     # 8. Pipeline Complete
     # ============================================================

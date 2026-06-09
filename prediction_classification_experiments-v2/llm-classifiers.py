@@ -34,7 +34,6 @@ BATCH_SIZE = 50
 # STOP_AFTER = 10
 STOP_AFTER = None
 
-
 def load_dataset(dataset_path, text_column='Base Sentence', label_column='Sentence Label'):
     """
     Load the test split saved by ml-train.py.
@@ -55,13 +54,10 @@ def load_dataset(dataset_path, text_column='Base Sentence', label_column='Senten
     print("="*40)
 
     print(f"Dataset path: {dataset_path}")
-    df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='latin-1')
+    df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='utf-8')
     # Strip all non-ASCII characters entirely from string columns
     # This is the safest fix when source data has deep unicode corruption
-    for col in df.select_dtypes(include='object').columns:
-        df[col] = df[col].apply(
-            lambda x: x.encode('ascii', errors='ignore').decode('ascii') if isinstance(x, str) else x
-        )
+    df = df.sample(n=7)
 
     # Validate required columns exist
     if text_column not in df.columns:
@@ -76,6 +72,46 @@ def load_dataset(dataset_path, text_column='Base Sentence', label_column='Senten
 
     return df
 
+# def load_dataset(dataset_path, text_column='Base Sentence', label_column='Sentence Label'):
+#     """
+#     Load the test split saved by ml-train.py.
+#     Does NOT resample — the split is already fixed by the ML pipeline
+#     so LLM and ML models evaluate on the exact same sentences.
+
+#     Parameters
+#     ----------
+#     dataset_path : str
+#         Path to the x_y_test_set.csv saved by ml-train.py.
+#     text_column : str
+#         Column name containing the sentences. Default is 'Base Sentence'.
+#     label_column : str
+#         Column name containing the true labels. Default is 'Sentence Label'.
+#     """
+#     print("\n" + "="*40)
+#     print("LOAD DATASET")
+#     print("="*40)
+
+#     print(f"Dataset path: {dataset_path}")
+#     df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='latin-1')
+#     # Strip all non-ASCII characters entirely from string columns
+#     # This is the safest fix when source data has deep unicode corruption
+#     for col in df.select_dtypes(include='object').columns:
+#         df[col] = df[col].apply(
+#             lambda x: x.encode('ascii', errors='ignore').decode('ascii') if isinstance(x, str) else x
+#         )
+
+#     # Validate required columns exist
+#     if text_column not in df.columns:
+#         raise ValueError(f"Text column '{text_column}' not found. Available: {list(df.columns)}")
+#     if label_column not in df.columns:
+#         raise ValueError(f"Label column '{label_column}' not found. Available: {list(df.columns)}")
+
+#     print(f"Shape: {df.shape}")
+#     print(f"\nPreview:\n{df.head(7)}\n")
+#     print(f"\nPreview:\n{df.tail(7)}\n")
+#     print(f"Label distribution:\n{df[label_column].value_counts()}\n")
+
+#     return df
 
 def build_model(model_name):
     """Initialize single LLM from factory for this SLURM job."""
@@ -90,8 +126,7 @@ def build_model(model_name):
     model = tgmf.create_instance(model_name)
     return model
 
-
-def load_prompts(model_name):
+def load_prompts(model_name, prompt_type):
     """
     Build the base prompt using SentenceClassificationPrompt with few-shot examples.
     Combines system identity, prediction properties, requirements, and examples.
@@ -100,7 +135,9 @@ def load_prompts(model_name):
     ----------
     model_name : str
         The name of the model being loaded. Used for logging only.
-
+    prompt_type : str
+        The prompt can be zero-shot, few-shot, or chain-of-thought
+        
     Returns
     -------
     base_prompt : str
@@ -111,34 +148,55 @@ def load_prompts(model_name):
         The expected JSON output format.
     """
     print("\n" + "="*50)
-    print("LOAD PROMPTS")
+    print(f"LOAD PROMPT: {prompt_type}")
     print("="*50)
 
     # Get prediction properties and requirements
     prediction_properties, prediction_requirements = PredictionProperties.get_prediction_properties_and_requirements()
 
-    # Build the prompt using SentenceClassificationPrompt with few-shot examples
-    prompt = SentenceClassificationPrompt()
-    system_identity, task, format_output, examples = prompt.few_shot()
+    if prompt_type == 'zero-shot':
+        prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
+        system_identity, task, format_output = prompt.zero_shot()
+        
+        base_prompt = f"""{system_identity}
+        Prediction Properties:
+        {prediction_properties}
+        Requirements:
+        {prediction_requirements}
+        """
 
-    # Combine into one base prompt sent before each sentence
-    base_prompt = f"""{system_identity}
-    Prediction Properties:
-    {prediction_properties}
-    Requirements:
-    {prediction_requirements}
-    Examples:
-    {examples}
-    """
+    elif prompt_type == 'few-shot':
+        prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
+        system_identity, task, format_output, examples = prompt.few_shot()
 
-    print(f"\nSystem Identity: {system_identity}")
-    print(f"\nTask: {task}")
-    print(f"\nFormat Output: {format_output}")
-    print(f"\nBase Prompt: {base_prompt}")
-    print(f"\n✓ Prompts loaded for model: {model_name}")
+        base_prompt = f"""{system_identity}
+        Prediction Properties:
+        {prediction_properties}
+        Requirements:
+        {prediction_requirements}
+        Examples:
+        {examples}
+        """
+    elif prompt_type == 'chain-of-thought':
+        prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
+        system_identity, task, format_output, steps = prompt.chain_of_thought()
+        
+        base_prompt = f"""{system_identity}
+        Prediction Properties:
+        {prediction_properties}
+        Requirements:
+        {prediction_requirements}
+        Steps:
+        {steps}
+        """
+
+    # print(f"\nSystem Identity: {system_identity}")
+    # print(f"\nTask: {task}")
+    # print(f"\nFormat Output: {format_output}")
+    # print(f"\nBase Prompt: {base_prompt}")
+    # print(f"\n✓ Prompts loaded for model: {model_name}")
 
     return base_prompt, task, format_output
-
 
 def _llm_classifier(
         sentence_to_classify,
@@ -177,18 +235,17 @@ def _llm_classifier(
         (raw_text_llm_generation, label) or (None, None) on unrecoverable failure.
     """
     # Sanitize sentence to prevent Unicode encoding errors crashing the API call
-    sentence_to_classify = sentence_to_classify.encode('ascii', errors='ignore').decode('ascii')
+    # sentence_to_classify = sentence_to_classify.encode('ascii', errors='ignore').decode('ascii')
 
     prompt = f"""{base_prompt}
-
-    Sentence to label: '{sentence_to_classify}'
-    {task}
-
-    {format_output}
+    Sentence to Label: '{sentence_to_classify}'
+    Task: {task}
+    Format Output: {format_output}
     """
 
     if is_first:
         print(f"\tPrompt: {prompt}")
+        quit()
 
     input_prompt = model.user(prompt)
 
@@ -205,7 +262,6 @@ def _llm_classifier(
     label = parsed.get('predicted_sentence_label') if parsed else None
 
     return raw_text_llm_generation, label
-
 
 def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output, save_directory, seed):
     """
@@ -319,7 +375,6 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
 
     return results_with_llm_label_df
 
-
 def create_results_dataframe(X_test_df, y_hat_df, model_name, seed):
     """
     Combine test data with model predictions.
@@ -354,7 +409,6 @@ def create_results_dataframe(X_test_df, y_hat_df, model_name, seed):
     print(f"\nPreview:\n{results_df.head(3)}\n")
 
     return results_df
-
 
 def evaluate_models(
     results_df,
@@ -508,7 +562,6 @@ def evaluate_models(
 
     return metrics_summary_df
 
-
 if __name__ == "__main__":
     """
     usage:
@@ -521,10 +574,7 @@ if __name__ == "__main__":
         --label_column 'Ground Truth'
 
     # External cross-domain test set (saved by ml-train.py at seed_dir/external_*/x_y_test_set.csv):
-    python llm-classifiers.py \\
-        --model_name gpt-oss-120b \\
-        --test_dataset ../data/classification_results/synthetic-fpb-c2050-yt-news-timebank_2026-04-17/seed3/external_fpb-maya-binary-imbalanced-96d-v1/x_y_test_set.csv \\
-        --label_column 'Sentence Label'
+    python llm-classifiers.py --model_name gpt-oss-120b --test_dataset ../data/classification_results/emnlp_2026_results_2026-05-22/seed3/in_domain/x_y_test_set.csv --label_column 'Ground Truth' --prompt_type zero-shot
     """
     # ============================================================
     # 1. CONFIGURATION
@@ -562,6 +612,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '--prompt_type',
+        required=True,
+        help='How to prompt the LLMs: zero-shot, few-shot, chain-of-thougt'
+    )
+
+    parser.add_argument(
         '--seed',
         type=int,
         help='Seed so experiments can be reproduced. Get from ML folder name e.g. seed3 -> 3'
@@ -594,7 +650,7 @@ if __name__ == "__main__":
     model = build_model(args.model_name)
 
     # Load the base prompt, task instruction, and output format
-    base_prompt, sentence_label_task, sentence_label_format_output = load_prompts(args.model_name)
+    base_prompt, sentence_label_task, sentence_label_format_output = load_prompts(args.model_name, args.prompt_type)
 
     # ============================================================
     # 4. RUN INFERENCE
