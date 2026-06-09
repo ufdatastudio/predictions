@@ -64,6 +64,7 @@ dependencies = [
     "pyvis>=0.3.2",
     "imblearn>=0.0",
     "evaluate>=0.4.6",
+    "spacy-transformers>=1.4.0",
 ]
 
 [tool.setuptools.packages.find]
