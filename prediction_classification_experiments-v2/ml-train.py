@@ -7,16 +7,12 @@ warnings.filterwarnings("ignore")
 import argparse
 import matplotlib
 matplotlib.use('Agg')  # Prevent GUI windows from opening
-
 import numpy as np
 import pandas as pd
-
 from datetime import datetime
 from typing import Dict, Any, Optional
-
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
-
 # Get the current working directory of the script
 script_dir = os.getcwd()
 # Add the parent directory to the system path
@@ -27,7 +23,6 @@ from data_processing import DataProcessing
 from data_visualizing import DataVisualizing
 from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
-
 
 def create_output_directory(args, experiment_name):
     """Create unique output directory with date and seed."""
@@ -57,8 +52,7 @@ def load_dataset(script_dir, dataset_path):
     
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-
-    # df = df.sample(n=300)
+    df = df.sample(n=30)
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
@@ -126,29 +120,18 @@ def shuffle_dataset(df, seed):
     
     return shuffled_df
 
-def extract_sentence_embeddings(df, text_column='Base Sentence'):
+def extract_sentence_embeddings(df, text_column='Base Sentence', embedding_model_name='spacy_large'):
     """Extract sentence embeddings using SpaCy."""
     print("\n" + "="*40)
     print("EXTRACT SENTENCE EMBEDDINGS (SpaCy)")
     print("="*40)
     print(f"Using text column: '{text_column}'")
+    print(f"Using embedding model: '{embedding_model_name}'")
     
-    spacy_fe = SpacyFeatureExtraction(df, text_column)
+    spacy_fe = SpacyFeatureExtraction(df, text_column, embedding_model_name=embedding_model_name)
     embeddings_df = spacy_fe.sentence_embeddings_extraction(attach_to_df=True)
     
     embeddings_col_name = f'{text_column} Embedding'
-    
-    # Replaces your current loop in extract_sentence_embeddings:
-    # for i, (idx, row) in enumerate(embeddings_df.head(3).iterrows()):
-    #     text = row[text_column]
-    #     embedding = row[embeddings_col_name]
-        
-        # Force into a numpy array so .shape is guaranteed to work
-        # emb_array = np.array(embedding)
-        
-        # print(f"\nSample {i}:")
-        # print(f"  Sentence [:100]: {str(text)[:100]}...")
-        # print(f"  Embedding shape: {emb_array.shape}")
     
     return embeddings_df, embeddings_col_name
 
@@ -218,12 +201,10 @@ def split_train_test(
     Returns:
         Dict[str, Any]: Splits dictionary as documented above.
     """
-
     # Normalize numeric inputs
     vs = float(val_size) if val_size else 0.0
     ts = float(test_size) if test_size else 0.0
     k = int(stratify_kfold) if stratify_kfold else 0
-
     # Basic validations
     if ts < 0 or ts >= 1:
         raise ValueError("`test_size` must be in [0, 1), so 0 <= x < 1.")
@@ -231,16 +212,13 @@ def split_train_test(
         raise ValueError("`val_size` must be in [0, 1), so 0 <= x < 1.")
     if k < 0:
         raise ValueError("`stratify_kfold` must be >= 0.")
-
     # If not doing K-Fold, ensure the sum constraint (train/val/test only)
     if k == 0 and (ts + vs) >= 1:
         raise ValueError("`test_size + val_size` must be < 1 when not using K-Fold.")
-
     # Prepare labels
     if stratify_by not in df.columns:
         raise KeyError(f"`stratify_by` column '{stratify_by}' not found in DataFrame.")
     y_df = df[[stratify_by]]
-
     # =========================================
     # 1) K-FOLD (Train/Val only, no internal test)
     # =========================================
@@ -274,7 +252,6 @@ def split_train_test(
             return {"folds": resampled_folds}
             
         return {"folds": all_folds}
-
     # =========================================
     # 2) TRAIN / VAL / TEST
     # =========================================
@@ -308,7 +285,6 @@ def split_train_test(
             "X_train": X_train_df, "X_val": X_val_df, "X_test": X_test_df,
             "y_train": y_train_df, "y_val": y_val_df, "y_test": y_test_df
         }
-
     # =========================================
     # 3) TRAIN / TEST
     # =========================================
@@ -343,7 +319,6 @@ def split_train_test(
             "X_train": X_train_df, "X_test": X_test_df,
             "y_train": y_train_df, "y_test": y_test_df
         }
-
     # =========================================
     # 4) TRAIN / VAL (No internal test set)
     # =========================================
@@ -377,14 +352,13 @@ def split_train_test(
             "X_train": X_train_df, "X_val": X_val_df,
             "y_train": y_train_df, "y_val": y_val_df
         }
-
     # =========================================
     # 5) NO SPLIT — return full features/labels
     # =========================================
     # Remove the label column from X if present
     X_full = df.drop(columns=[stratify_by]) if stratify_by in df.columns else df.copy()
     return {"X": X_full, "y": y_df}
-    
+
 def build_models(factory, model_names, seed, reweight_class):
     """Initialize ML models from factory."""
     models = {}
@@ -429,7 +403,6 @@ def train_and_predict_models(
     # FILTER MALFORMED EMBEDDINGS
     # ============================================================
     expected_size = 300
-
     X_train_df = X_train_df.reset_index(drop=True)
     y_train_df = y_train_df.reset_index(drop=True)
     train_mask = X_train_df[embeddings_col_name].apply(lambda x: np.array(x).ndim > 0 and np.array(x).shape[0] == expected_size)
@@ -437,7 +410,6 @@ def train_and_predict_models(
     X_train_df = X_train_df[train_mask].reset_index(drop=True)
     y_train_df = y_train_df[train_mask].reset_index(drop=True)
     print(f"⚠️  Removed {len(removed_train)} malformed train embeddings. Remaining: {len(X_train_df)}")
-
     if X_val_df is not None and y_val_df is not None:
         X_val_df = X_val_df.reset_index(drop=True)
         y_val_df = y_val_df.reset_index(drop=True)
@@ -448,7 +420,6 @@ def train_and_predict_models(
         print(f"⚠️  Removed {len(removed_val)} malformed val embeddings. Remaining: {len(X_val_df)}")
     else:
         removed_val = pd.DataFrame()
-
     if X_test_df is not None:
         X_test_df = X_test_df.reset_index(drop=True)
         test_mask = X_test_df[embeddings_col_name].apply(lambda x: np.array(x).ndim > 0 and np.array(x).shape[0] == expected_size)
@@ -457,22 +428,18 @@ def train_and_predict_models(
         print(f"⚠️  Removed {len(removed_test)} malformed test embeddings. Remaining: {len(X_test_df)}")
     else:
         removed_test = pd.DataFrame()
-
     removed_embeddings_dict = {
         'train': removed_train,
         'val': removed_val,
         'test': removed_test
     }
-
     models = build_models(SkLearnModelFactory, ml_model_names, seed=seed, reweight_class=reweight_class)
-
     # ============================================================
     # PREPARE DATA
     # ============================================================
     # Embeddings may have inconsistent shapes — vstack normalizes them into a uniform 2D array
     X_train_list = np.vstack(X_train_df[embeddings_col_name].to_list())
     y_train_list = y_train_df.values.ravel()
-
     # Prepare validation data if provided
     # No in-domain test set, just train models without predictions
     # We'll generate predictions later on external datasets
@@ -485,7 +452,6 @@ def train_and_predict_models(
         X_val_list = None
         y_val_list = None
         val_acc = None
-
     # Prepare test data if provided
     # Train models (predictions on in-domain test if exists, otherwise None)
     # Ex: synthetic + fpb + chronicle2050, we train/test or train/val/test
@@ -495,42 +461,33 @@ def train_and_predict_models(
         X_test_list = np.vstack(X_test_df[embeddings_col_name].to_list())
     else:
         X_test_list = None
-
     print(f"\nTrain size: {len(X_train_list)}")
     print(f"Validation set: {len(X_val_list) if X_val_list is not None else 0}")
     print(f"Test size: {len(X_test_list) if X_test_list is not None else 0}\n")
-
     # ============================================================
     # TRAINING
     # ============================================================
     for model_name, model in models.items():
         print(f"Training {model.get_model_name()}...")
-
         trained_model = model.train_model(X_train_list, y_train_list)
-
         train_acc = trained_model.get_score(X_train_list, y_train_list)
-
         if X_val_list is not None:
             val_acc = trained_model.get_score(X_val_list, y_val_list)
-
         train_val_metrics[model_name] = {
             'train_accuracy': train_acc,
             'val_accuracy': val_acc
         }
         print(f"Accuracy: {train_val_metrics[model_name]}")
-
         if X_test_list is not None:
             model_predictions = trained_model.predict(X_test_list)
             trained_models_with_predictions[model_name] = (trained_model, model_predictions)
         else:
             # Still save the model so external datasets can evaluate it later
             trained_models_with_predictions[model_name] = trained_model
-
         checkpoint_file = f"model_checkpoint-{model_name}-{label_name}.pkl"
         checkpoint_path = os.path.join(model_checkpoint_path, checkpoint_file)
         joblib.dump(trained_model, checkpoint_path)
         print(f"  ✓ Saved checkpoint: {checkpoint_file}")
-
     return trained_models_with_predictions, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df
 
 def create_results_dataframe(X_test_df, trained_models_with_predictions_dict):
@@ -540,7 +497,6 @@ def create_results_dataframe(X_test_df, trained_models_with_predictions_dict):
     print("="*40)
     
     results_df = X_test_df.copy()
-
     # Enforce Ground Truth as int
     if 'Ground Truth' in results_df.columns:
         results_df['Ground Truth'] = results_df['Ground Truth'].astype(int)
@@ -745,7 +701,8 @@ def evaluate_external_datasets(
     output_dir,
     train_val_metrics,
     seed,
-    script_dir
+    script_dir,
+    embedding_model_name
 ):
     """Handle loading, extracting, and evaluating all external cross-domain datasets."""
     print("\n" + "="*40)
@@ -773,9 +730,9 @@ def evaluate_external_datasets(
             print(f"⚠️  Skipping {test_dataset_name}: missing '{label_column}' column")
             continue
         
-        # Extract embeddings for external test set
+        # Extract embeddings for external test set using the same embedding model
         external_embeddings_df, external_embeddings_col = extract_sentence_embeddings(
-            external_test_df, text_column=text_column
+            external_test_df, text_column=text_column, embedding_model_name=embedding_model_name
         )
         
         # Prepare test data
@@ -875,7 +832,7 @@ def generate_all_explanations(
         
     print("\n✓ All model explanations complete\n")
 
-def create_experiment_log(args, experiment_name, seed_dir, ml_model_names, splits, removed_embeddings_dict):
+def create_experiment_log(args, experiment_name, seed_dir, ml_model_names, splits, removed_embeddings_dict, embedding_model_name):
     """Generate and save a human-readable experiment log."""
     log_lines = []
     log_lines.append("="*40)
@@ -886,10 +843,11 @@ def create_experiment_log(args, experiment_name, seed_dir, ml_model_names, split
     log_lines.append(f"Seed:              {args.seed}")
     log_lines.append("")
     log_lines.append("--- Data ---")
-    log_lines.append(f"Dataset:           {args.dataset}")
-    log_lines.append(f"Dataset Type:      {args.dataset_type or 'N/A'}")
-    log_lines.append(f"Text Column:       {args.text_column}")
-    log_lines.append(f"Label Column:      {args.label_column}")
+    log_lines.append(f"Dataset:                     {args.dataset}")
+    log_lines.append(f"Dataset Type:                {args.dataset_type or 'N/A'}")
+    log_lines.append(f"Text Column:                 {args.text_column}")
+    log_lines.append(f"Label Column:                {args.label_column}")
+    log_lines.append(f"Embedding Model Name:        {embedding_model_name}")
     log_lines.append("")
     log_lines.append("--- Splits ---")
     log_lines.append(f"No Test Split:     {args.no_test_split}")
@@ -929,14 +887,11 @@ def create_experiment_log(args, experiment_name, seed_dir, ml_model_names, split
     else:
         log_lines.append("  None")
     log_lines.append("")
-
-    log_dir = os.path.join(seed_dir, 'in_domain', 'experiment_log')
+    log_dir = os.path.join(seed_dir, 'in_domain', embedding_model_name, 'experiment_log')
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, 'experiment_log.txt')
-
     with open(log_path, 'w') as f:
         f.write("\n".join(log_lines))
-
     print(f"✓ Experiment log saved to: {log_path}")
 
 if __name__ == "__main__":
@@ -953,7 +908,6 @@ if __name__ == "__main__":
     python train.py --dataset synthetic.csv --no_test_split \
                 --test_datasets fpb.csv c2050.csv
     """
-
     print("\n" + "="*40)
     print("ML CLASSIFIER PIPELINE")
     print("="*40)
@@ -997,6 +951,11 @@ if __name__ == "__main__":
                         help='Maintains class proportions in each fold. Import for imbalanced data.')
     parser.add_argument('--resample_method', default=None,
                         help='Over/Under sample. Import for imbalanced data.')
+    parser.add_argument('--embedding_model',
+                        default='spacy_large',
+                        choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer'],
+                        help='SpaCy embedding model to use for sentence vectorization.'
+                        )
     args = parser.parse_args()
     
     # ============================================================
@@ -1011,7 +970,6 @@ if __name__ == "__main__":
     else:
         experiment_base = dataset_base
     
-
     experiment_base = experiment_base + args.experiment_suffix
     experiment_name = f"{experiment_base}_{current_date}"
     
@@ -1021,6 +979,7 @@ if __name__ == "__main__":
     print(f"\nExperiment: {experiment_name}")
     print(f"\nExperiment directory: {experiment_dir}")
     print(f"Seed: {args.seed}")
+    print(f"Embedding Model: {args.embedding_model}")
     print(f"Output directory: {seed_dir}\n")
     
     ml_model_names = [
@@ -1052,13 +1011,16 @@ if __name__ == "__main__":
         shuffled_df = shuffle_dataset(df, seed=args.seed)
         embeddings_df, embeddings_col_name = extract_sentence_embeddings(
             shuffled_df, 
-            text_column=args.text_column
+            text_column=args.text_column,
+            embedding_model_name=args.embedding_model
         )
     else:
         embeddings_df, embeddings_col_name = extract_sentence_embeddings(
             df, 
-            text_column=args.text_column
+            text_column=args.text_column,
+            embedding_model_name=args.embedding_model
         )
+
     # ============================================================
     # 4. SPLIT DATA
     # ============================================================
@@ -1087,41 +1049,36 @@ if __name__ == "__main__":
     # If using K-Fold, extract the folds list
     all_folds = splits.get('folds')
 
-    model_checkpoint_path = os.path.join(seed_dir, 'model_checkpoints')
+    model_checkpoint_path = os.path.join(seed_dir, 'model_checkpoints', args.embedding_model)
     os.makedirs(model_checkpoint_path, exist_ok=True)
 
     # ============================================================
     # 4b. FOR LLM PIPELINE, SAVE IN-DOMAIN TRAIN (few-shot) TEST (evaluation) SPLITs
     # ============================================================
-
     # LLM classifiers load this file directly into few-shot prompt
     if X_train_df is not None and y_train_df is not None:
-        in_domain_test_dir = os.path.join(seed_dir, 'in_domain')
-        os.makedirs(in_domain_test_dir, exist_ok=True)
-
+        in_domain_train_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model)
+        os.makedirs(in_domain_train_dir, exist_ok=True)
         # Combine X and y into one file so LLM script only needs one path
         x_y_train_df = X_train_df.copy()
         x_y_train_df[args.label_column] = y_train_df[args.label_column].values
-
         DataProcessing.save_to_file(
             x_y_train_df,
-            path=in_domain_test_dir,
+            path=in_domain_train_dir,
             prefix='x_y_train_set',
             save_file_type='csv',
             include_version=False
         )
-        print(f"✓ Saved in-domain test set to: {os.path.join(in_domain_test_dir, 'x_y_train_set.csv')}")
+        print(f"✓ Saved in-domain train set to: {os.path.join(in_domain_train_dir, 'x_y_train_set.csv')}")
 
     # LLM classifiers load this file directly so they evaluate
     # on the exact same test sentences as the ML models.
     if X_test_df is not None and y_test_df is not None:
-        in_domain_test_dir = os.path.join(seed_dir, 'in_domain')
+        in_domain_test_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model)
         os.makedirs(in_domain_test_dir, exist_ok=True)
-
         # Combine X and y into one file so LLM script only needs one path
         x_y_test_df = X_test_df.copy()
         x_y_test_df[args.label_column] = y_test_df[args.label_column].values
-
         DataProcessing.save_to_file(
             x_y_test_df,
             path=in_domain_test_dir,
@@ -1152,7 +1109,7 @@ if __name__ == "__main__":
                 embeddings_col_name=embeddings_col_name, 
                 label_column=args.label_column, 
                 output_dir=seed_dir, 
-                metrics_folder_name='in_domain',
+                metrics_folder_name=os.path.join('in_domain', args.embedding_model),
                 csv_prefix='ml_classifiers_in_domain', 
                 train_val_metrics=train_val_metrics,
                 seed=args.seed
@@ -1170,7 +1127,8 @@ if __name__ == "__main__":
                 output_dir=seed_dir,
                 train_val_metrics=train_val_metrics,
                 seed=args.seed,
-                script_dir=script_dir
+                script_dir=script_dir,
+                embedding_model_name=args.embedding_model
             )
     else:
         for fold_idx, fold in enumerate(all_folds, start=1):
@@ -1180,7 +1138,6 @@ if __name__ == "__main__":
             # Create a unique checkpoint path for this fold
             fold_checkpoint_path = os.path.join(model_checkpoint_path, f'fold_{fold_idx}')
             os.makedirs(fold_checkpoint_path, exist_ok=True)
-
             trained_models_with_predictions_dict, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df = train_and_predict_models(
                 ml_model_names, X_train, y_train, X_test_df,
                 embeddings_col_name, args.label_column, fold_checkpoint_path,
@@ -1198,8 +1155,8 @@ if __name__ == "__main__":
                     embeddings_col_name=embeddings_col_name, 
                     label_column=args.label_column, 
                     output_dir=seed_dir, 
-                    metrics_folder_name=f'in_domain_fold_{fold_idx}',     # Unique folder
-                    csv_prefix=f'ml_classifiers_in_domain_fold_{fold_idx}', # Unique CSV
+                    metrics_folder_name=os.path.join('in_domain', args.embedding_model, f'fold_{fold_idx}'),
+                    csv_prefix=f'ml_classifiers_in_domain_fold_{fold_idx}',
                     train_val_metrics=train_val_metrics,
                     seed=args.seed
                 )
@@ -1208,8 +1165,6 @@ if __name__ == "__main__":
             # 7. EVALUATE ON CROSS-DOMAIN TEST SETS
             # ============================================================
             if args.test_datasets:
-                # Assuming evaluate_external_datasets creates its own folders/files, 
-                # you may need to pass fold_idx down into it, or temporarily alter output_dir:
                 fold_output_dir = os.path.join(seed_dir, f'cross_domain_fold_{fold_idx}')
                 os.makedirs(fold_output_dir, exist_ok=True)
                 
@@ -1218,11 +1173,13 @@ if __name__ == "__main__":
                     trained_models_with_predictions_dict=trained_models_with_predictions_dict,
                     text_column=args.text_column,
                     label_column=args.label_column,
-                    output_dir=fold_output_dir, # Unique output directory
+                    output_dir=fold_output_dir,
                     train_val_metrics=train_val_metrics,
                     seed=args.seed,
-                    script_dir=script_dir
+                    script_dir=script_dir,
+                    embedding_model_name=args.embedding_model
                 )
+
     # ============================================================
     # 8. EXPLAINABILITY (OPTIONAL)
     # ============================================================
@@ -1238,7 +1195,9 @@ if __name__ == "__main__":
                 text_col_name=args.text_column,
                 save_path=seed_dir
             )
-    create_experiment_log(args, experiment_name, seed_dir, ml_model_names, splits, removed_embeddings_dict)
+
+    create_experiment_log(args, experiment_name, seed_dir, ml_model_names, splits, removed_embeddings_dict, args.embedding_model)
+
     # ============================================================
     # 9. COMPLETE
     # ============================================================
@@ -1247,6 +1206,7 @@ if __name__ == "__main__":
     print("="*40)
     print(f"Experiment: {experiment_name}")
     print(f"Training data: {experiment_base}")
+    print(f"Embedding model: {args.embedding_model}")
     if args.test_datasets:
         print(f"External test sets: {len(args.test_datasets)}")
     print(f"\n✓ All outputs saved to: {experiment_dir}\n")

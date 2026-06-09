@@ -84,13 +84,19 @@ class TfidfFeatureExtraction(FeatureExtractionFactory):
     
 class SpacyFeatureExtraction(FeatureExtractionFactory):
     """An extension of the abstract base class called FeatureExtractionFactory"""
-
     def __name__(self):
         return "Spacy Feature Extraction"
     
-    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str = None, type_of_df: str = "Standard"):
+    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str = None, type_of_df: str = "Standard", embedding_model_name: str = "spacy_large"):
         super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
-        self.nlp = spacy.load("en_core_web_lg")  # Load a SpaCy model with word vectors
+        self.embedding_model_name = embedding_model_name
+        self.embedding_models = {
+            'spacy_small': "en_core_web_sm",
+            'spacy_medium': "en_core_web_md",
+            'spacy_large': "en_core_web_lg",
+            'spacy_transformer': "en_core_web_trf",
+        }
+        self.nlp = spacy.load(self.embedding_models[self.embedding_model_name])
     
     def update_features_count_old(self, label, label_counts):
         """
