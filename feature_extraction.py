@@ -38,7 +38,7 @@ class FeatureExtractionFactory(ABC):
     def word_feature_extraction(self):
         pass
 
-    def sentence_feature_extraction(self):
+    def sentence_embeddings_extraction(self):
         pass
 
     def feature_scores(self):
@@ -798,3 +798,53 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         """
         tokenized_sentences, _ = self.split_words_in_sentence()
         return self.embed_words(tokenized_sentences)
+    
+class SentenceTransformerFeatureExtraction(FeatureExtractionFactory):
+    """An extension of the abstract base class called FeatureExtractionFactory"""
+
+    def __name__(self):
+        return "SentenceTransformer Feature Extraction"
+
+    def __init__(
+        self,
+        df_to_vectorize: pd.DataFrame,
+        col_name_to_vectorize: str = None,
+        type_of_df: str = "Standard",
+        embedding_model_name: str = "st_mini_lm"
+    ):
+        super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
+
+        self.embedding_models = {
+            "st_mini_lm": "sentence-transformers/all-MiniLM-L6-v2",
+        }
+
+        self.embedding_model_name = embedding_model_name
+        model_name = self.embedding_models[self.embedding_model_name]
+
+        # Load model
+        self.st = SentenceTransformer(model_name)
+
+    def sentence_embeddings_extraction(self, attach_to_df: bool = True):
+        """
+        Extract sentence embeddings using SentenceTransformer
+
+        Parameters
+        ----------
+        attach_to_df : bool, default True
+            If True, attach embeddings to dataframe. Otherwise return numpy array
+
+        Returns
+        -------
+        pd.DataFrame or np.ndarray
+        """
+
+        text_to_vectorize = self.extract_text_to_vectorize()
+
+        # ✅ Core operation (from docs)
+        embeddings = self.st.encode(text_to_vectorize, show_progress_bar=True)
+
+        if attach_to_df:
+            self.df_to_vectorize[f"{self.col_name_to_vectorize} Embedding"] = list(embeddings)
+            return self.df_to_vectorize
+        else:
+            return embeddings

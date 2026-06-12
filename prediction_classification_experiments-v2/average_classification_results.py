@@ -461,7 +461,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--embedding_model',
         default=None,
-        choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer'],
+        choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer', 'sentence_transformer'],
         help='Scope results collection and averaging to a specific embedding model subfolder.'
     )
     args = parser.parse_args()
