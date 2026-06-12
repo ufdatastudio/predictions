@@ -27,10 +27,10 @@ class FeatureExtractionFactory(ABC):
         self.col_name_to_vectorize = col_name_to_vectorize
         self.type_of_df = type_of_df
         self.vectorizer = None
-
+    
     def __name__(self):
         return self.__class__.__name__
-
+    
     def extract_text_to_vectorize(self):
         text_to_vectorize = DataProcessing.df_to_list(self.df_to_vectorize, self.col_name_to_vectorize, self.type_of_df)
         return text_to_vectorize
@@ -52,6 +52,7 @@ class TfidfFeatureExtraction(FeatureExtractionFactory):
 
     def word_feature_extraction(self, max_features: int):
         """Vectorize the predictions DataFrame using a TfidfVectorizer for word features
+        
         Returns:
         scipy.sparse._csr.csr_matrix
             A sparse matrix containing the vectorized word features
@@ -60,8 +61,9 @@ class TfidfFeatureExtraction(FeatureExtractionFactory):
         self.vectorizer = TfidfVectorizer(max_features=max_features)
         text_to_vectorize = self.extract_text_to_vectorize()
         vectorized_features = self.vectorizer.fit_transform(text_to_vectorize)
+        
         return vectorized_features
-
+    
     def feature_scores(self, max_features: int) -> pd.DataFrame:
         """Get the TF-IDF scores for the predictions"""
 
@@ -74,17 +76,17 @@ class TfidfFeatureExtraction(FeatureExtractionFactory):
 
         # Create a DataFrame to visualize the TF-IDF scores
         tfidf_df = pd.DataFrame(dense_matrix, columns=feature_names)
+        
         # Add the actual sentences and prediction labels to the DataFrame
         sentence_label_tfidf_df = DataProcessing.include_sentence_and_label(tfidf_df, self.df_to_vectorize)
 
         return sentence_label_tfidf_df
-
+    
 class SpacyFeatureExtraction(FeatureExtractionFactory):
     """An extension of the abstract base class called FeatureExtractionFactory"""
-
     def __name__(self):
         return "Spacy Feature Extraction"
-
+    
     def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str = None, type_of_df: str = "Standard", embedding_model_name: str = "spacy_large"):
         super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
         self.embedding_model_name = embedding_model_name
@@ -95,13 +97,13 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             'spacy_transformer': "en_core_web_trf",
         }
         self.nlp = spacy.load(self.embedding_models[self.embedding_model_name])
-
+    
     def update_features_count_old(self, label, label_counts):
         """
         Increment and return the count for a given label (NOUN, ORG) in this document. The purpose is so we can collect every feature,
         especially those features with same type (NOUN, ORG) instead of only one of them. For ex, NOUN_n corresponds to 
         n having that many number of NOUNs in at least one sentence. So, say sentence 7 has the maximum number of nouns (across 
-        all sentences) to be three), then you'll get NOUN_1, NOUN_2, NOUN_3.
+        all sentences) to be three), then you’ll get NOUN_1, NOUN_2, NOUN_3.
 
         It's a helper function to extract_features().
 
@@ -111,6 +113,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             The POS or NER tag
         label_counts : `dict`
             Dictionary mapping labels to their current count for this document
+        
         Returns:
         --------
         int
@@ -128,8 +131,10 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         -----------
         disable_components : `list`
             A list of components to disable in the SpaCy pipeline.
+        
         batch_size : `int`
             The batch size for processing the data.
+          
         visualize : `bool`
             Show the entities using Spacy visualizations.
 
@@ -147,6 +152,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         dependencies = []
         is_stop_words = []
         pos_features_df = pd.DataFrame()
+        
         data = self.extract_text_to_vectorize()
         pos_label_counts = defaultdict(int) # RESET for this doc!
 
@@ -165,6 +171,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 is_stop_word = token.is_stop
                 new_count_for_label = self.update_features_count(label, pos_label_counts) # Update count
                 unique_label = f"{label}_{new_count_for_label}" # Give label the new count (ie: noun_1, noun_2, etc)
+                
                 sentences.append(doc)
                 words.append(text)
                 labels.append(label)
@@ -172,6 +179,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 lemmas.append(lemma)
                 dependencies.append(dependency)
                 is_stop_words.append(is_stop_word)  
+            
             # Add a free row with no entry for every new sentence
             sentences.append("")
             words.append("")
@@ -188,8 +196,9 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         pos_features_df["Lemmas"] = lemmas
         pos_features_df["Dependencies"] = dependencies
         pos_features_df["Stop Word"] = is_stop_words
+                
         return pos_features_df
-
+    
     def extract_ner_features_old(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> pd.DataFrame:
         """
         Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
@@ -198,8 +207,10 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         -----------
         disable_components : `list`
             A list of components to disable in the SpaCy pipeline.
+        
         batch_size : `int`
             The batch size for processing the data.
+          
         visualize : `bool`
             Show the entities using Spacy visualizations.
 
@@ -209,6 +220,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             A dataframe containing the NER features: term, NER label, unique NER label, start character, and end character
         """
         # print(f"Pipeline: {self.nlp.pipe_names}")
+        
         sentences = []
         words = []
         labels = []
@@ -249,14 +261,16 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             unique_labels.append("")
             start_chars.append("")
             end_chars.append("")
+        
         ner_features_df["Sentence"] = sentences
         ner_features_df["Term"] = words
         ner_features_df["NER Label"] = labels
         ner_features_df["Unique NER Label"] = unique_labels
         ner_features_df["Start Char"] = start_chars
         ner_features_df["End Char"] = end_chars
+                
         return ner_features_df
-
+    
     def extract_features_old(self, disable_components: list, batch_size: int = 50, visualize: bool = False) -> tuple[list]:
         """
         Extract features (Part-of-Speech (POS) tags and Named Entities Recognition (NER)) using the provided SpaCy NLP model.
@@ -265,8 +279,10 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         -----------
         disable_components : `list`
             A list of components to disable in the SpaCy pipeline.
+        
         batch_size : `int`
             The batch size for processing the data.
+          
         visualize : `bool`
             Show the entities using Spacy visualizations.
 
@@ -308,6 +324,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             tags.append(doc_tags)
             # if doc_i <= 1:
             #     print()
+            
             """Extract NERs"""
             doc_entities = []
             ner_label_counts = defaultdict(int) # RESET for this doc!
@@ -325,7 +342,7 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             #     print()
 
         return all_pos_tags, tags, all_ner_tags, entities
-
+   
     # ------------------------------------------------------------------
     # Helper
     # ------------------------------------------------------------------
@@ -619,16 +636,17 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         pos_df = self.extract_pos_features(disable_components, batch_size, visualize)
         ner_df = self.extract_ner_features(disable_components, batch_size, visualize)
         return pos_df, ner_df
-
+    
     # ------------------------------------------------------------------
     # Legacy alias (not strictly NumPy‑docstring compliant)
     # ------------------------------------------------------------------
     def extract_pos_ner_features(self, *args, **kwargs):
         """Alias to preserve backward compatibility. Returns as (pos_df, ner_df)"""
         return self.extract_features(*args, **kwargs)
-
+    
     def word_feature_extraction(self):
         """Extract word vector embeddings using Spacy
+        
         Returns:
         list
             A list containing the word vector embeddings
@@ -644,72 +662,59 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 else:
                     mean_vector = np.zeros((self.nlp.meta['vectors']['width'],), dtype=float)
                 word_features.append(mean_vector)
+            
         return np.array(word_features)  # Ensuring it returns a 2D array with consistent dimensions
 
     def sentence_embeddings_extraction(self, attach_to_df: bool = True):
         """Extract sentence (Doc) vector embeddings using SpaCy"""
         text_to_vectorize = self.extract_text_to_vectorize()
         sentence_embeddings = []
-        
+    
         # Check if using transformer model
         is_transformer = self.embedding_model_name == 'spacy_transformer'
-        
+    
         # Debug: Check what components are in the pipeline
         print(f"Pipeline components: {self.nlp.pipe_names}")
-        
-        for idx, sentence in enumerate(tqdm(text_to_vectorize)):
+    
+        for sentence in tqdm(text_to_vectorize):
             if not isinstance(sentence, float) and pd.notna(sentence):
                 doc = self.nlp(sentence)
-                
+            
                 if is_transformer:
+                    # For transformer models, get embeddings from the transformer component
                     try:
-                        # Method 1: Try using doc._.trf_data
+                        # Access the transformer's output
                         if hasattr(doc._, 'trf_data') and doc._.trf_data is not None:
+                            # Get the last hidden state and average pool
                             tensors = doc._.trf_data.tensors
-                            if len(tensors) > 0 and tensors[0].numel() > 0:
+                            if len(tensors) > 0:
+                                # Average over sequence length (dim 0)
                                 embedding = tensors[0].mean(dim=0).cpu().numpy()
-                                if idx < 3:  # Debug first few
-                                    print(f"Method 1 success - embedding shape: {embedding.shape}")
                             else:
-                                raise ValueError("Empty tensors")
+                                print(f"WARNING: Empty tensors for: {sentence[:50]}")
+                                embedding = np.zeros(768)
                         else:
-                            raise ValueError("No trf_data")
-                            
-                    except Exception as e1:
-                        # Method 2: Manual token averaging
-                        try:
-                            if idx < 3:
-                                print(f"Method 1 failed ({e1}), trying Method 2: manual token vectors")
-                            
-                            token_vectors = []
-                            for token in doc:
-                                if token.has_vector and token.vector.shape[0] > 0:
-                                    token_vectors.append(token.vector)
-                            
-                            if token_vectors:
-                                embedding = np.mean(token_vectors, axis=0)
-                                if idx < 3:
-                                    print(f"Method 2 success - embedding shape: {embedding.shape}")
-                            else:
-                                raise ValueError("No token vectors available")
-                                
-                        except Exception as e2:
-                            if idx < 3:
-                                print(f"Method 2 also failed ({e2}), using zeros")
+                            print(f"WARNING: No trf_data for: {sentence[:50]}")
                             embedding = np.zeros(768)
+                    except Exception as e:
+                        print(f"ERROR extracting transformer embedding: {e}")
+                        print(f"Sentence: {sentence[:50]}")
+                        embedding = np.zeros(768)
                 else:
-                    # For non-transformer models
+                    # For non-transformer models, use doc.vector
                     embedding = doc.vector
+                    
+                    # Check if we got a valid embedding
                     if embedding.shape[0] == 0:
-                        if idx < 3:
-                            print(f"WARNING: Empty embedding for: {sentence[:50]}")
+                        print(f"WARNING: Empty embedding for non-transformer model: {sentence[:50]}")
                 
                 sentence_embeddings.append(embedding)
             else:
-                # For invalid sentences
+                # For invalid sentences, append zeros
                 if is_transformer:
                     sentence_embeddings.append(np.zeros(768))
                 else:
+                    # Get expected size for non-transformer
                     expected_size = self.nlp.meta.get('vectors', {}).get('width', 300)
                     sentence_embeddings.append(np.zeros(expected_size))
 
@@ -725,9 +730,10 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
 
         sentence_embeddings = self.word_feature_extraction()
         return sentence_embeddings
-
+    
     def sentence_to_word_via_spacy(self):
         """Convert sentences to words"""
+        
         words = []
         sentences = self.extract_text_to_vectorize()
 
@@ -739,15 +745,19 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 words.append(token.text)
             words.append(" ")
         return words
-
+             
     def pre_sequence_labeling_coversion(self):
+        
         words = self.sentence_to_word_via_spacy()
+        
         words_df = pd.DataFrame(words, columns=['Word'])
         words_df['Word Label'] = np.where(words_df['Word'] == ' ', ' ', 'O')
+        
         return words_df
-
+    
     def split_words_in_sentence(self):
         """Convert sentences to split as words"""
+        
         word_split_sentences = []
         sentences = self.extract_text_to_vectorize()
 
@@ -759,3 +769,162 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
                 # print(token.text)
                 words.append(token.text)
             word_split_sentences.append(words)
+        return word_split_sentences
+    
+
+    def split_into_sentences(self, sentence_col_name) -> pd.DataFrame:
+        """
+        Split a text column into sentence-level rows using spaCy sentence
+        boundary detection, with progress tracking.
+
+        Parameters
+        ----------
+        sentence_col_name : str
+            Name of the output column that will contain individual sentences.
+
+        Returns
+        -------
+        pd.DataFrame
+            A new DataFrame where each row corresponds to a single sentence.
+            All non-text columns are duplicated to preserve row-level metadata.
+
+        Notes
+        -----
+        - The original DataFrame stored in ``self.df_to_vectorize`` is not modified.
+        - Sentence segmentation is performed using spaCy's built-in sentence
+        boundary detection.
+        - Progress is displayed using ``tqdm``.
+        """
+        df = self.df_to_vectorize.copy()
+        text_column = self.col_name_to_vectorize
+
+        sentence_lists = []
+
+        for text in tqdm(
+            df[text_column],
+            total=len(df),
+            desc="Splitting into sentences"
+        ):
+            sentences = []
+
+            if isinstance(text, str) and text.strip():
+                doc = self.nlp(text)
+                for sent in doc.sents:
+                    sentences.append(sent.text.strip())
+
+            sentence_lists.append(sentences)
+
+        df[sentence_col_name] = sentence_lists
+        df = df.explode(sentence_col_name).reset_index(drop=True)
+
+        return df
+
+
+class RobertaFeatureExtraction(FeatureExtractionFactory):
+    """An extension of the abstract base class called FeatureExtractionFactory"""
+
+    def __name__(self):
+        return "Roberta Feature Extraction"
+    
+    def __init__(self):
+        # super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
+        self.tokenizer = RobertaTokenizer.from_pretrained('roberta-large-mnli')
+        self.model = RobertaForSequenceClassification.from_pretrained('roberta-large-mnli')
+    
+    def extract_entailment_features(self, predictions: list, observations: list) -> pd.DataFrame:
+        entailment_outcome = {}
+        entailment_predictions = []
+        entailment_observations = []
+        entailment_labels = []
+
+        self.model.eval()
+
+        for prediction in tqdm(predictions[:3]):
+            for observation in observations[:33]:
+
+                # Tokenize the input pair and get the model's prediction
+                with torch.no_grad():
+                    inputs = self.tokenizer(prediction, observation, return_tensors='pt')
+                    outputs = self.model(**inputs)
+                    logits = outputs.logits
+                    
+                    # The model outputs logits for three classes. We take the one with the highest score.
+                    predicted_class_id = torch.argmax(logits).item()
+
+                # The model's config has a mapping from class ID to label
+                # For roberta-large-mnli: 0 -> contradiction, 1 -> neutral, 2 -> entailment
+                entailment_label = self.model.config.id2label[predicted_class_id]
+                entailment_predictions.append(prediction)
+                entailment_observations.append(observation)
+                entailment_labels.append(entailment_label)
+        
+        # print(len(predictions), len(observations), len(entailment_labels))
+        entailment_outcome["Prediction"] = entailment_predictions
+        entailment_outcome["Observation"] = entailment_observations
+        entailment_outcome["Entailment Label"] = entailment_labels
+        entailment_df = pd.DataFrame(entailment_outcome)
+
+        return entailment_df
+
+class SentenceTransformerFeatureExtraction(FeatureExtractionFactory):
+    """An extension of the abstract base class called FeatureExtractionFactory"""
+
+    def __name__(self):
+        return "SentenceTransformer Feature Extraction"
+    
+    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str = None, type_of_df: str = "Standard"):
+        super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+
+    def sentence_feature_extraction(self):
+        """Extract sentence vector embeddings (sentence to numbers) using SentenceTransformer
+        
+        Returns:
+        np.array(n_sentences, vector_dim=300)
+            A np.array(n_sentences, vector_dim=300) containing the sentence vector embeddings
+        """
+        text_to_vectorize = self.extract_text_to_vectorize()
+        sentence_embeddings = []
+        # count = 0
+        for sentence in tqdm(text_to_vectorize):
+            sentence_embedding = self.model.encode(sentence)
+            # if count <= 2:
+            #     print(f"Doc {count}: Tokens: {len(doc)}\n   Sentence: {doc}")
+            #     count += 1
+            sentence_embeddings.append(sentence_embedding)            
+        return np.array(sentence_embeddings)
+    
+class BertFeatureExtraction(FeatureExtractionFactory):
+    """An extension of the abstract base class called FeatureExtractionFactory"""
+
+    def __name__(self):
+        return "BERT Feature Extraction"
+    
+    def __init__(self, df_to_vectorize: pd.DataFrame, col_name_to_vectorize: str = None, type_of_df: str = "Standard"):
+        super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.model = BertModel.from_pretrained("bert-base-uncased")
+
+    def sentence_feature_extraction(self):
+        """Extract sentence vector embeddings (sentence to numbers) using BERT
+        
+        Returns:
+        np.array(n_sentences, vector_dim=300)
+            A np.array(n_sentences, vector_dim=300) containing the sentence vector embeddings
+        """
+        text_to_vectorize = self.extract_text_to_vectorize()
+        sentence_embeddings = []
+        # count = 0
+        for sentence in tqdm(text_to_vectorize):
+            encoded_input = self.tokenizer(sentence, return_tensors='pt')
+            # Get hidden states from BERT
+            with torch.no_grad():
+                output = self.model(**encoded_input)
+                
+                # Extract embeddings for [CLS] token
+                sentence_embedding = output.last_hidden_state[:, 0, :].squeeze()
+            sentence_embeddings.append(sentence_embedding)            
+        return np.array(sentence_embeddings)
+
+
+
