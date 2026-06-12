@@ -21,7 +21,7 @@ from metrics import EvaluationMetric
 from explainability import Explainability
 from data_processing import DataProcessing
 from data_visualizing import DataVisualizing
-from feature_extraction import SpacyFeatureExtraction
+from feature_extraction import SpacyFeatureExtraction, SentenceTransformerFeatureExtraction
 from classification_models import SkLearnModelFactory
 
 EMBEDDING_SIZES = {
@@ -29,6 +29,7 @@ EMBEDDING_SIZES = {
     'spacy_medium': 300,
     'spacy_large': 300,
     'spacy_transformer': 768,
+    'sentence_transformer': 384,
 }
 
 def create_output_directory(args, experiment_name):
@@ -59,7 +60,7 @@ def load_dataset(script_dir, dataset_path):
     
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-   # df = df.sample(n=30)
+    # df = df.sample(n=30)
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
@@ -128,19 +129,24 @@ def shuffle_dataset(df, seed):
     return shuffled_df
 
 def extract_sentence_embeddings(df, text_column='Base Sentence', embedding_model_name='spacy_large'):
-    """Extract sentence embeddings using SpaCy."""
     print("\n" + "="*40)
-    print("EXTRACT SENTENCE EMBEDDINGS (SpaCy)")
+    print("EXTRACT SENTENCE EMBEDDINGS")
     print("="*40)
     print(f"Using text column: '{text_column}'")
     print(f"Using embedding model: '{embedding_model_name}'")
-    
-    spacy_fe = SpacyFeatureExtraction(df, text_column, embedding_model_name=embedding_model_name)
-    embeddings_df = spacy_fe.sentence_embeddings_extraction(attach_to_df=True)
-    
+
+    if embedding_model_name == 'sentence_transformer':
+        st_fe = SentenceTransformerFeatureExtraction(df, text_column)
+        embeddings_df = st_fe.sentence_embeddings_extraction(attach_to_df=True)
+
+    else:
+        spacy_fe = SpacyFeatureExtraction(df, text_column, embedding_model_name=embedding_model_name)
+        embeddings_df = spacy_fe.sentence_embeddings_extraction(attach_to_df=True)
+
     embeddings_col_name = f'{text_column} Embedding'
-    
+
     return embeddings_df, embeddings_col_name
+
 
 def resample_train_data(X_train_df, technique, col_name, seed, embeddings_col_name, y_col_name, save_visual_path):
     print("\n" + "="*40)
@@ -1001,7 +1007,7 @@ if __name__ == "__main__":
                         help='Over/Under sample. Import for imbalanced data.')
     parser.add_argument('--embedding_model',
                         default='spacy_large',
-                        choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer'],
+                        choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer', 'sentence_transformer'],
                         help='SpaCy embedding model to use for sentence vectorization.'
                         )
     args = parser.parse_args()
