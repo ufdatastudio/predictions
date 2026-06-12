@@ -24,6 +24,13 @@ from data_visualizing import DataVisualizing
 from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
 
+EMBEDDING_SIZES = {
+    'spacy_small': 96,
+    'spacy_medium': 300,
+    'spacy_large': 300,
+    'spacy_transformer': 768,
+}
+
 def create_output_directory(args, experiment_name):
     """Create unique output directory with date and seed."""
     seed_number = f"seed{args.seed}"
@@ -52,7 +59,7 @@ def load_dataset(script_dir, dataset_path):
     
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    df = df.sample(n=30)
+   # df = df.sample(n=30)
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
@@ -377,7 +384,9 @@ def train_and_predict_models(
     seed,
     reweight_class,
     X_val_df=None,
-    y_val_df=None
+    y_val_df=None,
+    y_test_df=None,  # Add this
+    embedding_model_name='spacy_large'
 ):
     """
     Train models and generate predictions.
@@ -392,7 +401,7 @@ def train_and_predict_models(
         - removed_embeddings_dict: {'train': df, 'val': df, 'test': df}
     """
     print("\n" + "="*40)
-    print("TRAIN & PREDICT MODELS")
+    print(f"TRAIN & PREDICT MODELS [{embedding_model_name.upper()}]")
     print("="*40)
     print(f"Label: {label_name}")
     print(f"Models: {len(ml_model_names)}")
@@ -402,38 +411,77 @@ def train_and_predict_models(
     # ============================================================
     # FILTER MALFORMED EMBEDDINGS
     # ============================================================
-    expected_size = 300
+    expected_size = EMBEDDING_SIZES.get(embedding_model_name, 300)
+    print(f"Expected embedding size: {expected_size}")
+
+    # DEBUG: Check what embeddings look like before filtering
+    if len(X_train_df) > 0:
+        sample_embedding = X_train_df[embeddings_col_name].iloc[0]
+        sample_array = np.array(sample_embedding)
+        print(f"DEBUG: Sample embedding type: {type(sample_embedding)}")
+        print(f"DEBUG: Sample embedding shape: {sample_array.shape}")
+        print(f"DEBUG: Sample embedding [:10]: {sample_array[:10]}")
+        print(f"DEBUG: Is all zeros? {np.all(sample_array == 0)}")
+    
     X_train_df = X_train_df.reset_index(drop=True)
     y_train_df = y_train_df.reset_index(drop=True)
-    train_mask = X_train_df[embeddings_col_name].apply(lambda x: np.array(x).ndim > 0 and np.array(x).shape[0] == expected_size)
+    train_mask = X_train_df[embeddings_col_name].apply(
+        lambda x: np.array(x).ndim > 0 
+        and np.array(x).shape[0] == expected_size
+        and not np.all(np.array(x) == 0)
+    )
     removed_train = X_train_df[~train_mask]
     X_train_df = X_train_df[train_mask].reset_index(drop=True)
     y_train_df = y_train_df[train_mask].reset_index(drop=True)
     print(f"⚠️  Removed {len(removed_train)} malformed train embeddings. Remaining: {len(X_train_df)}")
+    
     if X_val_df is not None and y_val_df is not None:
         X_val_df = X_val_df.reset_index(drop=True)
         y_val_df = y_val_df.reset_index(drop=True)
-        val_mask = X_val_df[embeddings_col_name].apply(lambda x: np.array(x).ndim > 0 and np.array(x).shape[0] == expected_size)
+        val_mask = X_val_df[embeddings_col_name].apply(
+            lambda x: np.array(x).ndim > 0 
+            and np.array(x).shape[0] == expected_size
+            and not np.all(np.array(x) == 0)
+        )
         removed_val = X_val_df[~val_mask]
         X_val_df = X_val_df[val_mask].reset_index(drop=True)
         y_val_df = y_val_df[val_mask].reset_index(drop=True)
         print(f"⚠️  Removed {len(removed_val)} malformed val embeddings. Remaining: {len(X_val_df)}")
     else:
         removed_val = pd.DataFrame()
+    
     if X_test_df is not None:
         X_test_df = X_test_df.reset_index(drop=True)
-        test_mask = X_test_df[embeddings_col_name].apply(lambda x: np.array(x).ndim > 0 and np.array(x).shape[0] == expected_size)
+        if y_test_df is not None:  # Add this
+            y_test_df = y_test_df.reset_index(drop=True)
+        test_mask = X_test_df[embeddings_col_name].apply(
+            lambda x: np.array(x).ndim > 0 
+            and np.array(x).shape[0] == expected_size
+            and not np.all(np.array(x) == 0)
+        )
         removed_test = X_test_df[~test_mask]
         X_test_df = X_test_df[test_mask].reset_index(drop=True)
+        if y_test_df is not None:  # Add this
+            y_test_df = y_test_df[test_mask].reset_index(drop=True)
         print(f"⚠️  Removed {len(removed_test)} malformed test embeddings. Remaining: {len(X_test_df)}")
     else:
         removed_test = pd.DataFrame()
+    
     removed_embeddings_dict = {
         'train': removed_train,
         'val': removed_val,
         'test': removed_test
     }
+    
+    # Check if we have any data left to train on
+    if len(X_train_df) == 0:
+        raise ValueError(
+            f"All training embeddings were filtered out for {embedding_model_name}. "
+            f"Expected size: {expected_size}. Check if embeddings are being generated correctly."
+        )
+    
     models = build_models(SkLearnModelFactory, ml_model_names, seed=seed, reweight_class=reweight_class)
+    
     # ============================================================
     # PREPARE DATA
     # ============================================================
@@ -488,7 +536,7 @@ def train_and_predict_models(
         checkpoint_path = os.path.join(model_checkpoint_path, checkpoint_file)
         joblib.dump(trained_model, checkpoint_path)
         print(f"  ✓ Saved checkpoint: {checkpoint_file}")
-    return trained_models_with_predictions, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df
+    return trained_models_with_predictions, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df
 
 def create_results_dataframe(X_test_df, trained_models_with_predictions_dict):
     """Combine test data with model predictions."""
@@ -1093,11 +1141,16 @@ if __name__ == "__main__":
         # 5. TRAIN MODELS
         # ============================================================
         # NOTE: within below, we check if val_df and test_df is None
-        trained_models_with_predictions_dict, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df = train_and_predict_models(
+        # Around line 1096
+        trained_models_with_predictions_dict, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df = train_and_predict_models(
             ml_model_names, X_train_df, y_train_df, X_test_df,
             embeddings_col_name, args.label_column, model_checkpoint_path,
-            seed=args.seed, reweight_class=args.reweight_class, X_val_df=X_val_df, y_val_df=y_val_df
+            seed=args.seed, reweight_class=args.reweight_class, X_val_df=X_val_df, y_val_df=y_val_df,
+            y_test_df=y_test_df,
+            embedding_model_name=args.embedding_model
         )
+
+
         # ============================================================
         # 6. EVALUATE ON IN-DOMAIN TEST SET (if exists)
         # ============================================================
@@ -1138,12 +1191,15 @@ if __name__ == "__main__":
             # Create a unique checkpoint path for this fold
             fold_checkpoint_path = os.path.join(model_checkpoint_path, f'fold_{fold_idx}')
             os.makedirs(fold_checkpoint_path, exist_ok=True)
-            trained_models_with_predictions_dict, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df = train_and_predict_models(
+            # Around line 1140 (K-Fold branch)
+            trained_models_with_predictions_dict, train_val_metrics, removed_embeddings_dict, X_train_df, X_val_df, X_test_df, y_train_df, y_val_df, y_test_df = train_and_predict_models(
                 ml_model_names, X_train, y_train, X_test_df,
                 embeddings_col_name, args.label_column, fold_checkpoint_path,
-                seed=args.seed, reweight_class=args.reweight_class, X_val_df=X_val, y_val_df=y_val
+                seed=args.seed, reweight_class=args.reweight_class, X_val_df=X_val, y_val_df=y_val,
+                y_test_df=y_test_df,
+                embedding_model_name=args.embedding_model
             )
-            
+                        
             # ============================================================
             # 6. EVALUATE ON IN-DOMAIN TEST SET
             # ============================================================
