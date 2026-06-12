@@ -636,15 +636,53 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         sentences = self.extract_text_to_vectorize()
         word_features = []
 
-        for sentence in sentences:
-                doc = self.nlp(sentence)
-                vectors = [token.vector for token in doc if not token.is_stop and not token.is_punct and token.has_vector]
-                if vectors:
-                    mean_vector = np.mean(vectors, axis=0)
-                else:
-                    mean_vector = np.zeros((self.nlp.meta['vectors']['width'],), dtype=float)
-                word_features.append(mean_vector)
+        for i, sentence in enumerate(tqdm(sentences, desc="Extracting word features")):
+            if i < 7:
+                print(f"{i+1}. {sentence}")
+            doc = self.nlp(sentence)
+            vectors = [token.vector for token in doc if not token.is_stop and not token.is_punct and token.has_vector]
+            if vectors:
+                mean_vector = np.mean(vectors, axis=0)
+            else:
+                mean_vector = np.zeros((self.nlp.meta['vectors']['width'],), dtype=float)
+            word_features.append(mean_vector)
+            
         return np.array(word_features)  # Ensuring it returns a 2D array with consistent dimensions
+
+    def embed_words(self, tokenized_sentences: list[list[str]]) -> list[list[np.ndarray]]:
+        """
+        Convert tokenized sentences into word-level embeddings using SpaCy.
+
+        Parameters
+        ----------
+        tokenized_sentences : list[list[str]]
+            Output from split_words_in_sentence()
+
+        Returns
+        -------
+        list[list[np.ndarray]]
+            A list of sentences, where each sentence is a list of word vectors
+        """
+        embedded_sentences = []
+
+        for sentence_tokens in tqdm(tokenized_sentences, desc="Embedding words"):
+            sentence_vectors = []
+
+            # Recreate doc from tokens (keeps pipeline consistent)
+            doc = self.nlp(" ".join(sentence_tokens))
+
+            for token in doc:
+                if token.has_vector:
+                    sentence_vectors.append(token.vector)
+                else:
+                    # fallback → zero vector if no embedding
+                    sentence_vectors.append(
+                        np.zeros(self.nlp.meta["vectors"]["width"], dtype=float)
+                    )
+
+            embedded_sentences.append(sentence_vectors)
+
+        return embedded_sentences
 
     def sentence_embeddings_extraction(self, attach_to_df: bool = True):
         """Extract sentence (Doc) vector embeddings using SpaCy"""
@@ -726,36 +764,37 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         sentence_embeddings = self.word_feature_extraction()
         return sentence_embeddings
 
-    def sentence_to_word_via_spacy(self):
-        """Convert sentences to words"""
-        words = []
-        sentences = self.extract_text_to_vectorize()
-
-        for sentence in tqdm(sentences):
-
-            doc = self.nlp(sentence)
-            for token in doc:
-                # print(token.text)
-                words.append(token.text)
-            words.append(" ")
-        return words
-
     def pre_sequence_labeling_coversion(self):
         words = self.sentence_to_word_via_spacy()
         words_df = pd.DataFrame(words, columns=['Word'])
         words_df['Word Label'] = np.where(words_df['Word'] == ' ', ' ', 'O')
         return words_df
 
-    def split_words_in_sentence(self):
-        """Convert sentences to split as words"""
+    def split_words_in_sentence(self) -> tuple[list[list[str]], pd.DataFrame]:
+        """Convert sentences to a list of words in that sentence and each new sentence is a new list."""
         word_split_sentences = []
         sentences = self.extract_text_to_vectorize()
 
         for sentence in tqdm(sentences):
             words = []
-
             doc = self.nlp(sentence)
             for token in doc:
-                # print(token.text)
                 words.append(token.text)
             word_split_sentences.append(words)
+
+        examples_to_show = word_split_sentences[:3]
+        # print(examples_to_show)
+        # Create DataFrame
+        df = pd.DataFrame(examples_to_show)
+
+        # Rename columns → word_1, word_2, ..., word_N
+        df.columns = [f"word_{i+1}" for i in range(df.shape[1])]
+
+        return word_split_sentences, df
+
+    def tokenize_and_embed(self) -> list[list[np.ndarray]]:
+        """
+        Convenience function: tokenize + embed in one call
+        """
+        tokenized_sentences, _ = self.split_words_in_sentence()
+        return self.embed_words(tokenized_sentences)
