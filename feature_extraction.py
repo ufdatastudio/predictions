@@ -12,7 +12,7 @@ from typing import Iterable, Tuple, Union
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from sentence_transformers import SentenceTransformer
+#from sentence_transformers import SentenceTransformer
 from transformers import RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer, BertModel
 
 from data_processing import DataProcessing

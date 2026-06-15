@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+33,sgd_classifier,0.5968,"{'alpha': 0.0001, 'learning_rate': 'optimal', 'max_iter': 500, 'penalty': 'l2', 'tol': 0.001}",0.902,0.8439,0.9084,0.4719,0.8727,0.6176,0.9472,0.3818,0.8443,0.5733

@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+33,random_forest_classifier,0.552,"{'class_weight': 'balanced', 'max_depth': 10, 'max_features': 'sqrt', 'min_samples_leaf': 16, 'min_samples_split': 50, 'n_estimators': 200}",0.9082,0.804,0.8768,0.5203,0.9013,0.4706,0.8537,0.5818,0.8261,0.5157

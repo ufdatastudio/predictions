@@ -158,7 +158,8 @@ class CustomXGBClassifier(SkLearnModelFactory):
     
     def train_model(self, X, y):
         # Note: XGBoost uses scale_pos_weight, not the string 'balanced', so we omit class_weight here
-        self.classifer = XGBClassifier(random_state=self.random_state, probability=True)
+        # Note: Use GPU to assist with training - 
+        self.classifer = XGBClassifier(random_state=self.random_state, probability=True, device = 'cuda', tree_method = 'hist')
         self.classifer.fit(X, y)
         return self
 

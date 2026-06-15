@@ -1,0 +1,2 @@
+model,best_cv_f1_mean,best_cv_f1_std,train_accuracy_mean,train_accuracy_std,test_accuracy_mean,test_accuracy_std,f1_class_0_mean,f1_class_0_std,f1_class_1_mean,f1_class_1_std,precision_class_0_mean,precision_class_0_std,precision_class_1_mean,precision_class_1_std,recall_class_0_mean,recall_class_0_std,recall_class_1_mean,recall_class_1_std,roc_auc_mean,roc_auc_std,pr_auc_mean,pr_auc_std
+ridge_classifier,0.5224,0.0,0.8941,0.0,0.8339,0.0,0.9025,0.0,0.4382,0.0,0.867,0.0,0.5735,0.0,0.9411,0.0,0.3545,0.0,N/A,N/A,N/A,N/A

@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+33,decision_tree_classifier,0.4451,"{'class_weight': 'balanced', 'criterion': 'gini', 'max_depth': 7, 'min_samples_leaf': 16, 'min_samples_split': 50}",0.7133,0.6013,0.697,0.4175,0.92,0.2848,0.561,0.7818,0.6933,0.2992
