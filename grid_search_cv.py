@@ -24,9 +24,10 @@ from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
 
 
-TEXT_COLUMN  = 'Sentence'
-LABEL_COLUMN = 'Human Annotation'
-
+TEXT_COLUMN  = 'sentence'
+LABEL_COLUMN = 'labels'
+#TEXT_COLUMN = 'Sentence'
+#LABEL_COLUMN = 'Human Annotation'
 # Models that do NOT support predict_proba or decision_function
 # — AUC scores will be set to N/A for these
 NO_AUC_MODELS = {
@@ -44,7 +45,7 @@ NO_SEED_MODELS = {
 
 PARAM_GRIDS = {
     'perceptron': {
-        'penalty':   [None, 'l2', 'l1', 'elasticnet'],
+        'penalty':   ['l2', 'l1', 'elasticnet'],
         'alpha':     [0.0001, 0.001, 0.01],
         'max_iter':  [500, 1000, 2000],
         'tol':       [1e-3, 1e-4],
