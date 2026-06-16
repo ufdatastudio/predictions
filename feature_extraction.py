@@ -649,40 +649,43 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
             
         return np.array(word_features)  # Ensuring it returns a 2D array with consistent dimensions
 
-    def embed_words(self, tokenized_sentences: list[list[str]]) -> list[list[np.ndarray]]:
-        """
-        Convert tokenized sentences into word-level embeddings using SpaCy.
+    def word_embeddings_extraction(
+        self, 
+        tokenized_words_with_metadata_df: pd.DataFrame = None,
+        reorder_cols: list[str] = ["Base Sentence", "Word", "Word Embedding", "Ground Truth"]
+    ) -> pd.DataFrame:
 
-        Parameters
-        ----------
-        tokenized_sentences : list[list[str]]
-            Output from split_words_in_sentence()
+        if tokenized_words_with_metadata_df is None:
+            tokenized_words_with_metadata_df = self.split_words_in_sentence()
 
-        Returns
-        -------
-        list[list[np.ndarray]]
-            A list of sentences, where each sentence is a list of word vectors
-        """
-        embedded_sentences = []
+        rows = []
 
-        for sentence_tokens in tqdm(tokenized_sentences, desc="Embedding words"):
-            sentence_vectors = []
+        for _, row in tqdm(tokenized_words_with_metadata_df.iterrows(), 
+                        total=len(tokenized_words_with_metadata_df),
+                        desc="Embedding words"):
 
-            # Recreate doc from tokens (keeps pipeline consistent)
-            doc = self.nlp(" ".join(sentence_tokens))
+            word = row["Word"]
+            doc = self.nlp(word)
 
-            for token in doc:
-                if token.has_vector:
-                    sentence_vectors.append(token.vector)
-                else:
-                    # fallback → zero vector if no embedding
-                    sentence_vectors.append(
-                        np.zeros(self.nlp.meta["vectors"]["width"], dtype=float)
-                    )
+            if len(doc) > 0 and doc[0].has_vector:
+                embedding = doc[0].vector
+            else:
+                embedding = np.zeros(self.nlp.meta["vectors"]["width"], dtype=float)
 
-            embedded_sentences.append(sentence_vectors)
+            row_dict = row.to_dict()
+            row_dict["Word Embedding"] = embedding
 
-        return embedded_sentences
+            rows.append(row_dict)
+
+        df = pd.DataFrame(rows)
+
+        # ✅ Reorder only if specified
+        if reorder_cols is not None:
+            existing_reorder_cols = [c for c in reorder_cols if c in df.columns]
+            remaining_cols = [c for c in df.columns if c not in existing_reorder_cols]
+            df = df[existing_reorder_cols + remaining_cols]
+
+        return df
 
     def sentence_embeddings_extraction(self, attach_to_df: bool = True):
         """Extract sentence (Doc) vector embeddings using SpaCy"""
@@ -770,34 +773,42 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
         words_df['Word Label'] = np.where(words_df['Word'] == ' ', ' ', 'O')
         return words_df
 
-    def split_words_in_sentence(self) -> tuple[list[list[str]], pd.DataFrame]:
-        """Convert sentences to a list of words in that sentence and each new sentence is a new list."""
-        word_split_sentences = []
-        sentences = self.extract_text_to_vectorize()
+    def split_words_in_sentence(self, columns_to_keep: list[str] = None) -> pd.DataFrame:
+        """
+        Convert sentences into DataFrame where each row = one word, preserving selected columns
+        """
+        rows = []
 
-        for sentence in tqdm(sentences):
-            words = []
+        data = self.df_to_vectorize
+
+        # Default: keep all columns
+        if columns_to_keep is None:
+            columns_to_keep = list(data.columns)
+
+        for idx, row in tqdm(data.iterrows(), total=len(data), desc="Tokenizing sentences"):
+            sentence = row[self.col_name_to_vectorize]
+
             doc = self.nlp(sentence)
+            sentence_tokens = []
+
             for token in doc:
-                words.append(token.text)
-            word_split_sentences.append(words)
+                word = token.text
+                sentence_tokens.append(word)
 
-        examples_to_show = word_split_sentences[:3]
-        # print(examples_to_show)
-        # Create DataFrame
-        df = pd.DataFrame(examples_to_show)
+                row_dict = {
+                    self.col_name_to_vectorize: sentence,
+                    "Word": word
+                }
 
-        # Rename columns → word_1, word_2, ..., word_N
-        df.columns = [f"word_{i+1}" for i in range(df.shape[1])]
+                # Keep additional columns
+                for col in columns_to_keep:
+                    if col not in row_dict:
+                        row_dict[col] = row[col]
 
-        return word_split_sentences, df
+                rows.append(row_dict)
+        tokenized_words_with_metadata_df = pd.DataFrame(rows)
 
-    def tokenize_and_embed(self) -> list[list[np.ndarray]]:
-        """
-        Convenience function: tokenize + embed in one call
-        """
-        tokenized_sentences, _ = self.split_words_in_sentence()
-        return self.embed_words(tokenized_sentences)
+        return tokenized_words_with_metadata_df
     
 class SentenceTransformerFeatureExtraction(FeatureExtractionFactory):
     """An extension of the abstract base class called FeatureExtractionFactory"""
@@ -815,7 +826,10 @@ class SentenceTransformerFeatureExtraction(FeatureExtractionFactory):
         super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
 
         self.embedding_models = {
-            "st_mini_lm": "sentence-transformers/all-MiniLM-L6-v2",
+            'st_mpnet_base': 'sentence-transformers/all-mpnet-base-v2',
+            'st_distilroberta': 'sentence-transformers/all-distilroberta-v1',
+            'st_minilm_l12': 'sentence-transformers/all-MiniLM-L12-v2',
+            'st_minilm_l6': 'sentence-transformers/all-MiniLM-L6-v2',
         }
 
         self.embedding_model_name = embedding_model_name
