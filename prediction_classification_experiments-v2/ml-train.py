@@ -29,7 +29,10 @@ EMBEDDING_SIZES = {
     'spacy_medium': 300,
     'spacy_large': 300,
     'spacy_transformer': 768,
-    'sentence_transformer': 384,
+    'st_mpnet_base': 768,
+    'st_distilroberta': 768,
+    'st_minilm_l12': 384,
+    'st_minilm_l6': 384,
 }
 
 def create_output_directory(args, experiment_name):
@@ -60,7 +63,7 @@ def load_dataset(script_dir, dataset_path):
     
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    # df = df.sample(n=30)
+    df = df.sample(n=30)
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
@@ -135,8 +138,8 @@ def extract_sentence_embeddings(df, text_column='Base Sentence', embedding_model
     print(f"Using text column: '{text_column}'")
     print(f"Using embedding model: '{embedding_model_name}'")
 
-    if embedding_model_name == 'sentence_transformer':
-        st_fe = SentenceTransformerFeatureExtraction(df, text_column)
+    if embedding_model_name.startswith('st_'):
+        st_fe = SentenceTransformerFeatureExtraction(df, text_column, embedding_model_name=embedding_model_name)
         embeddings_df = st_fe.sentence_embeddings_extraction(attach_to_df=True)
 
     else:
@@ -1007,7 +1010,8 @@ if __name__ == "__main__":
                         help='Over/Under sample. Import for imbalanced data.')
     parser.add_argument('--embedding_model',
                         default='spacy_large',
-                        choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer', 'sentence_transformer'],
+                        choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer', 
+                                 'st_mpnet_base', 'st_distilroberta', 'st_minilm_l12', 'st_minilm_l6'],
                         help='SpaCy embedding model to use for sentence vectorization.'
                         )
     args = parser.parse_args()

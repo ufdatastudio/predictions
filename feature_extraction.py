@@ -826,7 +826,10 @@ class SentenceTransformerFeatureExtraction(FeatureExtractionFactory):
         super().__init__(df_to_vectorize, col_name_to_vectorize, type_of_df)
 
         self.embedding_models = {
-            "st_mini_lm": "sentence-transformers/all-MiniLM-L6-v2",
+            'st_mpnet_base': 'sentence-transformers/all-mpnet-base-v2',
+            'st_distilroberta': 'sentence-transformers/all-distilroberta-v1',
+            'st_minilm_l12': 'sentence-transformers/all-MiniLM-L12-v2',
+            'st_minilm_l6': 'sentence-transformers/all-MiniLM-L6-v2',
         }
 
         self.embedding_model_name = embedding_model_name
