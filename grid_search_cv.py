@@ -93,7 +93,7 @@ PARAM_GRIDS = {
         'max_depth':        [5, 10, 20],
         'min_samples_split':[10, 20,50],
         'min_samples_leaf': [4, 8,16],
-        'class_weight':     [None, 'balanced'],
+        #'class_weight':     [None, 'balanced'],
         'max_features':     ['sqrt', 'log2'],
     },
     #These 3 models takes too long to run
