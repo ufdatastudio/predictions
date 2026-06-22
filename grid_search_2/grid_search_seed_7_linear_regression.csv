@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+7,linear_regression,0.0,"{'fit_intercept': True, 'positive': True}",0.8984,0.8969,0.9128,0.874,0.8789,0.9256,0.9495,0.8278,N/A,N/A

@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+3,logistic_regression,ERROR,"This solver needs samples of at least 2 classes in the data, but the data contains only one class: np.int64(1)",ERROR,ERROR,ERROR,ERROR,ERROR,ERROR,ERROR,ERROR,N/A,N/A

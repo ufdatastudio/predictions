@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+33,logistic_regression,0.8897,"{'C': 10, 'max_iter': 500, 'penalty': 'l2', 'solver': 'saga'}",0.918,0.8988,0.914,0.8771,0.8838,0.922,0.9462,0.8363,0.9565,0.9555

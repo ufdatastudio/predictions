@@ -30,6 +30,8 @@ LABEL_COLUMN = 'labels'
 #LABEL_COLUMN = 'Human Annotation'
 # Models that do NOT support predict_proba or decision_function
 # — AUC scores will be set to N/A for these
+
+#Linear Regression and Elastic Net are regression models. They don't use F1 scores - and they should not be used for this task of classification
 NO_AUC_MODELS = {
     'perceptron',
     'ridge_classifier',
@@ -82,8 +84,8 @@ PARAM_GRIDS = {
         'max_depth':        [3, 5, 7, 10],
         'min_samples_split':[10, 20, 50],
         'min_samples_leaf': [4, 8, 16],
-        #Try: Put more weight on label 1
-        'class_weight':      [None, 'balanced'],
+        #Try: Put more weight on label 1 => Data already balanced
+        #'class_weight':      [None, 'balanced'],
         'criterion':        ['gini', 'entropy'],
     },
     'random_forest_classifier': {
@@ -94,7 +96,7 @@ PARAM_GRIDS = {
         'class_weight':     [None, 'balanced'],
         'max_features':     ['sqrt', 'log2'],
     },
-    #Take too long to run
+    #These 3 models takes too long to run
     'gradient_boosting_classifier': {
         'n_estimators':  [50, 100, 200],
         'learning_rate': [0.01, 0.1, 0.2],
