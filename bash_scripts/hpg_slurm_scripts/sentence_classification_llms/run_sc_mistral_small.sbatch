@@ -1,33 +1,45 @@
-# NOTE: This script only classifies. Run after all LLM classifiers complete, then run run_avg_llm.sbatch to combine and average.
 #!/bin/bash
-#SBATCH --job-name=run_sc_mistral_small
-#SBATCH --output=../logs/sentence_classification_llms/run_sc_mistral_small_logs/logs_%x_%j.out
-#SBATCH --error=../logs/sentence_classification_llms/run_sc_mistral_small_logs/logs_%x_%j.err
+#SBATCH --job-name=llm_mistral_small
+#SBATCH --output=logs/llm_pipeline_mistral_small/logs_%x_%j.out
+#SBATCH --error=logs/llm_pipeline_mistral_small/logs_%x_%j.err
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem=8G
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=dj.brinkley@ufl.edu
-set -e
-cd ../../../prediction_classification_experiments-v2
 
-EXPERIMENT="emnlp_2026_results_$(date +%Y-%m-%d)"
+set -e
+
+# Create log directory if it doesn't exist
+mkdir -p logs/llm_pipeline_mistral_small
+
+cd $SLURM_SUBMIT_DIR/prediction_classification_experiments-v2
+
+# Activate virtual environment
+source /home/dj.brinkley/orange_dj.brinkley/predictions/.venv/bin/activate
+
+EXPERIMENT="eacl_2026_results_$(date +%Y-%m-%d)"
 BASE_RESULTS="../data/classification_results/${EXPERIMENT}"
+EMBEDDING_MODEL="spacy_large"  # Which embedding model's test set to use
 
 echo "============================================================"
 echo "     SENTENCE CLASSIFICATION (HPG): mistral-small-3.1"
 echo "============================================================"
+echo "Using test sets from: ${EMBEDDING_MODEL}"
+echo ""
+
 for seed in 3 7 33; do
     echo ""
     echo "============================================================"
     echo "                      SEED: $seed"
     echo "============================================================"
     echo ""
+    
     python llm-classifiers.py \
         --model_name mistral-small-3.1 \
-        --test_dataset ${BASE_RESULTS}/seed${seed}/in_domain/x_y_test_set.csv \
+        --test_dataset ${BASE_RESULTS}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_test_set.csv \
         --label_column 'Ground Truth' \
         --seed $seed \
         --prompt_type few-shot

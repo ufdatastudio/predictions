@@ -1,17 +1,17 @@
 #!/bin/bash
-# run_llm_classifiers.sh - Run LLM sentence classification for all seeds and average
+# run_llm_classifiers-mistral_small.sh - Run LLM sentence classification for all seeds
 #
 # Usage:
-#   chmod +x run_sc_mistral.sh
-#   bash run_sc_mistral.sh
+#   chmod +x run_llm_classifiers-mistral_small.sh
+#   bash run_llm_classifiers-mistral_small.sh
 
 set -e
 
 cd ../../../prediction_classification_experiments-v2
 
-# EXPERIMENT="synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate_$(date +%Y-%m-%d)"
-EXPERIMENT="synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate_2026-04-22"
+EXPERIMENT="eacl_2026_results_$(date +%Y-%m-%d)"
 BASE_RESULTS="../data/classification_results/${EXPERIMENT}"
+EMBEDDING_MODEL="spacy_small"  # Which embedding model's test set to use
 
 echo "============================================================"
 echo "     SENTENCE CLASSIFICATION (LOCAL): mistral-small-3.1"
@@ -26,15 +26,15 @@ for seed in 3 7 33; do
 
     python llm-classifiers.py \
         --model_name mistral-small-3.1 \
-        --test_dataset ${BASE_RESULTS}/seed${seed}/in_domain/x_y_test_set.csv \
+        --test_dataset ${BASE_RESULTS}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_test_set.csv \
         --label_column 'Ground Truth' \
-        --seed $seed
+        --seed $seed \
+        --prompt_type few-shot
 done
 
 echo ""
 echo "======================================"
 echo "PIPELINE COMPLETE"
 echo "======================================"
-echo "✓ LLM classification completed for seeds: 3, 7, 33"
-# echo "✓ Results aggregated and saved"
+echo "✓ Mistral classification completed for seeds: 3, 7, 33"
 echo ""

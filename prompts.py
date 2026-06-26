@@ -8,56 +8,81 @@ from prediction_properties import PredictionProperties
 
 
 class BasePrompt(ABC):
+    """
+    Abstract base class for all prompt types.
+    Implements Factory Method pattern for flexible prompt construction.
+    Allows customization of system identity, task, and format output.
+    """
 
     def __init__(self, system_identity=None, task=None, format_output=None, prompt_type_name=None):
         self.custom_system_identity = system_identity
         self.custom_task = task
         self.custom_format_output = format_output
-        self.prompt_type_name=prompt_type_name
+        self.prompt_type_name = prompt_type_name
 
     @abstractmethod
     def default_system_identity(self):
+        """Define the default system identity/role for the LLM."""
         pass
 
     @abstractmethod
     def default_task(self):
+        """Define the default task the LLM should perform."""
         pass
 
     @abstractmethod
     def default_format_output(self):
+        """Define the default output format expected from the LLM."""
         pass
 
     def get_prompt_name(self):
+        """Returns the name/type of the prompt (zero-shot, few-shot, chain-of-thought)."""
         # print(self.prompt_type_name)
         return self.prompt_type_name
-    
+
     def system_identity(self):
+        """Returns custom system identity if provided, otherwise default."""
         if self.custom_system_identity is not None:
             return self.custom_system_identity
         return self.default_system_identity()
 
     def task(self):
+        """Returns custom task if provided, otherwise default."""
         if self.custom_task is not None:
             return self.custom_task
         return self.default_task()
 
     def format_output(self):
+        """Returns custom format output if provided, otherwise default."""
         if self.custom_format_output is not None:
             return self.custom_format_output
         return self.default_format_output()
-    
+
     def default_steps(self):
+        """
+        Define default reasoning steps for chain-of-thought prompting.
+        Currently returns system_identity as fallback; should be overridden in subclasses.
+        """
         if self.custom_system_identity is not None:
             return self.custom_system_identity
         return self.default_system_identity()
 
     def build(self):
+        """Basic build method returning the three core prompt components."""
         return self.system_identity(), self.task(), self.format_output()
-    
+
     def zero_shot(self):
+        """
+        Zero-shot prompting: No examples provided.
+        Returns system identity, task, and format output.
+        """
         return self.system_identity(), self.task(), self.format_output()
-    
+
     def few_shot(self):
+        """
+        Few-shot prompting: Provides examples for each TOLSA-M property.
+        Returns system identity, task, format output, and examples.
+        """
         source_ex = PredictionProperties.get_source_examples()
         target_ex = PredictionProperties.get_target_examples()
         date_ex = PredictionProperties.get_date_examples()
@@ -73,12 +98,24 @@ class BasePrompt(ABC):
         return self.system_identity(), self.task(), self.format_output(), few_shot_examples
 
     def chain_of_thought(self):
+        """
+        Chain-of-thought prompting: Provides step-by-step reasoning instructions.
+        Returns system identity, task, format output, and reasoning steps.
+        """
         return self.system_identity(), self.task(), self.format_output(), self.default_steps()
 
+
 class EntityExtractionPrompt(BasePrompt):
+    """
+    Prompt for extracting and labeling TOLSA-M entities from text.
+    Identifies source, target, date, and outcome components.
+    """
 
     def default_system_identity(self):
-        return "You are a linguistic expert that specializes in identifying properties within a prediction statement."
+        tolsa_m_definition = PredictionProperties.get_tolsa_m_definition()
+        return f"""You are a linguistic expert that specializes in identifying TOLSA-M (Target Outcome with optionaL Source, dAte, and Metadata) from a given text input.
+        {tolsa_m_definition}
+"""
 
     def default_task(self):
         return """For each word within the sentence "label" as either a "no_label": 0, "source": 1, "target": 2, "date": 3, "outcome": 4. IMPORTANT: Keep multi-word entities together as single items in the list."""
@@ -88,27 +125,40 @@ class EntityExtractionPrompt(BasePrompt):
         Respond ONLY with valid JSON in this exact format: {0: [word_from_sentence]}, {1: [word_from_sentence]}, {2: [word_from_sentence]}, {3: [word_from_sentence]}, {4: [word_from_sentence]}, where key is int ranging from 0 to 4 and the value is the words_from_sentence, split by a comma/all placed into a list, so {int: [word_from_sentence_1, word_from_sentence_2, ..., word_from_sentence_W]}. For 2 and 3, some words may be a prefix or a position or title before/after 2 or 3. Be sure to take that into account.
         Do NOT reason or provide anything other than the aforementioned. Also, stop responding in reverse format {word_from_sentence: 0}, {word_from_sentence: 1}, {word_from_sentence: 2}, {word_from_sentence: 3}, {word_from_sentence: 4} or in any other format.
         Respond ONLY with valid JSON in this exact format: {0: [word_from_sentence]}, {1: [word_from_sentence]}, {2: [word_from_sentence]}, {3: [word_from_sentence]}, {4: [word_from_sentence]}, where key is int ranging from 0 to 4 and the value is the words_from_sentence, split by a comma/all placed into a list, so {int: [word_from_sentence_1, word_from_sentence_2, ..., word_from_sentence_W]}.
-        """
+"""
+
 
 class SentenceClassificationPrompt(BasePrompt):
+    """
+    Prompt for classifying sentences as TOLSA-M or non-TOLSA-M.
+    Supports zero-shot, few-shot, and chain-of-thought approaches.
+    """
+
     def default_system_identity(self):
-        return "You are a linguistic expert that specializes in identifying prediction statements."
+        tolsa_m_definition = PredictionProperties.get_tolsa_m_definition()
+        return f"""You are a linguistic expert that specializes in identifying TOLSA-M (Target Outcome with optionaL Source, dAte, and Metadata) from a given text input.
+        {tolsa_m_definition}"""
 
     def default_task(self):
-        return """Classify the sentence as either a "prediction": 1 or "non-prediction": 0."""
+        return """Classify the sentence as either a "TOLSA-M": 1 or "non-TOLSA-M": 0."""
 
     def default_format_output(self):
         # Matches the expected format in llm-classifiers.py parse_json_response
         if self.get_prompt_name() == 'zero-shot' or self.get_prompt_name() == 'few-shot':
-            return """Respond ONLY with valid JSON in this exact format: {"predicted_sentence_label": 0} or {"predicted_sentence_label": 1}. Do NOT reason or provide anything other than {"predicted_sentence_label": 0} or {"predicted_sentence_label": 1}."""
+            return """Respond ONLY with valid JSON: {"y_hat": 1} or {"y_hat": 0}. Do NOT include reasoning or additional text."""
         elif self.get_prompt_name() == 'chain-of-thought':
-            return """Respond ONLY with valid JSON in this exact format: {"predicted_sentence_label": 0, "reasoning": [insert your reasoning]} or {"predicted_sentence_label": 1, "reasoning": [insert your reasoning]}. Be sure to reason and do NOT provide anything other than {"predicted_sentence_label": 0, "reasoning": [insert your reasoning]} or {"predicted_sentence_label": 1, "reasoning": [insert your reasoning]}."""   
-        
+            return """Respond ONLY with valid JSON in this exact format: {"y_hat": 0, "reasoning": [insert your reasoning]} or {"y_hat": 1, "reasoning": [insert your reasoning]}. Be sure to reason and do NOT provide anything other than {"y_hat": 0, "reasoning": [insert your reasoning]} or {"y_hat": 1, "reasoning": [insert your reasoning]}."""
+
     def default_steps(self):
-        return """
-        - Step 1: Analyze the sentence for future orientation and identify any linguistic indicators or temporal markers.
-        - Step 2: Determine if the statement contains a falsifiable assertion.
-        - Step 3: Evaluate if it reflects probabilistic uncertainty rather than established fact.
-        - Step 4: Check if it represents a "past prediction."
-        - Step 5: Synthesize your findings to classify the sentence as a "prediction": 1 or "non-prediction": 0.
         """
+        Chain-of-thought reasoning steps for TOLSA-M classification.
+        Updated to handle past, present, and future tenses.
+        """
+        return """
+        - Step 1: Identify the tense (past, present, or future) and check for temporal indicators or predictive language across all tenses.
+        - Step 2: Determine if the statement contains a target entity and a measurable outcome (attribute, metric, or slope).
+        - Step 3: Check for optional source entity and date information (declaration or fruition).
+        - Step 4: Evaluate if the statement represents uncertainty, expectation, or a previously declared forecast (for past TOLSA-M).
+        - Step 5: Verify the statement meets at least one indicator requirement (predictive language, temporal constructions, or attribution).
+        - Step 6: Synthesize your findings to classify the sentence as a "TOLSA-M": 1 or "non-TOLSA-M": 0.
+"""
