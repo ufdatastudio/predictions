@@ -57,7 +57,7 @@ def load_dataset(dataset_path, text_column='Base Sentence', label_column='Senten
     df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='utf-8')
     # Strip all non-ASCII characters entirely from string columns
     # This is the safest fix when source data has deep unicode corruption
-    df = df.sample(n=7)
+    df = df.sample(n=10)
 
     # Validate required columns exist
     if text_column not in df.columns:
@@ -150,52 +150,44 @@ def load_prompts(model_name, prompt_type):
     print("\n" + "="*50)
     print(f"LOAD PROMPT: {prompt_type}")
     print("="*50)
-
-    # Get prediction properties and requirements
-    prediction_properties, prediction_requirements = PredictionProperties.get_prediction_properties_and_requirements()
-
+    
+    # Get TOLSA-M properties and requirements
+    tolsa_m_properties, tolsa_m_requirements = PredictionProperties.get_prediction_properties_and_requirements()
+    
     if prompt_type == 'zero-shot':
         prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
         system_identity, task, format_output = prompt.zero_shot()
-        
         base_prompt = f"""{system_identity}
-        Prediction Properties:
-        {prediction_properties}
+        TOLSA-M Properties:
+        {tolsa_m_properties}
         Requirements:
-        {prediction_requirements}
+        {tolsa_m_requirements}
         """
-
+    
     elif prompt_type == 'few-shot':
         prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
         system_identity, task, format_output, examples = prompt.few_shot()
-
+        
         base_prompt = f"""{system_identity}
-        Prediction Properties:
-        {prediction_properties}
+        TOLSA-M Properties:
+        {tolsa_m_properties}
         Requirements:
-        {prediction_requirements}
+        {tolsa_m_requirements}
         Examples:
         {examples}
         """
     elif prompt_type == 'chain-of-thought':
         prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
         system_identity, task, format_output, steps = prompt.chain_of_thought()
-        
         base_prompt = f"""{system_identity}
-        Prediction Properties:
-        {prediction_properties}
+        TOLSA-M Properties:
+        {tolsa_m_properties}
         Requirements:
-        {prediction_requirements}
+        {tolsa_m_requirements}
         Steps:
         {steps}
         """
-
-    # print(f"\nSystem Identity: {system_identity}")
-    # print(f"\nTask: {task}")
-    # print(f"\nFormat Output: {format_output}")
-    # print(f"\nBase Prompt: {base_prompt}")
-    # print(f"\n✓ Prompts loaded for model: {model_name}")
-
+    
     return base_prompt, task, format_output
 
 def _llm_classifier(
@@ -244,8 +236,8 @@ def _llm_classifier(
     """
 
     if is_first:
-        print(f"\tPrompt: {prompt}")
-        quit()
+        print(f"\n\tPrompt: {prompt}\n")
+        # quit()
 
     input_prompt = model.user(prompt)
 
@@ -259,7 +251,7 @@ def _llm_classifier(
     # Use DataProcessing.parse_llm_json_response for robust JSON parsing
     # Handles markdown code blocks, single quotes, and conversational filler
     parsed = DataProcessing.parse_llm_json_response(raw_text_llm_generation)
-    label = parsed.get('predicted_sentence_label') if parsed else None
+    label = parsed.get('y_hat') if parsed else None
 
     return raw_text_llm_generation, label
 
@@ -325,7 +317,7 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
         text = row['Base Sentence']
 
         if loop_idx < 3:
-            print("Classify sentence as either prediction (1) or non-prediction (0)")
+            print("Classify sentence as either TOLSA-M (1) or non-TOLSA-M (0)")
             print(f"    {idx} --- Sentence: {text}")
 
         is_first = (loop_idx == 0)
@@ -568,13 +560,20 @@ if __name__ == "__main__":
     # Run single LLM job on HiPerGator, loading test split saved by ml-train.py
 
     # In-domain test set (saved by ml-train.py at seed_dir/in_domain/x_y_test_set.csv):
-    python llm-classifiers.py \\
-        --model_name gpt-oss-120b \\
-        --test_dataset ../data/classification_results/synthetic-fpb-c2050-yt-news-timebank_2026-04-17/seed3/in_domain/x_y_test_set.csv \\
-        --label_column 'Ground Truth'
+    python llm-classifiers.py \
+        --model_name gpt-oss-120b \
+        --test_dataset ../data/classification_results/synthetic-fpb-c2050-yt-news-timebank_2026-04-17/seed3/in_domain/x_y_test_set.csv \
+        --label_column 'Ground Truth' \
+        --prompt_type zero-shot \
+        --seed 3
 
     # External cross-domain test set (saved by ml-train.py at seed_dir/external_*/x_y_test_set.csv):
-    python llm-classifiers.py --model_name gpt-oss-120b --test_dataset ../data/classification_results/emnlp_2026_results_2026-05-22/seed3/in_domain/x_y_test_set.csv --label_column 'Ground Truth' --prompt_type zero-shot
+    python llm-classifiers.py \
+        --model_name gpt-oss-120b \
+        --test_dataset ../data/classification_results/emnlp_2026_results_2026-05-22/seed3/in_domain/x_y_test_set.csv \
+        --label_column 'Ground Truth' \
+        --prompt_type zero-shot \
+        --seed 3
     """
     # ============================================================
     # 1. CONFIGURATION
