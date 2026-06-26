@@ -15,7 +15,7 @@ set -e
 # Create log directory if it doesn't exist
 mkdir -p logs/llm_pipeline_mistral_small
 
-cd $SLURM_SUBMIT_DIR/prediction_classification_experiments-v2
+cd ../../../prediction_classification_experiments-v2
 
 # Activate virtual environment
 source /home/dj.brinkley/orange_dj.brinkley/predictions/.venv/bin/activate
