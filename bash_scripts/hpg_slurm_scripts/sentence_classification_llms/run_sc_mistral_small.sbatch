@@ -29,7 +29,8 @@ for seed in 3 7 33; do
         --model_name mistral-small-3.1 \
         --test_dataset ${BASE_RESULTS}/seed${seed}/in_domain/x_y_test_set.csv \
         --label_column 'Ground Truth' \
-        --seed $seed
+        --seed $seed \
+        --prompt_type few-shot
 done
 
 echo ""
