@@ -408,12 +408,10 @@ def evaluate_models(
     label_col_name,
     save_path,
     seed
-    # X_val_df=None,
-    # y_val_df=None
 ):
     """
     Evaluate LLM predictions and save unified metrics to disk.
-
+    
     Parameters
     ----------
     results_df : pd.DataFrame
@@ -426,7 +424,7 @@ def evaluate_models(
         Directory path to save metrics and visualizations.
     seed : int
         Random seed used in this run, stored in printed summary for tracking.
-
+    
     Returns
     -------
     pd.DataFrame
@@ -436,37 +434,31 @@ def evaluate_models(
     print("EVALUATION RESULTS")
     print("="*40)
     print(f"Label: {label_col_name}\n")
-
+    
     actual_labels = results_df[label_col_name].values
     predictions = results_df[model_name].values
-
+    
     # Recreate X_test_list and y_test_df for DataVisualizing methods
     X_test_list = results_df['Base Sentence'].to_list()
     y_test_df = results_df[[label_col_name]]
-
+    
     # Fill NaN predictions with 0 if LLM failed to parse a valid JSON label
     predictions = np.nan_to_num(np.array(predictions, dtype=float), nan=0.0)
-
+    
     metrics_summary = []
-
+    
     print(f"### Model: {model_name} ###")
-
-    # Train/val metrics are N/A for zero-shot LLMs, keeping placeholders
-    # val_acc = None
-    # if y_val_df is not None:
-    #     val_predictions = ...
-    #     val_acc = EvaluationMetric.get_score(actual_val_labels, val_predictions)
-
+    
     # For LLMs, we don't have predict_proba so we fallback to binary predictions for AUC
     continuous_scores = predictions
-
+    
     # Classification report: precision, recall, f1, test accuracy
     eval_report = EvaluationMetric.eval_classification_report(actual_labels, predictions)
-
+    
     # Confusion matrix
     confusion_mat, tn, fp, fn, tp = EvaluationMetric.get_confusion_matrix(actual_labels, predictions, by_category=True)
     print(f"Confusion Matrix:\n{confusion_mat}\n")
-
+    
     # Save confusion matrix visualization
     DataVisualizing.confusion_matrix(
         model_name,
@@ -475,65 +467,72 @@ def evaluate_models(
         include_version=False
     )
     print(f"✓ Saved confusion matrix: confusion_matrix_{model_name}.png\n")
-
+    
     # ROC-AUC score
     roc_auc_score = EvaluationMetric.get_roc_auc(actual_labels, continuous_scores)
     print(f"ROC-AUC Score: {roc_auc_score:.4f}\n")
-
-    # ROC Curve
-    # DataVisualizing.roc_curve(
-    #     model_name,
-    #     None, # No scikit-learn model object to pass
-    #     X_test_list,
-    #     y_test_df,
-    #     save_path,
-    #     include_version=False
-    # )
-    # print(f"✓ Saved ROC-CURVE: roc_curve_{model_name}.png\n")
-
+    
     # PR-AUC
     pr_auc_score = EvaluationMetric.get_pr_auc(actual_labels, continuous_scores)
     print(f"PR-AUC Score: {pr_auc_score:.4f}\n")
-
-    # PR Curve
-    # DataVisualizing.pr_curve(
-    #     model_name,
-    #     None, # No scikit-learn model object to pass
-    #     X_test_list,
-    #     y_test_df,
-    #     save_path,
-    #     include_version=False
-    # )
-    # print(f"✓ Saved PR-CURVE: pr_curve_{model_name}.png\n")
-
+    
+    # Extract precision, recall, f1 from eval_report
+    # Try both string and integer keys for class labels
+    precision_0 = eval_report.get('0', {}).get('precision') or eval_report.get(0, {}).get('precision')
+    precision_1 = eval_report.get('1', {}).get('precision') or eval_report.get(1, {}).get('precision')
+    recall_0 = eval_report.get('0', {}).get('recall') or eval_report.get(0, {}).get('recall')
+    recall_1 = eval_report.get('1', {}).get('recall') or eval_report.get(1, {}).get('recall')
+    f1_0 = eval_report.get('0', {}).get('f1-score') or eval_report.get(0, {}).get('f1-score')
+    f1_1 = eval_report.get('1', {}).get('f1-score') or eval_report.get(1, {}).get('f1-score')
+    
+    # If any metrics are missing (None or 0), calculate from confusion matrix
+    if not all([precision_0, precision_1, recall_0, recall_1, f1_0, f1_1]):
+        print("⚠️  Some metrics missing from eval_report. Calculating from confusion matrix...")
+        
+        # Calculate precision: TP / (TP + FP)
+        precision_0 = tn / (tn + fn) if (tn + fn) > 0 else 0.0
+        precision_1 = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        
+        # Calculate recall: TP / (TP + FN)
+        recall_0 = tn / (tn + fp) if (tn + fp) > 0 else 0.0
+        recall_1 = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        
+        # Calculate F1: 2 * (precision * recall) / (precision + recall)
+        f1_0 = 2 * (precision_0 * recall_0) / (precision_0 + recall_0) if (precision_0 + recall_0) > 0 else 0.0
+        f1_1 = 2 * (precision_1 * recall_1) / (precision_1 + recall_1) if (precision_1 + recall_1) > 0 else 0.0
+        
+        print(f"✓ Calculated metrics from confusion matrix")
+        print(f"  Precision - Class 0: {precision_0:.4f}, Class 1: {precision_1:.4f}")
+        print(f"  Recall    - Class 0: {recall_0:.4f}, Class 1: {recall_1:.4f}")
+        print(f"  F1-Score  - Class 0: {f1_0:.4f}, Class 1: {f1_1:.4f}\n")
+    
     # Build unified metrics row matching ML pipeline's metrics_summary_ml_models.csv format
     metrics_row = {
         'seed': seed,
         'model': model_name,
         # Train & val metrics are N/A for zero-shot LLMs
         'train_accuracy': None,
-        # 'val_accuracy': val_acc,
         'val_accuracy': None,
-
+        
         # Classification report metrics
         'test_accuracy': eval_report.get('accuracy', None),
-        'precision_class_0': eval_report.get('0', {}).get('precision', None),
-        'precision_class_1': eval_report.get('1', {}).get('precision', None),
-        'recall_class_0': eval_report.get('0', {}).get('recall', None),
-        'recall_class_1': eval_report.get('1', {}).get('recall', None),
-        'f1_class_0': eval_report.get('0', {}).get('f1-score', None),
-        'f1_class_1': eval_report.get('1', {}).get('f1-score', None),
+        'precision_class_0': precision_0,
+        'precision_class_1': precision_1,
+        'recall_class_0': recall_0,
+        'recall_class_1': recall_1,
+        'f1_class_0': f1_0,
+        'f1_class_1': f1_1,
         'tn': tn,
         'fp': fp,
         'fn': fn,
         'tp': tp,
-
+        
         # AUC metrics
         'roc_auc': roc_auc_score,
         'pr_auc': pr_auc_score
     }
     metrics_summary.append(metrics_row)
-
+    
     # Save unified metrics summary
     metrics_summary_df = pd.DataFrame(metrics_summary)
     print("\n" + "="*40)
@@ -541,7 +540,7 @@ def evaluate_models(
     print("="*40)
     print(metrics_summary_df)
     print()
-
+    
     # Save metrics CSV alongside ML model metrics for easy comparison
     DataProcessing.save_to_file(
         data=metrics_summary_df,
@@ -551,7 +550,7 @@ def evaluate_models(
         include_version=False
     )
     print(f"✓ Saved metrics summary: metrics_summary_{model_name}.csv\n")
-
+    
     return metrics_summary_df
 
 if __name__ == "__main__":

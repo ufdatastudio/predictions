@@ -124,7 +124,7 @@ class TextGenerationModelFactory(ABC):
         elif model_name == 'codestral-22b':
             return Codestral22BTextGenerationModel()
         elif model_name == 'gemma-3-27b-it':
-            return Gemma337bItTextGenerationModel()
+            return Gemma327bItTextGenerationModel()
         elif model_name == 'gpt-oss-20b':
             return GptOss20bTextGenerationModel()
         elif model_name == 'gpt-oss-120b':
@@ -713,7 +713,7 @@ class Codestral22BTextGenerationModel(TextGenerationModelFactory):
         return "codestral-22b"
 
 
-class Gemma337bItTextGenerationModel(TextGenerationModelFactory):
+class Gemma327bItTextGenerationModel(TextGenerationModelFactory):
     def __init__(self):
         super().__init__()
         self.api_name = "NAVI_GATOR"
@@ -725,7 +725,7 @@ class Gemma337bItTextGenerationModel(TextGenerationModelFactory):
         self.model_name = self.__name__()
 
     def __name__(self):
-        return "gemma-3-27b-it"  # <--- FIXED: was gemma-3-37b-it
+        return "gemma-3-27b-it" 
 
 
 class GptOss20bTextGenerationModel(TextGenerationModelFactory):
