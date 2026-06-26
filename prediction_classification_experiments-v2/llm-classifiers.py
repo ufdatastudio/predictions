@@ -57,7 +57,7 @@ def load_dataset(dataset_path, text_column='Base Sentence', label_column='Senten
     df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='utf-8')
     # Strip all non-ASCII characters entirely from string columns
     # This is the safest fix when source data has deep unicode corruption
-    df = df.sample(n=10)
+    df = df.sample(n=40)
 
     # Validate required columns exist
     if text_column not in df.columns:
