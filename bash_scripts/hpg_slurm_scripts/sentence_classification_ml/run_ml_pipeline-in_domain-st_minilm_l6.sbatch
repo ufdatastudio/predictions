@@ -20,7 +20,7 @@ export MKL_NUM_THREADS=1
 # Create log directory if it doesn't exist
 mkdir -p logs/ml_pipeline_st_minilm_l6
 
-cd $SLURM_SUBMIT_DIR/prediction_classification_experiments-v2
+cd ../../../prediction_classification_experiments-v2
 
 # Activate virtual environment
 source /home/dj.brinkley/orange_dj.brinkley/predictions/.venv/bin/activate
