@@ -4,7 +4,8 @@
 #
 # Usage:
 #   python combine_llm_classifiers_output.py \
-#       --experiment synthetic-fpb-chronicle2050-yt-news-timebank_2026-04-22
+#       --experiment eacl_2026_results_2026-06-26 \
+#       --embedding_model spacy_large
 
 import os
 import re
@@ -21,7 +22,7 @@ sys.path.append(os.path.join(script_dir, '../'))
 from data_processing import DataProcessing
 
 
-def load_seed_data(dataset_folder_path, dir_files):
+def load_seed_data(dataset_folder_path, dir_files, embedding_model='spacy_large'):
     """
     Walk through all seed folders and load checkpoint, metrics, and test set files.
 
@@ -31,6 +32,8 @@ def load_seed_data(dataset_folder_path, dir_files):
         Base path to the experiment folder containing seed subfolders.
     dir_files : list of str
         List of folder/file names inside dataset_folder_path.
+    embedding_model : str
+        Embedding model subfolder name (e.g., 'spacy_large').
 
     Returns
     -------
@@ -49,10 +52,11 @@ def load_seed_data(dataset_folder_path, dir_files):
         if "seed" not in dir_file:
             continue
 
-        seed_path = os.path.join(dataset_folder_path, dir_file, 'in_domain')
+        # Navigate to the embedding model subfolder
+        seed_path = os.path.join(dataset_folder_path, dir_file, 'in_domain', embedding_model)
 
         if not os.path.exists(seed_path):
-            print(f"⚠️  Skipping {dir_file} — in_domain folder not found at: {seed_path}")
+            print(f"⚠️  Skipping {dir_file} — embedding model folder not found at: {seed_path}")
             continue
 
         seed_path_files = os.listdir(seed_path)
@@ -75,7 +79,7 @@ def load_seed_data(dataset_folder_path, dir_files):
                 checkpoint_path = os.path.join(seed_path, seed_path_file)
                 df = DataProcessing.load_from_file(path=checkpoint_path)
 
-                # Last column is the model prediction column (e.g. 'gpt-oss-120b')
+                # Last column is the model prediction column (e.g. 'mistral-small-3.1')
                 df[df.columns.to_list()[-1]] = df['llm_label'].values
                 df.drop(columns=['llm_label', 'raw_response', 'llm_name'], inplace=True)
                 seed_checkpoint_map[seed_value].append(df)
@@ -95,7 +99,7 @@ def load_seed_data(dataset_folder_path, dir_files):
     return seed_checkpoint_map, metrics_dfs_by_seed, x_test_dfs
 
 
-def combine_checkpoints_per_seed(seed_checkpoint_map, dataset_folder_path):
+def combine_checkpoints_per_seed(seed_checkpoint_map, dataset_folder_path, embedding_model='spacy_large'):
     """
     Combine all model checkpoint DataFrames per seed into one wide DataFrame.
     Each combined DataFrame has: seed, original_index, text, <model_1>, <model_2>, ...
@@ -106,6 +110,8 @@ def combine_checkpoints_per_seed(seed_checkpoint_map, dataset_folder_path):
         {seed_value: [df1, df2, ...]} one DataFrame per model per seed.
     dataset_folder_path : str
         Base path used to construct the save path for each seed.
+    embedding_model : str
+        Embedding model subfolder name for saving results.
 
     Returns
     -------
@@ -143,7 +149,7 @@ def combine_checkpoints_per_seed(seed_checkpoint_map, dataset_folder_path):
         print(f"\n  Preview:\n{combined_df.head(3)}\n")
 
         # Save combined predictions for this seed alongside ML outputs
-        save_path = os.path.join(dataset_folder_path, f'seed{seed_value}', 'in_domain')
+        save_path = os.path.join(dataset_folder_path, f'seed{seed_value}', 'in_domain', embedding_model)
         DataProcessing.save_to_file(
             data=combined_df,
             path=save_path,
@@ -162,7 +168,7 @@ def combine_checkpoints_per_seed(seed_checkpoint_map, dataset_folder_path):
     return seeds_dfs
 
 
-def combine_and_save_metrics(metrics_dfs_by_seed, seed_checkpoint_map, dataset_folder_path):
+def combine_and_save_metrics(metrics_dfs_by_seed, seed_checkpoint_map, dataset_folder_path, embedding_model='spacy_large'):
     """
     Combine metrics from different LLM models within the same seed into one file.
     Mirrors the ML pipeline's metrics_summary_ml_models.csv structure where
@@ -176,6 +182,8 @@ def combine_and_save_metrics(metrics_dfs_by_seed, seed_checkpoint_map, dataset_f
         Used to get sorted seed values for saving to correct folders.
     dataset_folder_path : str
         Base path used to construct the save path for each seed.
+    embedding_model : str
+        Embedding model subfolder name for saving results.
 
     Returns
     -------
@@ -207,7 +215,7 @@ def combine_and_save_metrics(metrics_dfs_by_seed, seed_checkpoint_map, dataset_f
         print(f"\nPreview:\n{combined_metrics_df}\n")
 
         # Save alongside ML metrics for easy comparison
-        save_metrics_path = os.path.join(dataset_folder_path, f'seed{seed_value}', 'in_domain')
+        save_metrics_path = os.path.join(dataset_folder_path, f'seed{seed_value}', 'in_domain', embedding_model)
         DataProcessing.save_to_file(
             data=combined_metrics_df,
             path=save_metrics_path,
@@ -226,7 +234,8 @@ if __name__ == "__main__":
     """
     usage:
     python combine_llm_classifiers_output.py \
-        --experiment synthetic-fpb-chronicle2050-yt-news-timebank_2026-04-22
+        --experiment eacl_2026_results_2026-06-26 \
+        --embedding_model spacy_large
     """
     # ============================================================
     # 1. CONFIGURATION
@@ -242,13 +251,19 @@ if __name__ == "__main__":
         '--experiment',
         required=True,
         help='Experiment folder name inside classification_results/. '
-             'Example: synthetic-fpb-chronicle2050-yt-news-timebank_2026-04-22'
+             'Example: eacl_2026_results_2026-06-26'
     )
 
     parser.add_argument(
         '--results_path',
         default=default_results_path,
         help='Base path to classification_results/. Defaults to data/classification_results/'
+    )
+
+    parser.add_argument(
+        '--embedding_model',
+        default='spacy_large',
+        help='Embedding model subfolder name. Default: spacy_large'
     )
 
     args = parser.parse_args()
@@ -269,25 +284,28 @@ if __name__ == "__main__":
     print("="*40)
     print(f"Experiment: {args.experiment}")
     print(f"Path: {dataset_folder_path}")
+    print(f"Embedding model: {args.embedding_model}")
     print(f"Seed folders found: {sorted([f for f in dir_files if 'seed' in f])}")
 
     # ============================================================
     # 3. LOAD SEED DATA
     # ============================================================
     seed_checkpoint_map, metrics_dfs_by_seed, x_test_dfs = load_seed_data(
-        dataset_folder_path, dir_files
+        dataset_folder_path, dir_files, embedding_model=args.embedding_model
     )
 
     # ============================================================
     # 4. COMBINE CHECKPOINTS PER SEED
     # ============================================================
-    seeds_dfs = combine_checkpoints_per_seed(seed_checkpoint_map, dataset_folder_path)
+    seeds_dfs = combine_checkpoints_per_seed(
+        seed_checkpoint_map, dataset_folder_path, embedding_model=args.embedding_model
+    )
 
     # ============================================================
     # 5. COMBINE AND SAVE METRICS PER SEED
     # ============================================================
     seed_metrics_combined = combine_and_save_metrics(
-        metrics_dfs_by_seed, seed_checkpoint_map, dataset_folder_path
+        metrics_dfs_by_seed, seed_checkpoint_map, dataset_folder_path, embedding_model=args.embedding_model
     )
 
     # ============================================================
@@ -297,6 +315,7 @@ if __name__ == "__main__":
     print("PIPELINE COMPLETE")
     print("="*40)
     print(f"Experiment: {args.experiment}")
+    print(f"Embedding model: {args.embedding_model}")
     print(f"Seeds processed: {sorted(seed_checkpoint_map.keys())}")
     print(f"seeds_dfs length: {len(seeds_dfs)}")
     if seed_metrics_combined:
