@@ -1357,6 +1357,11 @@ class DataProcessing:
         if 'Ground Truth' not in df.columns:
             raise ValueError(f"Expected label column '{label_col}' not found in dataset.")
 
+        # Ensure specified columns are integers
+        for col in ['Ground Truth', 'Human Annotation']:
+            if col in df.columns:
+                df[col] = df[col].fillna(0).astype(int)
+
         priority_cols = ['Base Sentence', 'Ground Truth']
         remaining_cols = []
         for col in df.columns:
@@ -1562,7 +1567,7 @@ class DataProcessing:
         print("="*60)
         
         base_data_path = DataProcessing.load_base_data_path(script_dir)
-        tb_path = os.path.join(base_data_path, "timebank_1_2", "annotators")
+        tb_path = os.path.join(base_data_path, "timebank_1_2", "annotators", "join_files")
         print(f"Loading from: {tb_path}")
         
         dfs = []
@@ -1616,7 +1621,7 @@ class DataProcessing:
         print("="*60)
         
         base_data_path = DataProcessing.load_base_data_path(script_dir)
-        yt_path = os.path.join(base_data_path, "yt", "annotators", "sports")
+        yt_path = os.path.join(base_data_path, "yt", "annotators", "files_to_join")
         print(f"Loading from: {yt_path}")
         
         dfs = []
@@ -1669,7 +1674,7 @@ class DataProcessing:
         print("="*60)
         
         base_data_path = DataProcessing.load_base_data_path(script_dir)
-        news_api_path = os.path.join(base_data_path, "news_api", "annotators", "all_domains")
+        news_api_path = os.path.join(base_data_path, "news_api", "annotators", "files_to_join")
 
         ### Get specific file
         # news_api_path = os.path.join(base_data_path, "news_api", "annotators", "news_articles_election_vote_polling_legislation_expected_likely_projected_forecast_2026-01-01_to_2026-04-26_predictions-v7_policy_1_human_annotation.csv")
@@ -1701,6 +1706,7 @@ class DataProcessing:
             text_col='Base Sentence',
             label_col='Sentence Label'
         )
+        # BUG: Instead of Sentence Label, we want Human Annotation
         
         if predictions_only:
             news_api_df = news_api_df[news_api_df['Ground Truth'] == 1]
