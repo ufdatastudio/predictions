@@ -23,7 +23,7 @@ from data_processing import DataProcessing
 from feature_extraction import SpacyFeatureExtraction
 from classification_models import SkLearnModelFactory
 
-
+#Change if needed to suit the column names
 TEXT_COLUMN  = 'sentence'
 LABEL_COLUMN = 'labels'
 #TEXT_COLUMN = 'Sentence'
