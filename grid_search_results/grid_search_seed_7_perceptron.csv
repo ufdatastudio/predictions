@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+7,perceptron,ERROR,The number of classes has to be greater than one; got 1 class,ERROR,ERROR,ERROR,ERROR,ERROR,ERROR,ERROR,ERROR,N/A,N/A

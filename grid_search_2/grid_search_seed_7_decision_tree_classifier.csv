@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+7,decision_tree_classifier,0.8097,"{'criterion': 'entropy', 'max_depth': 7, 'min_samples_leaf': 8, 'min_samples_split': 10}",0.8887,0.8303,0.8568,0.7919,0.8233,0.8417,0.8931,0.7477,0.8864,0.8818

@@ -1,0 +1,2 @@
+model,best_cv_f1_mean,best_cv_f1_std,train_accuracy_mean,train_accuracy_std,test_accuracy_mean,test_accuracy_std,f1_class_0_mean,f1_class_0_std,f1_class_1_mean,f1_class_1_std,precision_class_0_mean,precision_class_0_std,precision_class_1_mean,precision_class_1_std,recall_class_0_mean,recall_class_0_std,recall_class_1_mean,recall_class_1_std,roc_auc_mean,roc_auc_std,pr_auc_mean,pr_auc_std
+logistic_regression,0.5991,0.0,0.9161,0.0,0.8306,0.0,0.8978,0.0,0.5049,0.0,0.8854,0.0,0.5417,0.0,0.9106,0.0,0.4727,0.0,0.8257,0.0,0.5279,0.0

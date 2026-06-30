@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+33,support_vector_machine_classifier,0.6109,"{'C': 10, 'gamma': 'scale', 'kernel': 'rbf'}",0.9456,0.8605,0.9178,0.5385,0.8849,0.6806,0.9533,0.4455,0.8645,0.6497

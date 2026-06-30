@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+33,ridge_classifier,0.5224,"{'alpha': 0.1, 'tol': 0.001}",0.8941,0.8339,0.9025,0.4382,0.867,0.5735,0.9411,0.3545,N/A,N/A

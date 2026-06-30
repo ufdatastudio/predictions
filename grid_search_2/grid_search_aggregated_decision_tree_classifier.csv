@@ -1,0 +1,2 @@
+model,best_cv_f1_mean,best_cv_f1_std,train_accuracy_mean,train_accuracy_std,test_accuracy_mean,test_accuracy_std,f1_class_0_mean,f1_class_0_std,f1_class_1_mean,f1_class_1_std,precision_class_0_mean,precision_class_0_std,precision_class_1_mean,precision_class_1_std,recall_class_0_mean,recall_class_0_std,recall_class_1_mean,recall_class_1_std,roc_auc_mean,roc_auc_std,pr_auc_mean,pr_auc_std
+decision_tree_classifier,0.8104,0.0007,0.8909,0.0034,0.8371,0.0084,0.8624,0.007,0.8004,0.0105,0.8294,0.0074,0.8494,0.01,0.8981,0.0065,0.7568,0.011,0.8865,0.0038,0.8722,0.0092

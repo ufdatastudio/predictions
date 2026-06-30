@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+33,perceptron,0.83,"{'alpha': 0.0001, 'max_iter': 500, 'penalty': 'l1', 'tol': 0.001}",0.8928,0.8708,0.8957,0.8304,0.8276,0.9587,0.976,0.7323,N/A,N/A

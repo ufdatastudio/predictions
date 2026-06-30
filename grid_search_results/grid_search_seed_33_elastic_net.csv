@@ -1,0 +1,2 @@
+seed,model,best_cv_f1,best_params,train_accuracy,test_accuracy,f1_class_0,f1_class_1,precision_class_0,precision_class_1,recall_class_0,recall_class_1,roc_auc,pr_auc
+33,elastic_net,0.0,"{'alpha': 0.001, 'l1_ratio': 0.1, 'max_iter': 500}",0.8679,0.8339,0.9048,0.3506,0.8513,0.6136,0.9654,0.2455,N/A,N/A
