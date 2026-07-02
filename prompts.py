@@ -143,7 +143,7 @@ class SentenceClassificationPrompt(BasePrompt):
     def default_task(self):
         return """Classify the sentence as either a "TOLSA-M": 1 or "non-TOLSA-M": 0."""
 
-    def few_shot(self, dataset_path: str = None, stratify_columns: list = None, seed: int = 42):
+    def few_shot(self, dataset_path: str = None, stratify_columns: list = None, seed: int = 3):
         """
         Few-shot prompting: Provides examples for each TOLSA-M property.
         Returns system identity, task, format output, and examples.
@@ -154,7 +154,7 @@ class SentenceClassificationPrompt(BasePrompt):
             Path to training data CSV file for few-shot examples
         stratify_columns : list of str, optional
             Columns to stratify by (e.g., ['Ground Truth', 'Dataset Name'])
-            Default: ['Ground Truth'] for single-level stratification
+            If 2 columns provided, uses balanced pair sampling for max diversity
         seed : int
             Random seed for reproducible sampling
         """
@@ -166,27 +166,38 @@ class SentenceClassificationPrompt(BasePrompt):
             if stratify_columns is None:
                 stratify_columns = ['Ground Truth']
             
-            # Multi-level stratified sampling to get representative examples
-            few_shot_df = DataProcessing.multi_stratified_sample(
-                train_df, 
-                stratify_columns=stratify_columns, 
-                n_samples=7, 
-                random_state=seed
-            )
+            # Choose sampling strategy based on number of stratification columns
+            if len(stratify_columns) == 2:
+                # Balanced pair sampling: 1 pos + 1 neg from each dataset
+                few_shot_df = DataProcessing.balanced_pair_sampling(
+                    train_df,
+                    label_column=stratify_columns[0],
+                    dataset_column=stratify_columns[1],
+                    n_samples=7,
+                    random_state=seed
+                )
+            else:
+                # Single-level stratification
+                few_shot_df = DataProcessing.stratified_sample(
+                    train_df,
+                    label_column=stratify_columns[0],
+                    n_samples=7,
+                    random_state=seed
+                )
             
             # Format examples for prompt
-            few_shot_examples = ""
+            few_shot_examples = "\n"
             for idx, row in few_shot_df.iterrows():
                 sentence = row['Base Sentence']
                 label = row['Ground Truth']
-                label_name = "TOLSA-M" if label == 1 else "non-TOLSA-M"
+                label_name = "TOLSA-M" if label == 1.0 else "non-TOLSA-M"
                 
-                # Optionally include dataset info if available
+                # Include dataset info for transparency
                 dataset_info = ""
                 if 'Dataset Name' in row:
-                    dataset_info = f" [Dataset Name: {row['Dataset Name']}]"
+                    dataset_info = f" [Source: {row['Dataset Name']}]"
                 
-                few_shot_examples += f"\nExample {idx+1}{dataset_info}: \"{sentence}\" -> {label_name}\n"
+                few_shot_examples += f"\n\t\tExample {idx+1}{dataset_info}: \"{sentence}\" → {label_name}\n\n"
             
             return self.system_identity(), self.task(), self.format_output(), few_shot_examples
         
