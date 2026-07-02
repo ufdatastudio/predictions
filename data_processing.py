@@ -126,6 +126,123 @@ class DataProcessing:
         
         return X_train, X_val, X_test, y_train, y_val, y_test
 
+
+    @staticmethod
+    def multi_stratified_sample(df, stratify_columns, n_samples, random_state=42):
+        """
+        Perform multi-level stratified sampling to get representative examples.
+        Ensures both class balance AND dataset/domain balance are maintained.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The dataframe to sample from
+        stratify_columns : list of str
+            Column names to stratify by (e.g., ['Ground Truth', 'Dataset Name'])
+        n_samples : int
+            Total number of samples to return
+        random_state : int
+            Random seed for reproducibility
+            
+        Returns
+        -------
+        pd.DataFrame
+            Multi-stratified sample maintaining proportions across all stratify columns
+        """
+        # Create composite stratification key
+        df = df.copy()
+        df['_strat_key'] = df[stratify_columns].astype(str).agg('_'.join, axis=1)
+        
+        # Calculate samples per stratification group
+        strat_counts = df['_strat_key'].value_counts()
+        total = len(df)
+        n_groups = len(strat_counts)
+        
+        print(f"[Stratification Debug] Total samples: {total}, Groups: {n_groups}, Requested: {n_samples}")
+        
+        # Initialize sample allocation
+        samples_per_strat = {}
+        
+        # Calculate proportional allocation
+        for strat_key, count in strat_counts.items():
+            proportion = count / total
+            allocated = max(0, int(n_samples * proportion))  # Ensure non-negative
+            samples_per_strat[strat_key] = allocated
+        
+        # Adjust to reach exact n_samples
+        current_total = sum(samples_per_strat.values())
+        
+        if current_total < n_samples:
+            # Need to add samples - prioritize groups with most availability
+            deficit = n_samples - current_total
+            # Sort by (available - allocated) descending
+            groups_by_room = sorted(
+                strat_counts.items(),
+                key=lambda x: x[1] - samples_per_strat[x[0]],
+                reverse=True
+            )
+            
+            for strat_key, available in groups_by_room:
+                if deficit <= 0:
+                    break
+                current_allocated = samples_per_strat[strat_key]
+                room = available - current_allocated
+                if room > 0:
+                    add = min(deficit, room)
+                    samples_per_strat[strat_key] += add
+                    deficit -= add
+        
+        elif current_total > n_samples:
+            # Need to remove samples - prioritize groups with most allocated
+            surplus = current_total - n_samples
+            groups_by_allocated = sorted(
+                samples_per_strat.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )
+            
+            for strat_key, allocated in groups_by_allocated:
+                if surplus <= 0:
+                    break
+                if allocated > 0:
+                    remove = min(surplus, allocated)
+                    samples_per_strat[strat_key] -= remove
+                    surplus -= remove
+        
+        # Sample from each stratification group
+        sampled_dfs = []
+        for strat_key, n in samples_per_strat.items():
+            if n <= 0:
+                continue
+            
+            strat_df = df[df['_strat_key'] == strat_key]
+            n_available = len(strat_df)
+            
+            # Safety check: never request more than available
+            n_to_sample = min(n, n_available)
+            
+            if n_to_sample > 0:
+                sampled = strat_df.sample(n=n_to_sample, random_state=random_state)
+                sampled_dfs.append(sampled)
+                print(f"  Group '{strat_key}': sampled {n_to_sample}/{n_available}")
+        
+        # Combine results
+        if not sampled_dfs:
+            print(f"[Warning] No samples collected, falling back to random sample")
+            result = df.sample(n=min(n_samples, len(df)), random_state=random_state)
+            result = result.drop(columns=['_strat_key'])
+            return result
+        
+        result = pd.concat(sampled_dfs, ignore_index=True)
+        result = result.sample(frac=1, random_state=random_state).reset_index(drop=True)
+        
+        # Remove temporary stratification key
+        result = result.drop(columns=['_strat_key'])
+        
+        print(f"[Stratification Result] Collected {len(result)}/{n_samples} samples")
+        
+        return result
+
     def join_predictions_with_labels(df: pd.DataFrame, true_labels: pd.Series, y_predictions: pd.Series, model) -> pd.DataFrame:
         """Join the predictions with the true labels DF
         

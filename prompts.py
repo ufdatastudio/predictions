@@ -4,6 +4,7 @@ UF Data Studio (https://ufdatastudio.com/) with advisor Christan E. Grant, Ph.D.
 Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-method/python/example#lang-features)
 """
 from abc import ABC, abstractmethod
+from data_processing import DataProcessing
 from prediction_properties import PredictionProperties
 
 
@@ -141,6 +142,68 @@ class SentenceClassificationPrompt(BasePrompt):
 
     def default_task(self):
         return """Classify the sentence as either a "TOLSA-M": 1 or "non-TOLSA-M": 0."""
+
+    def few_shot(self, dataset_path: str = None, stratify_columns: list = None, seed: int = 42):
+        """
+        Few-shot prompting: Provides examples for each TOLSA-M property.
+        Returns system identity, task, format output, and examples.
+        
+        Parameters
+        ----------
+        dataset_path : str, optional
+            Path to training data CSV file for few-shot examples
+        stratify_columns : list of str, optional
+            Columns to stratify by (e.g., ['Ground Truth', 'Dataset Name'])
+            Default: ['Ground Truth'] for single-level stratification
+        seed : int
+            Random seed for reproducible sampling
+        """
+        if dataset_path:
+            # Load training data
+            train_df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='utf-8')
+            
+            # Default to stratifying by label only
+            if stratify_columns is None:
+                stratify_columns = ['Ground Truth']
+            
+            # Multi-level stratified sampling to get representative examples
+            few_shot_df = DataProcessing.multi_stratified_sample(
+                train_df, 
+                stratify_columns=stratify_columns, 
+                n_samples=7, 
+                random_state=seed
+            )
+            
+            # Format examples for prompt
+            few_shot_examples = ""
+            for idx, row in few_shot_df.iterrows():
+                sentence = row['Base Sentence']
+                label = row['Ground Truth']
+                label_name = "TOLSA-M" if label == 1 else "non-TOLSA-M"
+                
+                # Optionally include dataset info if available
+                dataset_info = ""
+                if 'Dataset Name' in row:
+                    dataset_info = f" [Dataset Name: {row['Dataset Name']}]"
+                
+                few_shot_examples += f"\nExample {idx+1}{dataset_info}: \"{sentence}\" -> {label_name}\n"
+            
+            return self.system_identity(), self.task(), self.format_output(), few_shot_examples
+        
+        # Fallback to property examples if no dataset provided
+        source_ex = PredictionProperties.get_source_examples()
+        target_ex = PredictionProperties.get_target_examples()
+        date_ex = PredictionProperties.get_date_examples()
+        outcome_ex = PredictionProperties.get_outcome_examples()
+
+        few_shot_examples = f"""
+        Here are examples of each property to guide you:
+        - Source (1): {source_ex}
+        - Target (2): {target_ex}
+        - Date (3): {date_ex}
+        - Outcome (4): {outcome_ex}
+        """
+        return self.system_identity(), self.task(), self.format_output(), few_shot_examples
 
     def default_format_output(self):
         # Matches the expected format in llm-classifiers.py parse_json_response
