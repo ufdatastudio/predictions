@@ -57,7 +57,7 @@ def load_dataset(dataset_path, text_column='Base Sentence', label_column='Senten
     df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='utf-8')
     # Strip all non-ASCII characters entirely from string columns
     # This is the safest fix when source data has deep unicode corruption
-    # df = df.sample(n=40)
+    # df = df.sample(n=100)
 
     # Validate required columns exist
     if text_column not in df.columns:
@@ -72,47 +72,6 @@ def load_dataset(dataset_path, text_column='Base Sentence', label_column='Senten
 
     return df
 
-# def load_dataset(dataset_path, text_column='Base Sentence', label_column='Sentence Label'):
-#     """
-#     Load the test split saved by ml-train.py.
-#     Does NOT resample — the split is already fixed by the ML pipeline
-#     so LLM and ML models evaluate on the exact same sentences.
-
-#     Parameters
-#     ----------
-#     dataset_path : str
-#         Path to the x_y_test_set.csv saved by ml-train.py.
-#     text_column : str
-#         Column name containing the sentences. Default is 'Base Sentence'.
-#     label_column : str
-#         Column name containing the true labels. Default is 'Sentence Label'.
-#     """
-#     print("\n" + "="*40)
-#     print("LOAD DATASET")
-#     print("="*40)
-
-#     print(f"Dataset path: {dataset_path}")
-#     df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='latin-1')
-#     # Strip all non-ASCII characters entirely from string columns
-#     # This is the safest fix when source data has deep unicode corruption
-#     for col in df.select_dtypes(include='object').columns:
-#         df[col] = df[col].apply(
-#             lambda x: x.encode('ascii', errors='ignore').decode('ascii') if isinstance(x, str) else x
-#         )
-
-#     # Validate required columns exist
-#     if text_column not in df.columns:
-#         raise ValueError(f"Text column '{text_column}' not found. Available: {list(df.columns)}")
-#     if label_column not in df.columns:
-#         raise ValueError(f"Label column '{label_column}' not found. Available: {list(df.columns)}")
-
-#     print(f"Shape: {df.shape}")
-#     print(f"\nPreview:\n{df.head(7)}\n")
-#     print(f"\nPreview:\n{df.tail(7)}\n")
-#     print(f"Label distribution:\n{df[label_column].value_counts()}\n")
-
-#     return df
-
 def build_model(model_name):
     """Initialize single LLM from factory for this SLURM job."""
     tgmf = TextGenerationModelFactory()
@@ -126,17 +85,21 @@ def build_model(model_name):
     model = tgmf.create_instance(model_name)
     return model
 
-def load_prompts(model_name, prompt_type):
+def load_prompts(prompt_type, train_data_path=None, stratify_columns=None, seed=42):
     """
     Build the base prompt using SentenceClassificationPrompt with few-shot examples.
-    Combines system identity, prediction properties, requirements, and examples.
+    Combines system identity, TOLSA-M properties, requirements, and examples.
 
     Parameters
     ----------
-    model_name : str
-        The name of the model being loaded. Used for logging only.
     prompt_type : str
         The prompt can be zero-shot, few-shot, or chain-of-thought
+    train_data_path : str, optional
+        Path to training data CSV for few-shot examples
+    stratify_columns : list of str, optional
+        Columns to stratify by (e.g., ['Sentence Label', 'Dataset'])
+    seed : int
+        Random seed for reproducible sampling
         
     Returns
     -------
@@ -166,7 +129,11 @@ def load_prompts(model_name, prompt_type):
     
     elif prompt_type == 'few-shot':
         prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
-        system_identity, task, format_output, examples = prompt.few_shot()
+        system_identity, task, format_output, examples = prompt.few_shot(
+            dataset_path=train_data_path,
+            stratify_columns=stratify_columns,
+            seed=seed
+        )
         
         base_prompt = f"""{system_identity}
         TOLSA-M Properties:
@@ -605,7 +572,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         '--label_column',
-        default='Sentence Label',
+        default='Ground Truth',
         help='The column name in the dataset containing the true labels.'
     )
 
@@ -638,17 +605,28 @@ if __name__ == "__main__":
     # ============================================================
     # 3. LOAD & PREPARE DATA
     # ============================================================
-    # Load the exact same test split that ml-train.py used
-    test_df = load_dataset(args.test_dataset, label_column=args.label_column)
+    # Construct training dataset path from test dataset path
+    test_dir = os.path.dirname(args.test_dataset)
+    train_filename = 'x_y_train_set.csv'  # Match the filename from ml-train.py
+    train_path = os.path.join(test_dir, train_filename)
 
-    # Placeholder for loading validation data
-    # val_df = load_dataset(args.val_datasets) if args.val_datasets else None
+    # Load datasets
+    test_df = load_dataset(args.test_dataset, label_column=args.label_column)
 
     # Build the single LLM for this SLURM job
     model = build_model(args.model_name)
 
+    # Define stratification columns for few-shot sampling
+    # Stratify by both label AND dataset for truly representative examples
+    stratify_columns = ['Ground Truth', 'Dataset Name'] if 'Dataset Name' in test_df.columns else ['Ground Truth']
+
     # Load the base prompt, task instruction, and output format
-    base_prompt, sentence_label_task, sentence_label_format_output = load_prompts(args.model_name, args.prompt_type)
+    base_prompt, sentence_label_task, sentence_label_format_output = load_prompts(
+        prompt_type=args.prompt_type,
+        train_data_path=train_path if args.prompt_type == 'few-shot' else None,
+        stratify_columns=stratify_columns if args.prompt_type == 'few-shot' else None,
+        seed=args.seed
+    )
 
     # ============================================================
     # 4. RUN INFERENCE

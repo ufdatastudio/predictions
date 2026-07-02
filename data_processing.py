@@ -126,6 +126,234 @@ class DataProcessing:
         
         return X_train, X_val, X_test, y_train, y_val, y_test
 
+
+    @staticmethod
+    def multi_stratified_sample(df, stratify_columns, n_samples, random_state=42):
+        """
+        Perform hierarchical stratified sampling with guaranteed label balance.
+        First stratifies by primary column (label), then diversifies by secondary column (dataset).
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The dataframe to sample from
+        stratify_columns : list of str
+            Columns to stratify by. First column is primary (must be balanced).
+            E.g., ['Ground Truth', 'Dataset Name']
+        n_samples : int
+            Total number of samples to return
+        random_state : int
+            Random seed for reproducibility
+            
+        Returns
+        -------
+        pd.DataFrame
+            Stratified sample with guaranteed balance on primary column
+        """
+        if len(stratify_columns) == 1:
+            # Simple single-level stratification
+            return DataProcessing.stratified_sample(
+                df, 
+                label_column=stratify_columns[0],
+                n_samples=n_samples,
+                random_state=random_state
+            )
+        
+        # Hierarchical stratification: balance primary first, then diversify secondary
+        primary_col = stratify_columns[0]  # e.g., 'Ground Truth'
+        secondary_col = stratify_columns[1]  # e.g., 'Dataset Name'
+        
+        print(f"[Hierarchical Stratification] Primary: {primary_col}, Secondary: {secondary_col}")
+        
+        # Step 1: Determine samples per primary class (ensure balance)
+        primary_classes = df[primary_col].unique()
+        n_classes = len(primary_classes)
+        samples_per_class = n_samples // n_classes
+        remainder = n_samples % n_classes
+        
+        print(f"  Primary classes: {n_classes}, Base samples per class: {samples_per_class}")
+        
+        # Step 2: Sample from each primary class, diversifying by secondary column
+        all_samples = []
+        
+        for i, primary_value in enumerate(sorted(primary_classes)):
+            # How many samples for this primary class
+            n_for_class = samples_per_class + (1 if i < remainder else 0)
+            
+            # Get all rows for this primary class
+            class_df = df[df[primary_col] == primary_value]
+            
+            # Count secondary groups within this primary class
+            secondary_counts = class_df[secondary_col].value_counts()
+            n_secondary_groups = len(secondary_counts)
+            
+            print(f"  Class '{primary_value}': {len(class_df)} total, {n_secondary_groups} {secondary_col} groups, sampling {n_for_class}")
+            
+            # Allocate samples proportionally across secondary groups
+            samples_per_secondary = {}
+            total_in_class = len(class_df)
+            
+            for sec_value, count in secondary_counts.items():
+                proportion = count / total_in_class
+                allocated = max(0, int(n_for_class * proportion))
+                samples_per_secondary[sec_value] = allocated
+            
+            # Adjust to reach exact n_for_class
+            current_total = sum(samples_per_secondary.values())
+            
+            if current_total < n_for_class:
+                # Add to groups with most room
+                deficit = n_for_class - current_total
+                groups_by_room = sorted(
+                    secondary_counts.items(),
+                    key=lambda x: x[1] - samples_per_secondary[x[0]],
+                    reverse=True
+                )
+                for sec_value, available in groups_by_room:
+                    if deficit <= 0:
+                        break
+                    room = available - samples_per_secondary[sec_value]
+                    if room > 0:
+                        add = min(deficit, room)
+                        samples_per_secondary[sec_value] += add
+                        deficit -= add
+            
+            elif current_total > n_for_class:
+                # Remove from groups with most allocated
+                surplus = current_total - n_for_class
+                groups_by_allocated = sorted(
+                    samples_per_secondary.items(),
+                    key=lambda x: x[1],
+                    reverse=True
+                )
+                for sec_value, allocated in groups_by_allocated:
+                    if surplus <= 0:
+                        break
+                    if allocated > 0:
+                        remove = min(surplus, allocated)
+                        samples_per_secondary[sec_value] -= remove
+                        surplus -= remove
+            
+            # Sample from each secondary group
+            for sec_value, n_to_sample in samples_per_secondary.items():
+                if n_to_sample <= 0:
+                    continue
+                
+                group_df = class_df[class_df[secondary_col] == sec_value]
+                n_available = len(group_df)
+                n_actual = min(n_to_sample, n_available)
+                
+                if n_actual > 0:
+                    sampled = group_df.sample(n=n_actual, random_state=random_state + i)
+                    all_samples.append(sampled)
+                    print(f"    {primary_col}={primary_value}, {secondary_col}={sec_value}: {n_actual}/{n_available}")
+        
+        # Combine and shuffle
+        result = pd.concat(all_samples, ignore_index=True)
+        result = result.sample(frac=1, random_state=random_state).reset_index(drop=True)
+        
+        # Verify balance
+        final_counts = result[primary_col].value_counts()
+        print(f"[Result] Total samples: {len(result)}, Label distribution: {dict(final_counts)}")
+        
+        return result
+    
+    @staticmethod
+    def balanced_pair_sampling(df, label_column, dataset_column, n_samples, random_state=42):
+        """
+        Sample pairs (1 positive + 1 negative) from each dataset for maximum diversity.
+        Ensures both label balance AND dataset representation.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The dataframe to sample from
+        label_column : str
+            Column with binary labels (e.g., 'Ground Truth')
+        dataset_column : str
+            Column with dataset names (e.g., 'Dataset Name')
+        n_samples : int
+            Total number of samples to return (should be even for perfect balance)
+        random_state : int
+            Random seed for reproducibility
+            
+        Returns
+        -------
+        pd.DataFrame
+            Sample with pairs from each dataset, maintaining label balance
+        """
+        print(f"[Balanced Pair Sampling] Sampling from {label_column} and {dataset_column}")
+        
+        # Get unique datasets
+        datasets = df[dataset_column].unique()
+        n_datasets = len(datasets)
+        
+        # Determine how many complete pairs we can take
+        n_pairs = n_samples // 2
+        
+        print(f"  Datasets available: {n_datasets}, Pairs needed: {n_pairs}, Total samples: {n_samples}")
+        
+        # Strategy: cycle through datasets taking pairs until we reach n_samples
+        all_samples = []
+        np.random.seed(random_state)
+        
+        # Shuffle datasets for random order
+        shuffled_datasets = np.random.permutation(datasets)
+        
+        pairs_collected = 0
+        dataset_idx = 0
+        
+        while len(all_samples) < n_samples and dataset_idx < len(shuffled_datasets) * 2:
+            # Cycle through datasets
+            dataset = shuffled_datasets[dataset_idx % n_datasets]
+            dataset_df = df[df[dataset_column] == dataset]
+            
+            # Get positive and negative samples from this dataset
+            positive_df = dataset_df[dataset_df[label_column] == 1.0]
+            negative_df = dataset_df[dataset_df[label_column] == 0.0]
+            
+            samples_from_dataset = []
+            
+            # Try to get one of each
+            if len(positive_df) > 0 and len(all_samples) < n_samples:
+                pos_sample = positive_df.sample(n=1, random_state=random_state + dataset_idx)
+                samples_from_dataset.append(pos_sample)
+            
+            if len(negative_df) > 0 and len(all_samples) + len(samples_from_dataset) < n_samples:
+                neg_sample = negative_df.sample(n=1, random_state=random_state + dataset_idx + 1000)
+                samples_from_dataset.append(neg_sample)
+            
+            if samples_from_dataset:
+                all_samples.extend(samples_from_dataset)
+                label_info = [s[label_column].values[0] for s in samples_from_dataset]
+                print(f"    Dataset '{dataset}': sampled {len(samples_from_dataset)} samples (labels: {label_info})")
+            
+            dataset_idx += 1
+            
+            # Safety: break if we've cycled through all datasets twice
+            if dataset_idx >= n_datasets * 2:
+                break
+        
+        # Combine all samples
+        if not all_samples:
+            print("[Warning] No samples collected, falling back to random sample")
+            return df.sample(n=min(n_samples, len(df)), random_state=random_state)
+        
+        result = pd.concat(all_samples, ignore_index=True)
+        
+        # Shuffle to mix positive/negative
+        result = result.sample(frac=1, random_state=random_state).reset_index(drop=True)
+        
+        # Verify distribution
+        label_counts = result[label_column].value_counts().to_dict()
+        dataset_counts = result[dataset_column].value_counts().to_dict()
+        
+        print(f"[Result] Total samples: {len(result)}")
+        print(f"  Label distribution: {label_counts}")
+        print(f"  Dataset distribution: {dataset_counts}")
+        
+        return result
+
     def join_predictions_with_labels(df: pd.DataFrame, true_labels: pd.Series, y_predictions: pd.Series, model) -> pd.DataFrame:
         """Join the predictions with the true labels DF
         
@@ -1357,6 +1585,11 @@ class DataProcessing:
         if 'Ground Truth' not in df.columns:
             raise ValueError(f"Expected label column '{label_col}' not found in dataset.")
 
+        # Ensure specified columns are integers
+        for col in ['Ground Truth', 'Human Annotation']:
+            if col in df.columns:
+                df[col] = df[col].fillna(0).astype(int)
+
         priority_cols = ['Base Sentence', 'Ground Truth']
         remaining_cols = []
         for col in df.columns:
@@ -1562,7 +1795,7 @@ class DataProcessing:
         print("="*60)
         
         base_data_path = DataProcessing.load_base_data_path(script_dir)
-        tb_path = os.path.join(base_data_path, "timebank_1_2", "annotators")
+        tb_path = os.path.join(base_data_path, "timebank_1_2", "annotators", "join_files")
         print(f"Loading from: {tb_path}")
         
         dfs = []
@@ -1616,7 +1849,7 @@ class DataProcessing:
         print("="*60)
         
         base_data_path = DataProcessing.load_base_data_path(script_dir)
-        yt_path = os.path.join(base_data_path, "yt", "annotators", "sports")
+        yt_path = os.path.join(base_data_path, "yt", "annotators", "files_to_join")
         print(f"Loading from: {yt_path}")
         
         dfs = []
@@ -1669,7 +1902,7 @@ class DataProcessing:
         print("="*60)
         
         base_data_path = DataProcessing.load_base_data_path(script_dir)
-        news_api_path = os.path.join(base_data_path, "news_api", "annotators", "all_domains")
+        news_api_path = os.path.join(base_data_path, "news_api", "annotators", "files_to_join")
 
         ### Get specific file
         # news_api_path = os.path.join(base_data_path, "news_api", "annotators", "news_articles_election_vote_polling_legislation_expected_likely_projected_forecast_2026-01-01_to_2026-04-26_predictions-v7_policy_1_human_annotation.csv")
@@ -1701,6 +1934,7 @@ class DataProcessing:
             text_col='Base Sentence',
             label_col='Sentence Label'
         )
+        # BUG: Instead of Sentence Label, we want Human Annotation
         
         if predictions_only:
             news_api_df = news_api_df[news_api_df['Ground Truth'] == 1]
