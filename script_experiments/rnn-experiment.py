@@ -1,0 +1,605 @@
+import os
+import sys
+import argparse
+import warnings
+warnings.filterwarnings("ignore")
+import torch
+import numpy as np
+import pandas as pd
+import torch.nn as nn
+from tqdm import tqdm
+from datetime import datetime
+
+# Get script directory and add parent to path
+script_dir = os.getcwd()
+sys.path.append(os.path.join(script_dir, '../'))
+
+from metrics import EvaluationMetric
+from data_processing import DataProcessing
+from feature_extraction import SpacyFeatureExtraction
+
+EMBEDDING_SIZES = {
+    'spacy_small': 96,
+    'spacy_medium': 300,
+    'spacy_large': 300,
+    'spacy_transformer': 768,
+}
+
+
+class RNN_Linear(nn.Module):
+    """RNN using nn.Linear layers for sentence classification."""
+
+    def __init__(self, input_embedding_size, hidden_size, output_size):
+        super(RNN_Linear, self).__init__()
+        self.input_embedding_size = input_embedding_size
+        input_size = self.input_embedding_size.size()[0]
+        self.hidden_size = hidden_size
+        self.input_to_hidden = nn.Linear(input_size + hidden_size, hidden_size)
+        self.hidden_to_output = nn.Linear(hidden_size, output_size)
+        self.sigmoid = nn.Sigmoid()
+        nn.init.xavier_uniform_(self.input_to_hidden.weight)
+        nn.init.xavier_uniform_(self.hidden_to_output.weight)
+
+    def forward(self, input_tensor, hidden_tensor):
+        """
+        Forward pass for one time step (one word).
+        
+        Parameters
+        ----------
+        input_tensor : torch.Tensor
+            Current word embedding
+        hidden_tensor : torch.Tensor
+            Previous hidden state
+        
+        Returns
+        -------
+        tuple
+            (hidden_t, output) - Updated hidden state and classification output
+        """
+        x_t = input_tensor
+        h_t_1 = hidden_tensor
+        i_h = torch.cat((x_t, h_t_1), dim=1)
+        hidden_t = torch.tanh(self.input_to_hidden(i_h))
+        y_hat = self.hidden_to_output(hidden_t)
+        output = self.sigmoid(y_hat)
+        return hidden_t, output
+
+    def resize_hidden(self):
+        """Initialize hidden state to zeros."""
+        return torch.zeros(1, self.hidden_size)
+
+
+def create_output_directory(args, experiment_name):
+    """
+    Create unique output directory with date and seed.
+    
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments
+    experiment_name : str
+        Name of experiment
+    
+    Returns
+    -------
+    tuple
+        (experiment_dir, seed_dir) - Paths to experiment and seed directories
+    """
+    seed_number = f"seed{args.seed}"
+    experiment_dir = os.path.join(args.save_path, experiment_name)
+    seed_dir = os.path.join(experiment_dir, seed_number)
+    os.makedirs(seed_dir, exist_ok=True)
+    print(f"\n✓ Experiment directory: {experiment_dir}")
+    print(f"✓ Seed directory: {seed_dir}")
+    return experiment_dir, seed_dir
+
+
+def load_dataset(script_dir, dataset_path):
+    """
+    Load dataset from file path.
+    
+    Parameters
+    ----------
+    script_dir : str
+        Script directory
+    dataset_path : str
+        Relative path to dataset
+    
+    Returns
+    -------
+    pd.DataFrame
+        Loaded dataset
+    """
+    print("\n" + "="*40)
+    print("LOAD DATASET")
+    print("="*40)
+    
+    if not os.path.isabs(dataset_path):
+        data_path = os.path.join(script_dir, dataset_path)
+    else:
+        data_path = dataset_path
+    
+    print(f"Dataset path: {data_path}")
+    df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
+    
+    if 'Dataset Name' not in df.columns:
+        filename = os.path.basename(dataset_path).lower()
+        if 'fpb' in filename:
+            df['Dataset Name'] = 'fpb-imbalanced'
+        elif 'chronicle' in filename:
+            df['Dataset Name'] = 'chronicle2050'
+        else:
+            df['Dataset Name'] = 'synthetic'
+            
+    print(f"Shape: {df.shape}")
+    print(f"\nPreview:\n{df.head(3)}\n")
+    return df
+
+
+def load_and_preprocess_data(train_rel_path, test_rel_path, base_data_path=None, 
+                             train_sample_size=None, test_sample_size=None, embedding_model_name='spacy_large'):
+    """
+    Load datasets and extract word embeddings.
+    
+    Parameters
+    ----------
+    train_rel_path : str
+        Relative path from base_data_path to training CSV
+    test_rel_path : str
+        Relative path from base_data_path to test CSV
+    base_data_path : str, optional
+        Base data directory (default: script_dir/../data)
+    train_sample_size : int, optional
+        Number of training samples (None = use all)
+    test_sample_size : int, optional
+        Number of test samples (None = use all)
+    embedding_model_name : str
+        SpaCy embedding model name
+    
+    Returns
+    -------
+    tuple
+        (train_embeddings_df, test_embeddings_df, train_df, test_df)
+    """
+    if base_data_path is None:
+        base_data_path = DataProcessing.load_base_data_path(script_dir)
+    
+    print(f"Base data path: {base_data_path}")
+    train_path = os.path.join(base_data_path, train_rel_path)
+    test_path = os.path.join(base_data_path, test_rel_path)
+    
+    print(f"Train path: {train_path}")
+    print(f"Test path: {test_path}")
+    print("\nLoading datasets...")
+    
+    train_df = DataProcessing.load_from_file(train_path)
+    train_df['Ground Truth'] = train_df['Ground Truth'].astype(int)
+    
+    if train_sample_size:
+        train_df = train_df.sample(n=train_sample_size, random_state=42)
+        print(f"Sampled {train_sample_size} training sentences")
+    
+    test_df = DataProcessing.load_from_file(test_path)
+    test_df['Ground Truth'] = test_df['Ground Truth'].astype(int)
+    
+    if test_sample_size:
+        test_df = test_df.sample(n=test_sample_size, random_state=42)
+        print(f"Sampled {test_sample_size} test sentences")
+    
+    print(f"Train size: {len(train_df)}, Test size: {len(test_df)}")
+    
+    print("\nTokenizing and embedding training data...")
+    train_sfe = SpacyFeatureExtraction(train_df, 'Base Sentence', embedding_model_name=embedding_model_name)
+    train_tokenized_df = train_sfe.split_words_in_sentence()
+    train_embeddings_df = train_sfe.word_embeddings_extraction(
+        tokenized_words_with_metadata_df=train_tokenized_df,
+        reorder_cols=["Base Sentence", "Word", "Word Embedding", "Ground Truth"]
+    )
+    print(f"Training: {len(train_embeddings_df)} word embeddings extracted")
+    
+    print("\nTokenizing and embedding test data...")
+    test_sfe = SpacyFeatureExtraction(test_df, 'Base Sentence', embedding_model_name=embedding_model_name)
+    test_tokenized_df = test_sfe.split_words_in_sentence()
+    test_embeddings_df = test_sfe.word_embeddings_extraction(
+        tokenized_words_with_metadata_df=test_tokenized_df,
+        reorder_cols=["Base Sentence", "Word", "Word Embedding", "Ground Truth"]
+    )
+    print(f"Test: {len(test_embeddings_df)} word embeddings extracted")
+    
+    return train_embeddings_df, test_embeddings_df, train_df, test_df
+
+
+def train_step(classifier, sequence_of_embeddings, y, criterion, optimizer):
+    """
+    Train the RNN on a single sentence sequence.
+    
+    Parameters
+    ----------
+    classifier : nn.Module
+        RNN model
+    sequence_of_embeddings : list
+        List of word embeddings for one sentence
+    y : torch.Tensor
+        Ground truth label (0 or 1)
+    criterion : nn.Module
+        Loss function (BCELoss)
+    optimizer : torch.optim.Optimizer
+        Optimizer (Adam or SGD)
+    
+    Returns
+    -------
+    tuple
+        (final_output, loss_value) - Model prediction and loss
+    """
+    hidden = classifier.resize_hidden()
+    
+    for input_embedding_t in sequence_of_embeddings:
+        x_embedding_t_reshaped = torch.tensor(input_embedding_t, dtype=torch.float32).unsqueeze(0)
+        hidden, y_hat = classifier.forward(x_embedding_t_reshaped, hidden)
+    
+    final_output = y_hat
+    loss = criterion(final_output, y)
+    
+    optimizer.zero_grad()
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(classifier.parameters(), max_norm=1.0)
+    optimizer.step()
+    
+    return final_output, loss.item()
+
+
+def train_model(train_embeddings_df, classifier, n_epochs, learning_rate, optimizer_name):
+    """
+    Train RNN model on sentence sequences.
+    
+    Parameters
+    ----------
+    train_embeddings_df : pd.DataFrame
+        Word-level training data
+    classifier : nn.Module
+        RNN model
+    n_epochs : int
+        Number of training epochs
+    learning_rate : float
+        Learning rate for optimizer
+    optimizer_name : str
+        'adam' or 'sgd'
+    
+    Returns
+    -------
+    tuple
+        (classifier, loss_history) - Trained model and list of average losses per epoch
+    """
+    print(f"\nTraining with {optimizer_name.upper()}, lr={learning_rate}, epochs={n_epochs}")
+    
+    criterion = nn.BCELoss()
+    
+    if optimizer_name.lower() == 'adam':
+        optimizer = torch.optim.Adam(classifier.parameters(), lr=learning_rate)
+    else:
+        optimizer = torch.optim.SGD(classifier.parameters(), lr=learning_rate)
+    
+    loss_history = []
+    
+    for n_iter in range(n_epochs):
+        text_document_sequences = []
+        previous_text_document = None
+        current_y_tensor = None
+        current_loss = 0
+        sentences_per_iteration = 0
+        
+        for row in tqdm(train_embeddings_df.itertuples(index=False), 
+                       total=len(train_embeddings_df),
+                       desc=f"Epoch {n_iter+1}/{n_epochs}"):
+            
+            text_document = row._0  # 'Base Sentence'
+            word_embedding = row._2  # 'Word Embedding'
+            y = row._3  # 'Ground Truth'
+            y_tensor = torch.as_tensor([[y]], dtype=torch.float)
+            
+            if text_document == previous_text_document:
+                text_document_sequences.append(word_embedding)
+            else:
+                if len(text_document_sequences) > 0:
+                    output, loss = train_step(
+                        classifier, text_document_sequences, current_y_tensor, criterion, optimizer
+                    )
+                    current_loss += loss
+                    sentences_per_iteration += 1
+                
+                text_document_sequences = [word_embedding]
+                previous_text_document = text_document
+                current_y_tensor = y_tensor
+        
+        if len(text_document_sequences) > 0:
+            output, loss = train_step(
+                classifier, text_document_sequences, current_y_tensor, criterion, optimizer
+            )
+            current_loss += loss
+            sentences_per_iteration += 1
+        
+        if sentences_per_iteration > 0:
+            avg_loss = current_loss / sentences_per_iteration
+            loss_history.append(avg_loss)
+            print(f"Epoch {n_iter+1}/{n_epochs} | Avg Loss: {avg_loss:.4f}")
+    
+    return classifier, loss_history
+
+
+def evaluate_model(test_embeddings_df, test_df, classifier):
+    """
+    Evaluate trained RNN on test data.
+    
+    Parameters
+    ----------
+    test_embeddings_df : pd.DataFrame
+        Word-level test data
+    test_df : pd.DataFrame
+        Original sentence-level test data
+    classifier : nn.Module
+        Trained RNN model
+    
+    Returns
+    -------
+    tuple
+        (test_final_df, y_hats) - Test dataframe with predictions and list of predictions
+    """
+    print("\nEvaluating on test set...")
+    
+    text_document_sequences = []
+    y_hats = []
+    previous_text_document = None
+    
+    for row_idx in range(len(test_embeddings_df)):
+        row = test_embeddings_df.iloc[row_idx]
+        text_document = row['Base Sentence']
+        word_embedding = row['Word Embedding']
+        
+        if text_document == previous_text_document:
+            text_document_sequences.append(word_embedding)
+        else:
+            if len(text_document_sequences) > 0:
+                with torch.no_grad():
+                    hidden = classifier.resize_hidden()
+                    for input_embedding_t in text_document_sequences:
+                        x = torch.tensor(input_embedding_t, dtype=torch.float32).unsqueeze(0)
+                        hidden, y_hat = classifier.forward(x, hidden)
+                    y_hats.append((y_hat.squeeze() > 0.5).long().item())
+            
+            text_document_sequences = [word_embedding]
+            previous_text_document = text_document
+    
+    if len(text_document_sequences) > 0:
+        with torch.no_grad():
+            hidden = classifier.resize_hidden()
+            for input_embedding_t in text_document_sequences:
+                x = torch.tensor(input_embedding_t, dtype=torch.float32).unsqueeze(0)
+                hidden, y_hat = classifier.forward(x, hidden)
+            y_hats.append((y_hat.squeeze() > 0.5).long().item())
+    
+    print(f"Generated {len(y_hats)} predictions for {test_embeddings_df['Base Sentence'].nunique()} unique sentences")
+    
+    # Map predictions to original test_df (handles duplicates)
+    test_results_df = test_embeddings_df.groupby('Base Sentence', sort=False).first().reset_index()
+    sentence_to_prediction = dict(zip(test_results_df['Base Sentence'], y_hats))
+    
+    test_final_df = test_df.copy()
+    test_final_df['RNN'] = test_final_df['Base Sentence'].map(sentence_to_prediction)
+    
+    num_duplicates = len(test_df) - len(y_hats)
+    print(f"Evaluating on {len(test_final_df)} sentences (including {num_duplicates} duplicates)")
+    
+    return test_final_df, y_hats
+
+
+def compute_metrics(test_final_df, loss_history, seed):
+    """
+    Compute classification metrics.
+    
+    Parameters
+    ----------
+    test_final_df : pd.DataFrame
+        Test dataframe with predictions
+    loss_history : list
+        List of training losses per epoch
+    seed : int
+        Random seed
+    
+    Returns
+    -------
+    pd.DataFrame
+        Metrics summary dataframe
+    """
+    print("\n" + "="*40)
+    print("EVALUATION RESULTS")
+    print("="*40)
+    
+    y = test_final_df['Ground Truth'].values
+    y_hat = test_final_df['RNN'].values
+    
+    eval_report = EvaluationMetric.eval_classification_report(y, y_hat)
+    confusion_mat, tn, fp, fn, tp = EvaluationMetric.get_confusion_matrix(y, y_hat, by_category=True)
+    
+    print(f"\nConfusion Matrix:\n{confusion_mat}\n")
+    
+    metrics_row = {
+        'seed': seed,
+        'model': 'rnn_linear',
+        'final_train_loss': loss_history[-1] if loss_history else None,
+        'test_accuracy': eval_report.get('accuracy', None),
+        'precision_class_0': eval_report.get('0', {}).get('precision', None),
+        'precision_class_1': eval_report.get('1', {}).get('precision', None),
+        'recall_class_0': eval_report.get('0', {}).get('recall', None),
+        'recall_class_1': eval_report.get('1', {}).get('recall', None),
+        'f1_class_0': eval_report.get('0', {}).get('f1-score', None),
+        'f1_class_1': eval_report.get('1', {}).get('f1-score', None),
+        'tn': tn,
+        'fp': fp,
+        'fn': fn,
+        'tp': tp,
+    }
+    
+    metrics_df = pd.DataFrame([metrics_row])
+    print(f"\nMetrics Summary:\n{metrics_df}\n")
+    
+    return metrics_df
+
+
+def create_experiment_log(args, experiment_name, seed_dir, loss_history):
+    """
+    Generate and save experiment log.
+    
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments
+    experiment_name : str
+        Experiment name
+    seed_dir : str
+        Seed directory path
+    loss_history : list
+        Training loss history
+    """
+    log_lines = []
+    log_lines.append("="*40)
+    log_lines.append("RNN EXPERIMENT LOG")
+    log_lines.append("="*40)
+    log_lines.append(f"Timestamp:         {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log_lines.append(f"Experiment:        {experiment_name}")
+    log_lines.append(f"Seed:              {args.seed}")
+    log_lines.append("")
+    log_lines.append("--- Model ---")
+    log_lines.append(f"Architecture:      RNN_Linear")
+    log_lines.append(f"Hidden Size:       {args.hidden_size}")
+    log_lines.append(f"Epochs:            {args.n_epochs}")
+    log_lines.append(f"Learning Rate:     {args.learning_rate}")
+    log_lines.append(f"Optimizer:         {args.optimizer.upper()}")
+    log_lines.append(f"Embedding Model:   {args.embedding_model}")
+    log_lines.append("")
+    log_lines.append("--- Data ---")
+    log_lines.append(f"Train Path:        {args.train_path}")
+    log_lines.append(f"Test Path:         {args.test_path}")
+    log_lines.append(f"Train Sample:      {args.train_sample or 'All'}")
+    log_lines.append(f"Test Sample:       {args.test_sample or 'All'}")
+    log_lines.append("")
+    log_lines.append("--- Training ---")
+    if loss_history:
+        log_lines.append(f"Initial Loss:      {loss_history[0]:.4f}")
+        log_lines.append(f"Final Loss:        {loss_history[-1]:.4f}")
+    log_lines.append("="*40)
+    
+    # log_dir = os.path.join(seed_dir, 'in_domain', 'experiment_log')
+    log_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, 'rnn', 'experiment_log')
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, 'experiment_log.txt')
+    
+    with open(log_path, 'w') as f:
+        f.write("\n".join(log_lines))
+    
+    print(f"✓ Experiment log saved to: {log_path}")
+
+
+if __name__ == "__main__":
+    print("\n" + "="*40)
+    print("RNN CLASSIFIER PIPELINE")
+    print("="*40)
+    
+    base_data_path = DataProcessing.load_base_data_path(script_dir)
+    default_save_path = os.path.join(base_data_path, 'classification_results/')
+    
+    parser = argparse.ArgumentParser(description='Train RNN for sentence classification')
+    
+    # Data arguments
+    parser.add_argument('--train_path', type=str, 
+                       default='classification_results/eacl_2026_results_2026-06-07/seed3/in_domain/x_y_train_set.csv',
+                       help='Relative path from data/ to training CSV')
+    parser.add_argument('--test_path', type=str,
+                       default='classification_results/eacl_2026_results_2026-06-07/seed3/in_domain/x_y_test_set.csv',
+                       help='Relative path from data/ to test CSV')
+    parser.add_argument('--train_sample', type=int, default=None,
+                       help='Number of training samples (default: use all)')
+    parser.add_argument('--test_sample', type=int, default=None,
+                       help='Number of test samples (default: use all)')
+    parser.add_argument('--save_path', default=default_save_path, help='Directory to save results')
+    parser.add_argument('--experiment_name', default='eacl_2026_results_2026-06-07',
+                   help='Existing experiment directory name to save results into')
+    
+    # Model arguments
+    parser.add_argument('--hidden_size', type=int, default=128,
+                       help='Hidden layer size (default: 128)')
+    parser.add_argument('--embedding_model', default='spacy_large',
+                       choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer'],
+                       help='SpaCy embedding model (default: spacy_large)')
+    
+    # Training arguments
+    parser.add_argument('--n_epochs', type=int, default=20,
+                       help='Number of training epochs (default: 20)')
+    parser.add_argument('--learning_rate', type=float, default=0.001,
+                       help='Learning rate (default: 0.001)')
+    parser.add_argument('--optimizer', type=str, default='adam', choices=['adam', 'sgd'],
+                       help='Optimizer (default: adam)')
+    parser.add_argument('--seed', type=int, default=3, help='Random seed (default: 3)')
+
+    
+    args = parser.parse_args()
+    
+    # Create experiment directory
+    experiment_dir, seed_dir = create_output_directory(args, args.experiment_name)
+    
+    print(f"\nExperiment: {experiment_dir}")
+    print(f"Seed: {args.seed}")
+    print(f"Output directory: {seed_dir}\n")
+    
+    # Load and preprocess data
+    train_embeddings_df, test_embeddings_df, train_df, test_df = load_and_preprocess_data(
+        args.train_path, args.test_path, None, args.train_sample, args.test_sample, args.embedding_model
+    )
+    
+    # Initialize model
+    print("\nInitializing RNN model...")
+    input_embedding = torch.tensor(train_embeddings_df['Word Embedding'].iloc[0])
+    rnn_classifier = RNN_Linear(input_embedding, args.hidden_size, output_size=1)
+    print(f"Model: RNN_Linear(input_size={input_embedding.size()[0]}, hidden_size={args.hidden_size}, output_size=1)")
+    
+    # Train model
+    trained_model, loss_history = train_model(
+        train_embeddings_df, rnn_classifier, args.n_epochs, args.learning_rate, args.optimizer
+    )
+    
+    # Evaluate model
+    test_final_df, y_hats = evaluate_model(test_embeddings_df, test_df, trained_model)
+    
+    # Compute metrics
+    metrics_df = compute_metrics(test_final_df, loss_history, args.seed)
+    
+    # Save results
+    # in_domain_dir = os.path.join(seed_dir, 'in_domain')
+    in_domain_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, 'rnn')
+    os.makedirs(in_domain_dir, exist_ok=True)
+    
+    # Save predictions
+    DataProcessing.save_to_file(
+        test_final_df, in_domain_dir, 'rnn_predictions', 'csv', include_version=True
+    )
+    print(f"✓ Saved predictions to: {os.path.join(in_domain_dir, 'rnn_predictions.csv')}")
+    
+    # Save metrics
+    DataProcessing.save_to_file(
+        metrics_df, in_domain_dir, 'metrics_summary_rnn', 'csv', include_version=True
+    )
+    print(f"✓ Saved metrics to: {os.path.join(in_domain_dir, 'metrics_summary_rnn.csv')}")
+    
+    # Save loss history
+    loss_df = pd.DataFrame({'epoch': range(1, len(loss_history) + 1), 'loss': loss_history})
+    DataProcessing.save_to_file(
+        loss_df, in_domain_dir, 'training_losses', 'csv', include_version=True
+    )
+    print(f"✓ Saved training losses to: {os.path.join(in_domain_dir, 'training_losses.csv')}")
+    
+    # Create experiment log
+    create_experiment_log(args, args.experiment_name, seed_dir, loss_history)
+    
+    print("\n" + "="*40)
+    print("PIPELINE COMPLETE")
+    print("="*40)
+    print(f"✓ All outputs saved to: {experiment_dir}\n")
