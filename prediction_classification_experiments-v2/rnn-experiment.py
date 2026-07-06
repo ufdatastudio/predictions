@@ -25,7 +25,6 @@ EMBEDDING_SIZES = {
     'spacy_transformer': 768,
 }
 
-
 class RNN_Linear(nn.Module):
     """RNN using nn.Linear layers for sentence classification."""
 
@@ -122,17 +121,6 @@ def load_dataset(script_dir, dataset_path):
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
     
-    if 'Dataset Name' not in df.columns:
-        filename = os.path.basename(dataset_path).lower()
-        if 'fpb' in filename:
-            df['Dataset Name'] = 'fpb-imbalanced'
-        elif 'chronicle' in filename:
-            df['Dataset Name'] = 'chronicle2050'
-        else:
-            df['Dataset Name'] = 'synthetic'
-            
-    print(f"Shape: {df.shape}")
-    print(f"\nPreview:\n{df.head(3)}\n")
     return df
 
 
