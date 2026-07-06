@@ -679,7 +679,6 @@ class SpacyFeatureExtraction(FeatureExtractionFactory):
 
         df = pd.DataFrame(rows)
 
-        # ✅ Reorder only if specified
         if reorder_cols is not None:
             existing_reorder_cols = [c for c in reorder_cols if c in df.columns]
             remaining_cols = [c for c in df.columns if c not in existing_reorder_cols]

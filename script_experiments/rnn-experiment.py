@@ -488,7 +488,8 @@ def create_experiment_log(args, experiment_name, seed_dir, loss_history):
         log_lines.append(f"Final Loss:        {loss_history[-1]:.4f}")
     log_lines.append("="*40)
     
-    log_dir = os.path.join(seed_dir, 'in_domain', 'experiment_log')
+    # log_dir = os.path.join(seed_dir, 'in_domain', 'experiment_log')
+    log_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, 'rnn', 'experiment_log')
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, 'experiment_log.txt')
     
@@ -572,7 +573,8 @@ if __name__ == "__main__":
     metrics_df = compute_metrics(test_final_df, loss_history, args.seed)
     
     # Save results
-    in_domain_dir = os.path.join(seed_dir, 'in_domain')
+    # in_domain_dir = os.path.join(seed_dir, 'in_domain')
+    in_domain_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, 'rnn')
     os.makedirs(in_domain_dir, exist_ok=True)
     
     # Save predictions
