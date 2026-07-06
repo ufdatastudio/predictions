@@ -47,8 +47,10 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
         target_files = ['metrics_summary_ml_models.csv']
     elif model_type == 'llm':
         target_files = ['metrics_summary_llms.csv']
+    elif model_type == 'rnn':  # ← ADD THIS
+        target_files = ['metrics_summary_rnn.csv']
     else:
-        target_files = ['metrics_summary_ml_models.csv', 'metrics_summary_llms.csv']
+        target_files = ['metrics_summary_ml_models.csv', 'metrics_summary_llms.csv', 'metrics_summary_rnn.csv']  # ← UPDATE THIS
     
     print(f"\n{'='*60}")
     print(f"COLLECTING RESULTS (mode={mode}, model_type={model_type})")
@@ -95,7 +97,12 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
                     if target_file in files:
                         csv_path = os.path.join(root, target_file)
                         rel_path = os.path.relpath(root, seed_folder_path)
-                        file_tag = 'ml' if 'ml_models' in target_file else 'llm'
+                        if 'ml_models' in target_file:
+                            file_tag = 'ml'
+                        elif 'llms' in target_file:
+                            file_tag = 'llm'
+                        elif 'rnn' in target_file:
+                            file_tag = 'rnn'
                         eval_key = (exp_dir_name, rel_path, file_tag)
                         if eval_key not in experiments:
                             experiments[eval_key] = []
@@ -454,7 +461,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '--model_type',
-        choices=['ml', 'llm', 'both'],
+        choices=['ml', 'llm', 'rnn', 'both'],
         default='ml',
         help='Which model type to average results for. Default: ml'
     )

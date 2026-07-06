@@ -1,0 +1,39 @@
+name: Auto PR for hpg Changes
+
+on:
+  push:
+    branches:
+      - development  # or whatever your dev branch is named
+
+jobs:
+  create-hpg-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for hpg in commit
+        id: check_hpg
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          if echo "$COMMIT_MSG" | grep -iq "hpg"; then
+            echo "hpg_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "hpg_found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.check_hpg.outputs.hpg_found == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: hpg-local-sync
+          base: hpg-local-sync
+          commit-message: "Sync hpg changes from development"
+          title: "Auto-sync: hpg changes from development"
+          body: |
+            Automated PR created because hpg was mentioned in recent commits.
+            
+            Latest commit: ${{ github.event.head_commit.message }}
