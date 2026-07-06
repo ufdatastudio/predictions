@@ -1,49 +1,40 @@
 #!/bin/bash
-#SBATCH --job-name=rnn_test_5k
-#SBATCH --output=logs/rnn_pipeline/logs_test_%j.out
-#SBATCH --error=logs/rnn_pipeline/logs_test_%j.err
-#SBATCH --time=04:00:00
+#SBATCH --job-name=rnn_adam100
+#SBATCH --output=logs/rnn_pipeline/logs_adam100_%j.out
+#SBATCH --error=logs/rnn_pipeline/logs_adam100_%j.err
+#SBATCH --time=14:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=16G
+#SBATCH --mem=32G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=dj.brinkley@ufl.edu
 
 set -e
 
 mkdir -p logs/rnn_pipeline
-
 cd ../../../prediction_classification_experiments-v2
-
 source /home/dj.brinkley/orange_dj.brinkley/predictions/.venv/bin/activate
 
 EXPERIMENT="eacl_2026_results_2026-06-26"
 EMBEDDING_MODEL="spacy_large"
 
 echo "============================================================"
-echo "RNN TEST RUN (5000 samples, 3 epochs)"
+echo "RNN Experiment 1: Adam, lr=0.001, 100 epochs"
 echo "============================================================"
-echo "Experiment: ${EXPERIMENT}"
-echo "Embedding Model: ${EMBEDDING_MODEL}"
-echo ""
 
-# ============================================================
-# TRAIN ALL SEEDS
-# ============================================================
+# Train all seeds
 for seed in 3 7 33; do
     echo ""
     echo "==================== SEED: $seed ===================="
     echo ""
-
+    
     python rnn-experiment.py \
         --experiment_name ${EXPERIMENT} \
         --train_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_train_set.csv \
         --test_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_test_set.csv \
         --embedding_model ${EMBEDDING_MODEL} \
-        --train_sample 5000 \
-        --test_sample 5000 \
-        --n_epochs 3 \
+        --n_epochs 100 \
         --learning_rate 0.001 \
         --optimizer adam \
         --hidden_size 128 \
@@ -51,7 +42,7 @@ for seed in 3 7 33; do
 done
 
 echo ""
-echo "✓ RNN TEST COMPLETE (seeds: 3, 7, 33)"
+echo "✓ ADAM 100 EPOCHS COMPLETE (seeds: 3, 7, 33)"
 
 # ============================================================
 # AGGREGATE RESULTS
@@ -72,9 +63,5 @@ echo ""
 echo "======================================"
 echo "PIPELINE COMPLETE"
 echo "======================================"
-echo "✓ RNN test run completed"
-echo "✓ 5000 train / 5000 test samples"
-echo "✓ 3 epochs"
-echo "✓ Adam optimizer (lr=0.001)"
+echo "✓ Adam optimizer (lr=0.001, 100 epochs) completed"
 echo "✓ Results averaged across seeds: 3, 7, 33"
-echo ""
