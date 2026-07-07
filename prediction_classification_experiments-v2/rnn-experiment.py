@@ -477,7 +477,7 @@ def create_experiment_log(args, experiment_name, seed_dir, loss_history):
     log_lines.append("="*40)
     
     # log_dir = os.path.join(seed_dir, 'in_domain', 'experiment_log')
-    log_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, 'rnn', 'experiment_log')
+    log_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, args.run_name, 'experiment_log')
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, 'experiment_log.txt')
     
@@ -511,6 +511,8 @@ if __name__ == "__main__":
     parser.add_argument('--save_path', default=default_save_path, help='Directory to save results')
     parser.add_argument('--experiment_name', default='eacl_2026_results_2026-06-07',
                    help='Existing experiment directory name to save results into')
+    parser.add_argument('--run_name', type=str, default='rnn',
+                    help='Subfolder name for this specific run to prevent overwriting')
     
     # Model arguments
     parser.add_argument('--hidden_size', type=int, default=128,
@@ -562,25 +564,25 @@ if __name__ == "__main__":
     
     # Save results
     # in_domain_dir = os.path.join(seed_dir, 'in_domain')
-    in_domain_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, 'rnn')
+    in_domain_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, args.run_name)
     os.makedirs(in_domain_dir, exist_ok=True)
     
     # Save predictions
     DataProcessing.save_to_file(
-        test_final_df, in_domain_dir, 'rnn_predictions', 'csv', include_version=True
+        test_final_df, in_domain_dir, 'rnn_predictions', 'csv', include_version=False
     )
     print(f"✓ Saved predictions to: {os.path.join(in_domain_dir, 'rnn_predictions.csv')}")
     
     # Save metrics
     DataProcessing.save_to_file(
-        metrics_df, in_domain_dir, 'metrics_summary_rnn', 'csv', include_version=True
+        metrics_df, in_domain_dir, 'metrics_summary_rnn', 'csv', include_version=False
     )
     print(f"✓ Saved metrics to: {os.path.join(in_domain_dir, 'metrics_summary_rnn.csv')}")
     
     # Save loss history
     loss_df = pd.DataFrame({'epoch': range(1, len(loss_history) + 1), 'loss': loss_history})
     DataProcessing.save_to_file(
-        loss_df, in_domain_dir, 'training_losses', 'csv', include_version=True
+        loss_df, in_domain_dir, 'training_losses', 'csv', include_version=False
     )
     print(f"✓ Saved training losses to: {os.path.join(in_domain_dir, 'training_losses.csv')}")
     
