@@ -22,7 +22,7 @@ EXPERIMENT="eacl_2026_results_2026-06-26"
 EMBEDDING_MODEL="spacy_large"
 
 echo "============================================================"
-echo "RNN TEST RUN (5000 samples, 3 epochs)"
+echo "RNN TEST RUN (50 samples, 3 epochs)"
 echo "============================================================"
 echo "Experiment: ${EXPERIMENT}"
 echo "Embedding Model: ${EMBEDDING_MODEL}"
@@ -41,8 +41,8 @@ for seed in 3 7 33; do
         --train_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_train_set.csv \
         --test_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_test_set.csv \
         --embedding_model ${EMBEDDING_MODEL} \
-        --train_sample 5000 \
-        --test_sample 5000 \
+        --train_sample 50 \
+        --test_sample 50 \
         --n_epochs 3 \
         --learning_rate 0.001 \
         --optimizer adam \
@@ -73,8 +73,8 @@ echo "======================================"
 echo "PIPELINE COMPLETE"
 echo "======================================"
 echo "✓ RNN test run completed"
-echo "✓ 5000 train / 5000 test samples"
+echo "✓ 50 train / 50 test samples"
 echo "✓ 3 epochs"
-echo "✓ Adam optimizer (lr=0.001)"
+echo "✓ Adam optimizer (lr=0.001) with Learning Rate Scheduler (If the loss doesn't improve for 3 epochs, cut the learning rate in half.)"
 echo "✓ Results averaged across seeds: 3, 7, 33"
 echo ""

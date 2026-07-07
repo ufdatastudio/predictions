@@ -237,79 +237,104 @@ def train_step(classifier, sequence_of_embeddings, y, criterion, optimizer):
 
 
 def train_model(train_embeddings_df, classifier, n_epochs, learning_rate, optimizer_name):
-    """
-    Train RNN model on sentence sequences.
-    
-    Parameters
-    ----------
-    train_embeddings_df : pd.DataFrame
-        Word-level training data
-    classifier : nn.Module
-        RNN model
-    n_epochs : int
-        Number of training epochs
-    learning_rate : float
-        Learning rate for optimizer
-    optimizer_name : str
-        'adam' or 'sgd'
-    
-    Returns
-    -------
-    tuple
-        (classifier, loss_history) - Trained model and list of average losses per epoch
-    """
     print(f"\nTraining with {optimizer_name.upper()}, lr={learning_rate}, epochs={n_epochs}")
     
     criterion = nn.BCELoss()
     
     if optimizer_name.lower() == 'adam':
-        optimizer = torch.optim.Adam(classifier.parameters(), lr=learning_rate)
+        # Adding weight decay (L2 Regularization) to prevent weights from exploding
+        optimizer = torch.optim.Adam(classifier.parameters(), lr=learning_rate, weight_decay=1e-4)
     else:
         optimizer = torch.optim.SGD(classifier.parameters(), lr=learning_rate)
+        
+    # NEW: Add a Learning Rate Scheduler. 
+    # If the loss doesn't improve for 3 epochs, cut the learning rate in half.
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True)
     
     loss_history = []
+    accumulation_steps = 32 # NEW: Simulate a batch size of 32
     
     for n_iter in range(n_epochs):
         text_document_sequences = []
         previous_text_document = None
         current_y_tensor = None
+        
         current_loss = 0
         sentences_per_iteration = 0
+        batch_loss_sum = 0 # NEW: Tracker for accumulated loss
+        
+        # Ensure gradients are zeroed at start of epoch
+        optimizer.zero_grad() 
         
         for row in tqdm(train_embeddings_df.itertuples(index=False), 
                        total=len(train_embeddings_df),
                        desc=f"Epoch {n_iter+1}/{n_epochs}"):
             
-            text_document = row._0  # 'Base Sentence'
-            word_embedding = row._2  # 'Word Embedding'
-            y = row._3  # 'Ground Truth'
+            text_document = row._0  
+            word_embedding = row._2 
+            y = row._3  
             y_tensor = torch.as_tensor([[y]], dtype=torch.float)
             
             if text_document == previous_text_document:
                 text_document_sequences.append(word_embedding)
             else:
                 if len(text_document_sequences) > 0:
-                    output, loss = train_step(
-                        classifier, text_document_sequences, current_y_tensor, criterion, optimizer
-                    )
-                    current_loss += loss
+                    
+                    # 1. Forward pass only
+                    hidden = classifier.resize_hidden()
+                    for input_embedding_t in text_document_sequences:
+                        x = torch.tensor(input_embedding_t, dtype=torch.float32).unsqueeze(0)
+                        hidden, y_hat = classifier.forward(x, hidden)
+                    
+                    # 2. Compute loss and scale it by accumulation steps
+                    loss = criterion(y_hat, current_y_tensor)
+                    scaled_loss = loss / accumulation_steps 
+                    
+                    # 3. Backward pass (accumulates gradients, but does NOT step yet)
+                    scaled_loss.backward()
+                    
+                    current_loss += loss.item()
                     sentences_per_iteration += 1
+                    
+                    # 4. Step optimizer ONLY after 32 sentences
+                    if sentences_per_iteration % accumulation_steps == 0:
+                        torch.nn.utils.clip_grad_norm_(classifier.parameters(), max_norm=1.0)
+                        optimizer.step()
+                        optimizer.zero_grad()
                 
                 text_document_sequences = [word_embedding]
                 previous_text_document = text_document
                 current_y_tensor = y_tensor
         
+        # Process very last sequence in the dataset
         if len(text_document_sequences) > 0:
-            output, loss = train_step(
-                classifier, text_document_sequences, current_y_tensor, criterion, optimizer
-            )
-            current_loss += loss
+            hidden = classifier.resize_hidden()
+            for input_embedding_t in text_document_sequences:
+                x = torch.tensor(input_embedding_t, dtype=torch.float32).unsqueeze(0)
+                hidden, y_hat = classifier.forward(x, hidden)
+            
+            loss = criterion(y_hat, current_y_tensor)
+            scaled_loss = loss / accumulation_steps
+            scaled_loss.backward()
+            
+            current_loss += loss.item()
             sentences_per_iteration += 1
+            
+            # Final step for any remaining accumulated gradients
+            torch.nn.utils.clip_grad_norm_(classifier.parameters(), max_norm=1.0)
+            optimizer.step()
+            optimizer.zero_grad()
         
         if sentences_per_iteration > 0:
             avg_loss = current_loss / sentences_per_iteration
             loss_history.append(avg_loss)
-            print(f"Epoch {n_iter+1}/{n_epochs} | Avg Loss: {avg_loss:.4f}")
+            
+            # Get current learning rate for logging
+            current_lr = optimizer.param_groups[0]['lr']
+            print(f"Epoch {n_iter+1}/{n_epochs} | Avg Loss: {avg_loss:.4f} | LR: {current_lr:.6f}")
+            
+            # NEW: Step the scheduler based on the epoch's average loss
+            scheduler.step(avg_loss)
     
     return classifier, loss_history
 
