@@ -37,6 +37,7 @@ for seed in 3 7 33; do
         --learning_rate 0.0001 \
         --optimizer adam \
         --hidden_size 128 \
+        --run_name rnn_adam_low_lr \
         --seed $seed
 done
 

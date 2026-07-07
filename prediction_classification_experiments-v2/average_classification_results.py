@@ -102,7 +102,8 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
                         elif 'llms' in target_file:
                             file_tag = 'llm'
                         elif 'rnn' in target_file:
-                            file_tag = 'rnn'
+                            # file_tag = 'rnn'
+                            file_tag = os.path.basename(rel_path) 
                         eval_key = (exp_dir_name, rel_path, file_tag)
                         if eval_key not in experiments:
                             experiments[eval_key] = []
