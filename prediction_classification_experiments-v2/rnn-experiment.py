@@ -249,7 +249,7 @@ def train_model(train_embeddings_df, classifier, n_epochs, learning_rate, optimi
         
     # NEW: Add a Learning Rate Scheduler. 
     # If the loss doesn't improve for 3 epochs, cut the learning rate in half.
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
     
     loss_history = []
     accumulation_steps = 32 # NEW: Simulate a batch size of 32
@@ -524,10 +524,10 @@ if __name__ == "__main__":
     
     # Data arguments
     parser.add_argument('--train_path', type=str, 
-                       default='classification_results/eacl_2026_results_2026-06-07/seed3/in_domain/x_y_train_set.csv',
+                       default='classification_results/eacl_2026_results_2026-06-12/seed7/in_domain/spacy_small/x_y_train_set.csv',
                        help='Relative path from data/ to training CSV')
     parser.add_argument('--test_path', type=str,
-                       default='classification_results/eacl_2026_results_2026-06-07/seed3/in_domain/x_y_test_set.csv',
+                       default='classification_results/eacl_2026_results_2026-06-12/seed7/in_domain/spacy_small/x_y_test_set.csv',
                        help='Relative path from data/ to test CSV')
     parser.add_argument('--train_sample', type=int, default=None,
                        help='Number of training samples (default: use all)')
