@@ -567,20 +567,20 @@ if __name__ == "__main__":
     
     # Save predictions
     DataProcessing.save_to_file(
-        test_final_df, in_domain_dir, 'rnn_predictions', 'csv', include_version=True
+        test_final_df, in_domain_dir, 'rnn_predictions', 'csv', include_version=False
     )
     print(f"✓ Saved predictions to: {os.path.join(in_domain_dir, 'rnn_predictions.csv')}")
     
     # Save metrics
     DataProcessing.save_to_file(
-        metrics_df, in_domain_dir, 'metrics_summary_rnn', 'csv', include_version=True
+        metrics_df, in_domain_dir, 'metrics_summary_rnn', 'csv', include_version=False
     )
     print(f"✓ Saved metrics to: {os.path.join(in_domain_dir, 'metrics_summary_rnn.csv')}")
     
     # Save loss history
     loss_df = pd.DataFrame({'epoch': range(1, len(loss_history) + 1), 'loss': loss_history})
     DataProcessing.save_to_file(
-        loss_df, in_domain_dir, 'training_losses', 'csv', include_version=True
+        loss_df, in_domain_dir, 'training_losses', 'csv', include_version=False
     )
     print(f"✓ Saved training losses to: {os.path.join(in_domain_dir, 'training_losses.csv')}")
     
