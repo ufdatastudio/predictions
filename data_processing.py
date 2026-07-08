@@ -1795,32 +1795,34 @@ class DataProcessing:
         print("="*60)
         
         base_data_path = DataProcessing.load_base_data_path(script_dir)
-        tb_path = os.path.join(base_data_path, "timebank_1_2", "annotators", "join_files")
+        tb_path = os.path.join(base_data_path, "timebank_1_2", "annotators", "joined_files", "timebank-son-binary-v1.csv")
         print(f"Loading from: {tb_path}")
         
-        dfs = []
-        for filename in os.listdir(tb_path):
-            if not filename.endswith(".csv"):
-                continue
-            filepath = os.path.join(tb_path, filename)
-            print(f"Loading: {filename}")
-            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
-            dfs.append(df)
+        # dfs = []
+        # for filename in os.listdir(tb_path):
+        #     if not filename.endswith(".csv"):
+        #         continue
+        #     filepath = os.path.join(tb_path, filename)
+        #     print(f"Loading: {filename}")
+        #     df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
+        #     dfs.append(df)
         
-        if not dfs:
-            print("⚠️ No TimeBank CSVs found.")
-            return pd.DataFrame()
+        # if not dfs:
+        #     print("⚠️ No TimeBank CSVs found.")
+        #     return pd.DataFrame()
         
-        tb_df = DataProcessing.concat_dfs(dfs)
+        # tb_df = DataProcessing.concat_dfs(dfs)
+        
+        tb_df = DataProcessing.load_from_file(tb_path, file_type="csv", sep=sep)
         print(f"Loaded shape (all rows): {tb_df.shape}")
         
-        if 'Label' not in tb_df.columns:
-            raise ValueError("Expected 'Label' column in TimeBank dataset")
+        if 'Human Annotation' not in tb_df.columns:
+            raise ValueError("Expected 'Human Annotation' column in TimeBank dataset")
         
         tb_df = DataProcessing.standardize_columns(
             df=tb_df,
             text_col='Sentence',
-            label_col='Label'
+            label_col='Human Annotation'
         )
         
         if predictions_only:
@@ -1849,23 +1851,25 @@ class DataProcessing:
         print("="*60)
         
         base_data_path = DataProcessing.load_base_data_path(script_dir)
-        yt_path = os.path.join(base_data_path, "yt", "annotators", "files_to_join")
+        yt_path = os.path.join(base_data_path, "yt", "annotators", "joined_files", "yt-adriano-binary-v1.csv")
         print(f"Loading from: {yt_path}")
         
-        dfs = []
-        for filename in os.listdir(yt_path):
-            if not filename.endswith(".csv"):
-                continue
-            filepath = os.path.join(yt_path, filename)
-            print(f"Loading: {filename}")
-            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
-            dfs.append(df)
+        # dfs = []
+        # for filename in os.listdir(yt_path):
+        #     if not filename.endswith(".csv"):
+        #         continue
+        #     filepath = os.path.join(yt_path, filename)
+        #     print(f"Loading: {filename}")
+        #     df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
+        #     dfs.append(df)
         
-        if not dfs:
-            print("⚠️ No YT CSVs found.")
-            return pd.DataFrame()
+        # if not dfs:
+        #     print("⚠️ No YT CSVs found.")
+        #     return pd.DataFrame()
         
-        yt_df = DataProcessing.concat_dfs(dfs)
+        # yt_df = DataProcessing.concat_dfs(dfs)
+
+        yt_df = DataProcessing.load_from_file(yt_path, file_type="csv", sep=sep)
         print(f"Loaded shape (all rows): {yt_df.shape}")
         
         if 'Human Annotation' not in yt_df.columns:
@@ -1902,28 +1906,29 @@ class DataProcessing:
         print("="*60)
         
         base_data_path = DataProcessing.load_base_data_path(script_dir)
-        news_api_path = os.path.join(base_data_path, "news_api", "annotators", "files_to_join")
+        news_api_path = os.path.join(base_data_path, "news_api", "annotators", "joined_files", "news_api-justin-binary-v1.csv")
 
         ### Get specific file
         # news_api_path = os.path.join(base_data_path, "news_api", "annotators", "news_articles_election_vote_polling_legislation_expected_likely_projected_forecast_2026-01-01_to_2026-04-26_predictions-v7_policy_1_human_annotation.csv")
         # print(f"Loading from: {news_api_path}")
         # df = DataProcessing.load_from_file(news_api_path, file_type="csv", sep=sep)
         
-        dfs = []
-        for filename in os.listdir(news_api_path):
-            if not filename.endswith(".csv"):
-                continue
-            filepath = os.path.join(news_api_path, filename)
-            print(f"Loading: {filename}")
-            df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
-            print(f"   Loaded shape (all rows): {df.shape}")
-            dfs.append(df)
+        # dfs = []
+        # for filename in os.listdir(news_api_path):
+        #     if not filename.endswith(".csv"):
+        #         continue
+        #     filepath = os.path.join(news_api_path, filename)
+        #     print(f"Loading: {filename}")
+        #     df = DataProcessing.load_from_file(filepath, file_type="csv", sep=sep)
+        #     print(f"   Loaded shape (all rows): {df.shape}")
+        #     dfs.append(df)
         
-        if not dfs:
-            print("⚠️ No NewsAPI CSVs found.")
-            return pd.DataFrame()
+        # if not dfs:
+        #     print("⚠️ No NewsAPI CSVs found.")
+        #     return pd.DataFrame()
         
-        news_api_df = DataProcessing.concat_dfs(dfs)
+        # news_api_df = DataProcessing.concat_dfs(dfs)
+        news_api_df = DataProcessing.load_from_file(news_api_path, file_type="csv", sep=sep)
         print(f"Loaded shape (all rows): {news_api_df.shape}")
         
         if 'Human Annotation' not in news_api_df.columns:
@@ -1932,9 +1937,8 @@ class DataProcessing:
         news_api_df = DataProcessing.standardize_columns(
             df=news_api_df,
             text_col='Base Sentence',
-            label_col='Sentence Label'
+            label_col='Human Annotation'
         )
-        # BUG: Instead of Sentence Label, we want Human Annotation
         
         if predictions_only:
             news_api_df = news_api_df[news_api_df['Ground Truth'] == 1]
