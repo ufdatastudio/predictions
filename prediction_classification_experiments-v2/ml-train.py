@@ -63,7 +63,7 @@ def load_dataset(script_dir, dataset_path):
     
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    # df = df.sample(n=30)
+    df = df.sample(n=4000)
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
@@ -1128,6 +1128,22 @@ if __name__ == "__main__":
             include_version=False
         )
         print(f"✓ Saved in-domain train set to: {os.path.join(in_domain_train_dir, 'x_y_train_set.csv')}")
+
+    # LLM and RNN classifiers load this file for hyperparameter tuning / validation tracking.
+    if X_val_df is not None and y_val_df is not None:
+        in_domain_val_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model)
+        os.makedirs(in_domain_val_dir, exist_ok=True)
+        # Combine X and y into one file
+        x_y_val_df = X_val_df.copy()
+        x_y_val_df[args.label_column] = y_val_df[args.label_column].values
+        DataProcessing.save_to_file(
+            x_y_val_df,
+            path=in_domain_val_dir,
+            prefix='x_y_val_set',
+            save_file_type='csv',
+            include_version=False
+        )
+        print(f"✓ Saved in-domain val set to: {os.path.join(in_domain_val_dir, 'x_y_val_set.csv')}")
 
     # LLM classifiers load this file directly so they evaluate
     # on the exact same test sentences as the ML models.
