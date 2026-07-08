@@ -1,9 +1,9 @@
 #!/bin/bash
-# run_rnn_test_pipeline-in_domain-spacy_large.sh - RNN smoke test with 50 samples and 3 epochs across three seeds
+# run_rnn_pipeline-in_domain-spacy_large.sh - RNN smoke test with 50 samples and 3 epochs across three seeds
 #
 # Usage:
-#   chmod +x run_rnn_test_pipeline-in_domain-spacy_large.sh
-#   bash run_rnn_test_pipeline-in_domain-spacy_large.sh
+#   chmod +x run_rnn_pipeline-in_domain-spacy_large.sh
+#   bash run_rnn_pipeline-in_domain-spacy_large.sh
 
 set -e
 
@@ -13,8 +13,9 @@ cd ../../../prediction_classification_experiments-v2
 
 # source ../../../.venv_predictions/bin/activate
 
-EXPERIMENT="eacl_2026_results_2026-06-12"
-EMBEDDING_MODEL="spacy_small"
+# EXPERIMENT="eacl_2026_results_2026-06-12"
+EXPERIMENT="july_2026_results_2026-07-08"
+EMBEDDING_MODEL="spacy_large"
 
 echo "============================================================"
 echo "RNN TEST RUN (50 samples, 3 epochs)"
@@ -34,10 +35,10 @@ for seed in 3 7 33; do
     python rnn-experiment.py \
         --experiment_name ${EXPERIMENT} \
         --train_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_train_set.csv \
+        --val_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_val_set.csv \
         --test_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_test_set.csv \
         --embedding_model ${EMBEDDING_MODEL} \
-        --train_sample 50 \
-        --test_sample 50 \
+        --sample 50 \
         --n_epochs 3 \
         --learning_rate 0.001 \
         --optimizer adam \
