@@ -16,14 +16,55 @@ sys.path.append(os.path.join(script_dir, '../'))
 
 from metrics import EvaluationMetric
 from data_processing import DataProcessing
-from feature_extraction import SpacyFeatureExtraction
+from feature_extraction import SpacyFeatureExtraction, SentenceTransformerFeatureExtraction
 
 EMBEDDING_SIZES = {
     'spacy_small': 96,
     'spacy_medium': 300,
     'spacy_large': 300,
     'spacy_transformer': 768,
+    'st_mpnet_base': 768,
+    'st_distilroberta': 768,
+    'st_minilm_l12': 384,
+    'st_minilm_l6': 384,
 }
+
+def extract_word_embeddings(df, text_column='Base Sentence', embedding_model_name='spacy_large'):
+    """
+    Route to correct feature extraction class and extract embeddings.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe
+    text_column : str
+        Name of the text column
+    embedding_model_name : str
+        Embedding model name
+
+    Returns
+    -------
+    tuple
+        (embeddings_df, tokenized_df) - tokenized_df is None for ST models
+    """
+    print("\n" + "="*40)
+    print("EXTRACT WORD EMBEDDINGS")
+    print("="*40)
+    print(f"Using text column: '{text_column}'")
+    print(f"Using embedding model: '{embedding_model_name}'")
+
+    if embedding_model_name.startswith('st_'):
+        fe = SentenceTransformerFeatureExtraction(df, text_column, embedding_model_name=embedding_model_name)
+        embeddings_df = fe.sentence_embeddings_extraction(attach_to_df=True)
+    else:
+        fe = SpacyFeatureExtraction(df, text_column, embedding_model_name=embedding_model_name)
+        tokenized_df = fe.split_words_in_sentence()
+        embeddings_df = fe.word_embeddings_extraction(
+            tokenized_words_with_metadata_df=tokenized_df,
+            reorder_cols=["Base Sentence", "Word", "Word Embedding", "Ground Truth"]
+        )
+
+    return embeddings_df
 
 class RNN_Linear(nn.Module):
     """RNN using nn.Linear layers for sentence classification."""
@@ -138,17 +179,17 @@ def load_and_preprocess_data(train_rel_path, test_rel_path, base_data_path=None,
         Relative path from base_data_path to test CSV
     base_data_path : str, optional
         Base data directory (default: script_dir/../data)
-    train_sample_size : int, optional
-        Number of training samples (None = use all)
-    test_sample_size : int, optional
-        Number of test samples (None = use all)
+    sample_size : int, optional
+        Number of samples for train/val/test (None = use all)
     embedding_model_name : str
-        SpaCy embedding model name
+        SpaCy or SentenceTransformer embedding model name
+    val_rel_path : str, optional
+        Relative path from base_data_path to validation CSV
     
     Returns
     -------
     tuple
-        (train_embeddings_df, test_embeddings_df, train_df, test_df)
+        (train_embeddings_df, test_embeddings_df, val_embeddings_df, train_df, test_df, val_df)
     """
     if base_data_path is None:
         base_data_path = DataProcessing.load_base_data_path(script_dir)
@@ -168,31 +209,21 @@ def load_and_preprocess_data(train_rel_path, test_rel_path, base_data_path=None,
     test_df['Ground Truth'] = test_df['Ground Truth'].astype(int)
     
     if sample_size:
-        train_df = train_df.sample(n=sample_size, random_state=42)
+        train_df = train_df.sample(n=sample_size, random_state=args.seed)
         print(f"Sampled {sample_size} training sentences")
 
-        test_df = test_df.sample(n=sample_size, random_state=42)
+        test_df = test_df.sample(n=sample_size, random_state=args.seed)
         print(f"Sampled {sample_size} test sentences")
     
     print(f"Train size: {len(train_df)}, Test size: {len(test_df)}")
         
-    print("\nTokenizing and embedding training data...")
-    train_sfe = SpacyFeatureExtraction(train_df, 'Base Sentence', embedding_model_name=embedding_model_name)
-    train_tokenized_df = train_sfe.split_words_in_sentence()
-    train_embeddings_df = train_sfe.word_embeddings_extraction(
-        tokenized_words_with_metadata_df=train_tokenized_df,
-        reorder_cols=["Base Sentence", "Word", "Word Embedding", "Ground Truth"]
-    )
-    print(f"Training: {len(train_embeddings_df)} word embeddings extracted")
+    print("\nExtracting training embeddings...")
+    train_embeddings_df = extract_word_embeddings(train_df, 'Base Sentence', embedding_model_name)
+    print(f"Training: {len(train_embeddings_df)} embeddings extracted")
     
-    print("\nTokenizing and embedding test data...")
-    test_sfe = SpacyFeatureExtraction(test_df, 'Base Sentence', embedding_model_name=embedding_model_name)
-    test_tokenized_df = test_sfe.split_words_in_sentence()
-    test_embeddings_df = test_sfe.word_embeddings_extraction(
-        tokenized_words_with_metadata_df=test_tokenized_df,
-        reorder_cols=["Base Sentence", "Word", "Word Embedding", "Ground Truth"]
-    )
-    print(f"Test: {len(test_embeddings_df)} word embeddings extracted")
+    print("\nExtracting test embeddings...")
+    test_embeddings_df = extract_word_embeddings(test_df, 'Base Sentence', embedding_model_name)
+    print(f"Test: {len(test_embeddings_df)} embeddings extracted")
 
     val_embeddings_df, val_df = None, None
     if val_rel_path is not None:
@@ -200,14 +231,15 @@ def load_and_preprocess_data(train_rel_path, test_rel_path, base_data_path=None,
         print(f"Val path: {val_path}")
         val_df = DataProcessing.load_from_file(val_path)
         val_df['Ground Truth'] = val_df['Ground Truth'].astype(int)
-        print(f"\nTokenizing and embedding val data...")
-        val_sfe = SpacyFeatureExtraction(val_df, 'Base Sentence', embedding_model_name=embedding_model_name)
-        val_tokenized_df = val_sfe.split_words_in_sentence()
-        val_embeddings_df = val_sfe.word_embeddings_extraction(
-            tokenized_words_with_metadata_df=val_tokenized_df,
-            reorder_cols=["Base Sentence", "Word", "Word Embedding", "Ground Truth"]
-        )
-        print(f"Val: {len(val_embeddings_df)} word embeddings extracted")
+        
+        if sample_size:
+            val_df = val_df.sample(n=sample_size, random_state=args.seed)
+            print(f"Sampled {sample_size} validation sentences")
+            
+        print(f"Val size: {len(val_df)}")
+        print("\nExtracting val embeddings...")
+        val_embeddings_df = extract_word_embeddings(val_df, 'Base Sentence', embedding_model_name)
+        print(f"Val: {len(val_embeddings_df)} embeddings extracted")
     
     return train_embeddings_df, test_embeddings_df, val_embeddings_df, train_df, test_df, val_df
 
@@ -550,18 +582,18 @@ if __name__ == "__main__":
 
     # Data arguments
     parser.add_argument('--train_path', type=str,
-                       default='classification_results/eacl_2026_results_2026-06-12/seed7/in_domain/spacy_small/x_y_train_set.csv',
+                       default='classification_results/july_2026_results_2026-07-08/seed7/in_domain/spacy_small/x_y_train_set.csv',
                        help='Relative path from data/ to training CSV')
     parser.add_argument('--val_path', type=str, default=None,
                        help='Relative path from data/ to validation CSV')
     parser.add_argument('--test_path', type=str,
-                       default='classification_results/eacl_2026_results_2026-06-12/seed7/in_domain/spacy_small/x_y_test_set.csv',
+                       default='classification_results/july_2026_results_2026-07-08/seed7/in_domain/spacy_small/x_y_test_set.csv',
                        help='Relative path from data/ to test CSV')
     parser.add_argument('--sample', type=int, default=None,
                        help='Number of samples for train/val/test samples (default: use all)')
     parser.add_argument('--save_path', default=default_save_path,
                        help='Directory to save results')
-    parser.add_argument('--experiment_name', default='eacl_2026_results_2026-06-07',
+    parser.add_argument('--experiment_name', default='july_2026_results_2026-07-08',
                        help='Existing experiment directory name to save results into')
     parser.add_argument('--run_name', type=str, default='rnn',
                        help='Subfolder name for this specific run to prevent overwriting')
@@ -570,8 +602,9 @@ if __name__ == "__main__":
     parser.add_argument('--hidden_size', type=int, default=128,
                        help='Hidden layer size (default: 128)')
     parser.add_argument('--embedding_model', default='spacy_large',
-                       choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer'],
-                       help='SpaCy embedding model (default: spacy_large)')
+                       choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer',
+                                'st_mpnet_base', 'st_distilroberta', 'st_minilm_l12', 'st_minilm_l6'],
+                       help='Embedding model (default: spacy_large)')
 
     # Training arguments
     parser.add_argument('--n_epochs', type=int, default=20,
