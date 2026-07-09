@@ -16,7 +16,7 @@ mkdir -p logs/rnn_pipeline
 cd ../../../prediction_classification_experiments-v2
 source /home/dj.brinkley/orange_dj.brinkley/predictions/.venv/bin/activate
 
-EXPERIMENT="eacl_2026_results_2026-06-26"
+EXPERIMENT="july_2026_results_2026-07-08"
 EMBEDDING_MODEL="spacy_large"
 
 echo "============================================================"
