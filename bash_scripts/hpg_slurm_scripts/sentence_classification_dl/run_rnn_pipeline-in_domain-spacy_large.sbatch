@@ -16,13 +16,14 @@ mkdir -p logs/rnn_pipeline_spacy_large
 
 cd ../../../prediction_classification_experiments-v2
 
-source /home/dj.brinkley/orange_dj.brinkley/predictions/.venv/bin/activate
+source /orange/ufdatastudios/dj.brinkley/predictions/.venv/bin/activate
 
-EXPERIMENT="july_2026_results_$(date +%Y-%m-%d)"
+DATE=$(date +%Y-%m-%d)
+EXPERIMENT="july_2026_results_${DATE}"
 EMBEDDING_MODEL="spacy_large"
 
 echo "============================================================"
-echo "RNN TEST RUN (50 samples, 3 epochs)"
+echo "RNN Pipeline (In-Domain Baseline) — ${EMBEDDING_MODEL}"
 echo "============================================================"
 echo "Experiment: ${EXPERIMENT}"
 echo "Embedding Model: ${EMBEDDING_MODEL}"
@@ -42,7 +43,7 @@ for seed in 3 7 33; do
         --val_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_val_set.csv \
         --test_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_test_set.csv \
         --embedding_model ${EMBEDDING_MODEL} \
-        --sample 50 \
+        --sample 40 \
         --n_epochs 3 \
         --learning_rate 0.001 \
         --optimizer adam \
@@ -52,7 +53,7 @@ for seed in 3 7 33; do
 done
 
 echo ""
-echo "✓ RNN TEST COMPLETE (seeds: 3, 7, 33)"
+echo "✓ RNN COMPLETE (seeds: 3, 7, 33)"
 
 # ============================================================
 # AGGREGATE RESULTS
@@ -61,6 +62,7 @@ echo ""
 echo "======================================"
 echo "Averaging RNN results across seeds..."
 echo "======================================"
+mkdir -p ../data/classification_results/${EXPERIMENT}/averaged/
 
 python average_classification_results.py \
     --mode single \
@@ -73,9 +75,9 @@ echo ""
 echo "======================================"
 echo "PIPELINE COMPLETE"
 echo "======================================"
-echo "✓ RNN test run completed"
-echo "✓ 50 train / 50 val / 50 test samples"
+echo "✓ RNN completed for seeds: 3, 7, 33"
+echo "✓ 40 train / 40 val / 40 test samples"
 echo "✓ 3 epochs"
-echo "✓ Adam optimizer (lr=0.001) with Learning Rate Scheduler (If the loss doesn't improve for 3 epochs, cut the learning rate in half.)"
+echo "✓ Adam optimizer (lr=0.001) with Learning Rate Scheduler (loss does not improve for 3 epochs, cut learning rate in half)"
 echo "✓ Results averaged across seeds: 3, 7, 33"
 echo ""
