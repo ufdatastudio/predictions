@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=rnn_test_local
-#SBATCH --output=logs/rnn_pipeline/logs_test_%j.out
-#SBATCH --error=logs/rnn_pipeline/logs_test_%j.err
-#SBATCH --time=04:00:00
+#SBATCH --job-name=rnn_spacy_large
+#SBATCH --output=logs/rnn_pipeline_spacy_large/logs_%x_%j.out
+#SBATCH --error=logs/rnn_pipeline_spacy_large/logs_%x_%j.err
+#SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
@@ -12,13 +12,13 @@
 
 set -e
 
-mkdir -p logs/rnn_pipeline
+mkdir -p logs/rnn_pipeline_spacy_large
 
 cd ../../../prediction_classification_experiments-v2
 
 source /home/dj.brinkley/orange_dj.brinkley/predictions/.venv/bin/activate
 
-EXPERIMENT="july_2026_results_2026-07-08"
+EXPERIMENT="july_2026_results_$(date +%Y-%m-%d)"
 EMBEDDING_MODEL="spacy_large"
 
 echo "============================================================"
@@ -48,7 +48,7 @@ for seed in 3 7 33; do
         --optimizer adam \
         --hidden_size 128 \
         --seed $seed \
-        --run_name rnn_test_local
+        --run_name rnn_spacy_large
 done
 
 echo ""
