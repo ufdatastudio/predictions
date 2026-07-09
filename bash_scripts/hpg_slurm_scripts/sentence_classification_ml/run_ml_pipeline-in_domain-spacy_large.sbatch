@@ -12,12 +12,10 @@
 
 set -e
 
-# Create log directory if it doesn't exist
 mkdir -p logs/ml_pipeline_spacy_large
 
 cd ../../../prediction_classification_experiments-v2
 
-# Activate virtual environment
 source /home/dj.brinkley/orange_dj.brinkley/predictions/.venv/bin/activate
 
 echo "Starting ML Pipeline (In-Domain Baseline) — spacy_large"
@@ -33,7 +31,7 @@ echo "======================================"
 python create_combined_dataset.py \
     --datasets synthetic financial_phrasebank chronicle2050 timebank yt news_api mf_climate clients_rivals_rouges forecast_bench \
     --predictions_only_datasets yt news_api mf_climate clients_rivals_rouges forecast_bench \
-    --output_name eacl_2026_results \
+    --output_name july_2026_results \
     --no_version
 
 echo "Dataset ready."
@@ -51,7 +49,7 @@ for seed in 3 7 33; do
     echo ""
     echo ">>> Running Baseline (Standard) — spacy_large"
     python ml-train.py \
-        --dataset ../data/combined_datasets/eacl_2026_results/eacl_2026_results.csv \
+        --dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
         --val_size 0.2 \
         --seed $seed \
         --embedding_model spacy_large
@@ -64,8 +62,7 @@ echo ""
 echo "======================================"
 echo "All training complete. Aggregating results..."
 echo "======================================"
-EXPERIMENT="eacl_2026_results_$(date +%Y-%m-%d)"
-mkdir -p ../data/classification_results/${EXPERIMENT}/averaged/in_dataset_comparisons/
+EXPERIMENT="july_2026_results_$(date +%Y-%m-%d)"
 
 python average_classification_results.py \
     --mode single \
