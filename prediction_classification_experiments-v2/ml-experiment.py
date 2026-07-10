@@ -63,7 +63,7 @@ def load_dataset(script_dir, dataset_path):
     
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    df = df.sample(n=1000, random_state=args.seed)
+    # df = df.sample(n=1000, random_state=args.seed)
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
