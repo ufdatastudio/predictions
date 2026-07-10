@@ -12,16 +12,23 @@
 
 set -e
 
-# Create log directory if it doesn't exist
 mkdir -p logs/ml_pipeline_spacy_small
 
 cd ../../../prediction_classification_experiments-v2
 
-# Activate virtual environment
-source /home/dj.brinkley/orange_dj.brinkley/predictions/.venv/bin/activate
+source /orange/ufdatastudios/dj.brinkley/predictions/.venv/bin/activate
 
-echo "Starting ML Pipeline (In-Domain Baseline) — spacy_small"
+DATE=$(date +%Y-%m-%d)
+EXPERIMENT="july_2026_results_${DATE}"
+EMBEDDING_MODEL="spacy_small"
+
+echo "============================================================"
+echo "ML Pipeline (In-Domain Baseline) — ${EMBEDDING_MODEL}"
+echo "============================================================"
+echo "Experiment: ${EXPERIMENT}"
+echo "Embedding Model: ${EMBEDDING_MODEL}"
 echo "Current directory: $(pwd)"
+echo ""
 
 # ============================================================
 # PRE-GENERATE COMBINED DATASET
@@ -33,7 +40,7 @@ echo "======================================"
 python create_combined_dataset.py \
     --datasets synthetic financial_phrasebank chronicle2050 timebank yt news_api mf_climate clients_rivals_rouges forecast_bench \
     --predictions_only_datasets yt news_api mf_climate clients_rivals_rouges forecast_bench \
-    --output_name eacl_2026_results \
+    --output_name july_2026_results \
     --no_version
 
 echo "Dataset ready."
@@ -49,12 +56,12 @@ for seed in 3 7 33; do
     echo "                      SEED: $seed"
     echo "============================================================"
     echo ""
-    echo ">>> Running Baseline (Standard) — spacy_small"
+    echo ">>> Running Baseline (Standard) — ${EMBEDDING_MODEL}"
     python ml-train.py \
-        --dataset ../data/combined_datasets/eacl_2026_results/eacl_2026_results.csv \
+        --dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
         --val_size 0.2 \
         --seed $seed \
-        --embedding_model spacy_small
+        --embedding_model ${EMBEDDING_MODEL}
 done
 
 # ============================================================
@@ -64,19 +71,18 @@ echo ""
 echo "======================================"
 echo "All training complete. Aggregating results..."
 echo "======================================"
-EXPERIMENT="eacl_2026_results_$(date +%Y-%m-%d)"
-mkdir -p ../data/classification_results/${EXPERIMENT}/averaged/in_dataset_comparisons/
+mkdir -p ../data/classification_results/${EXPERIMENT}/averaged/
 
 python average_classification_results.py \
     --mode single \
     --experiment ${EXPERIMENT} \
-    --embedding_model spacy_small \
+    --embedding_model ${EMBEDDING_MODEL} \
     --experiments seed3 seed7 seed33
 
 echo ""
 echo "======================================"
 echo "PIPELINE COMPLETE"
 echo "======================================"
-echo "✓ spacy_small experiments completed for seeds: 3, 7, 33"
+echo "✓ ${EMBEDDING_MODEL} experiments completed for seeds: 3, 7, 33"
 echo "✓ Results aggregated and saved"
 echo ""
