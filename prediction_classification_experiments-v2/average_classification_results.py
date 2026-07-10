@@ -49,8 +49,10 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
         target_files = ['metrics_summary_llms.csv']
     elif model_type == 'rnn':  # ← ADD THIS
         target_files = ['metrics_summary_rnn.csv']
+    elif model_type == 'gru':  # ← ADD THIS
+        target_files = ['metrics_summary_gru.csv']
     else:
-        target_files = ['metrics_summary_ml_models.csv', 'metrics_summary_llms.csv', 'metrics_summary_rnn.csv']  # ← UPDATE THIS
+        target_files = ['metrics_summary_ml_models.csv', 'metrics_summary_llms.csv', 'metrics_summary_rnn.csv', 'metrics_summary_gru.csv']  # ← UPDATE THIS
     
     print(f"\n{'='*60}")
     print(f"COLLECTING RESULTS (mode={mode}, model_type={model_type})")
@@ -102,6 +104,9 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
                         elif 'llms' in target_file:
                             file_tag = 'llm'
                         elif 'rnn' in target_file:
+                            # file_tag = 'rnn'
+                            file_tag = os.path.basename(rel_path) 
+                        elif 'gru' in target_file:
                             # file_tag = 'rnn'
                             file_tag = os.path.basename(rel_path) 
                         eval_key = (exp_dir_name, rel_path, file_tag)
@@ -462,7 +467,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '--model_type',
-        choices=['ml', 'llm', 'rnn', 'both'],
+        choices=['ml', 'llm', 'rnn', 'gru', 'both'],
         default='ml',
         help='Which model type to average results for. Default: ml'
     )
