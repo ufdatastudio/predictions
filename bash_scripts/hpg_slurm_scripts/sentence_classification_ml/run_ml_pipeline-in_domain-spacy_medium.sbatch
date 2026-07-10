@@ -57,7 +57,7 @@ for seed in 3 7 33; do
     echo "============================================================"
     echo ""
     echo ">>> Running Baseline (Standard) — ${EMBEDDING_MODEL}"
-    python ml-train.py \
+    python ml-experiment.py \
         --dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
         --val_size 0.2 \
         --seed $seed \
