@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=rnn_spacy_large
+#SBATCH --job-name=rnn_sgd_lr0001_spacy_large
 #SBATCH --output=logs/rnn_pipeline_spacy_large/logs_%x_%j.out
 #SBATCH --error=logs/rnn_pipeline_spacy_large/logs_%x_%j.err
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=16G
+#SBATCH --mem=32G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=dj.brinkley@ufl.edu
 
@@ -23,7 +23,7 @@ EXPERIMENT="july_2026_results_${DATE}"
 EMBEDDING_MODEL="spacy_large"
 
 echo "============================================================"
-echo "RNN Pipeline (In-Domain Baseline) — ${EMBEDDING_MODEL}"
+echo "RNN Experiment 4: SGD, lr=0.0001, 100 epochs"
 echo "============================================================"
 echo "Experiment: ${EXPERIMENT}"
 echo "Embedding Model: ${EMBEDDING_MODEL}"
@@ -43,17 +43,16 @@ for seed in 3 7 33; do
         --val_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_val_set.csv \
         --test_path classification_results/${EXPERIMENT}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_test_set.csv \
         --embedding_model ${EMBEDDING_MODEL} \
-        --sample 40 \
-        --n_epochs 3 \
-        --learning_rate 0.001 \
-        --optimizer adam \
+        --n_epochs 100 \
+        --learning_rate 0.0001 \
+        --optimizer sgd \
         --hidden_size 128 \
-        --seed $seed \
-        --run_name rnn_spacy_large
+        --run_name rnn_sgd_lr0001 \
+        --seed $seed
 done
 
 echo ""
-echo "✓ RNN COMPLETE (seeds: 3, 7, 33)"
+echo "✓ SGD lr=0.0001 COMPLETE (seeds: 3, 7, 33)"
 
 # ============================================================
 # AGGREGATE RESULTS
@@ -75,9 +74,7 @@ echo ""
 echo "======================================"
 echo "PIPELINE COMPLETE"
 echo "======================================"
-echo "✓ RNN completed for seeds: 3, 7, 33"
-echo "✓ 40 train / 40 val / 40 test samples"
-echo "✓ 3 epochs"
-echo "✓ Adam optimizer (lr=0.001) with Learning Rate Scheduler (loss does not improve for 3 epochs, cut learning rate in half)"
+echo "✓ SGD optimizer (lr=0.0001, 100 epochs) completed"
+echo "✓ All train / val / test samples"
 echo "✓ Results averaged across seeds: 3, 7, 33"
 echo ""
