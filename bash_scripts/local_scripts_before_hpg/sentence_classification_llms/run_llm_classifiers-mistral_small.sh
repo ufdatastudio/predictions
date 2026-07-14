@@ -10,9 +10,9 @@ set -e
 cd ../../../prediction_classification_experiments-v2
 
 # EXPERIMENT="eacl_2026_results_$(date +%Y-%m-%d)"
-EXPERIMENT="eacl_2026_results_2026-06-26"
+EXPERIMENT="july_2026_results_2026-07-08"
 BASE_RESULTS="../data/classification_results/${EXPERIMENT}"
-EMBEDDING_MODEL="spacy_small"  # Which embedding model's test set to use
+EMBEDDING_MODEL="spacy_large"  # Which embedding model's test set to use
 
 echo "============================================================"
 echo "     SENTENCE CLASSIFICATION (LOCAL): mistral-small-3.1"
