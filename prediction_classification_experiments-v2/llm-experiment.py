@@ -222,7 +222,7 @@ def _llm_classifier(
 
     return raw_text_llm_generation, label
 
-def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output, save_directory, seed):
+def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output, save_directory, seed, prompt_type):
     """
     Run inference over all sentences in test_df with incremental checkpointing.
     Automatically resumes from checkpoint if the job was previously interrupted.
@@ -255,7 +255,8 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
 
     # Create safe filename for checkpoint (handles model names with slashes e.g. openai/gpt)
     safe_model_name = model_name.replace("/", "_")
-    checkpoint_file = os.path.join(save_directory, f"checkpoint_{safe_model_name}.csv")
+    # checkpoint_file = os.path.join(save_directory, f"checkpoint_{safe_model_name}.csv")
+    checkpoint_file = os.path.join(save_directory, f"checkpoint_{safe_model_name}_{prompt_type}.csv")
 
     # --------------------------------------------------------
     # Resume from checkpoint if it exists
@@ -374,7 +375,8 @@ def evaluate_models(
     model_name,
     label_col_name,
     save_path,
-    seed
+    seed,
+    prompt_type
 ):
     """
     Evaluate LLM predictions and save unified metrics to disk.
@@ -428,12 +430,13 @@ def evaluate_models(
     
     # Save confusion matrix visualization
     DataVisualizing.confusion_matrix(
-        model_name,
+        f"{model_name}_{prompt_type}",
         confusion_mat,
         save_path,
         include_version=False
     )
-    print(f"✓ Saved confusion matrix: confusion_matrix_{model_name}.png\n")
+    # print(f"✓ Saved confusion matrix: confusion_matrix_{model_name}.png\n")
+    print(f"✓ Saved confusion matrix: confusion_matrix_{model_name}_{prompt_type}.png\n")
     
     # ROC-AUC score
     roc_auc_score = EvaluationMetric.get_roc_auc(actual_labels, continuous_scores)
@@ -512,11 +515,12 @@ def evaluate_models(
     DataProcessing.save_to_file(
         data=metrics_summary_df,
         path=save_path,
-        prefix=f"metrics_summary_{model_name}",
+        prefix=f"metrics_summary_{model_name}_{prompt_type}",
         save_file_type='csv',
         include_version=False
     )
-    print(f"✓ Saved metrics summary: metrics_summary_{model_name}.csv\n")
+    # print(f"✓ Saved metrics summary: metrics_summary_{model_name}.csv\n")
+    print(f"✓ Saved metrics summary: metrics_summary_{model_name}_{prompt_type}.csv\n")
     
     return metrics_summary_df
 
@@ -639,7 +643,8 @@ if __name__ == "__main__":
         sentence_label_task=sentence_label_task,
         sentence_label_format_output=sentence_label_format_output,
         save_directory=save_directory,
-        seed=args.seed
+        seed=args.seed,
+        prompt_type=args.prompt_type
     )
 
     # ============================================================
@@ -655,7 +660,8 @@ if __name__ == "__main__":
         model_name=args.model_name,
         label_col_name=args.label_column,
         save_path=save_directory,
-        seed=args.seed
+        seed=args.seed,
+        prompt_type=args.prompt_type
         # X_val_df=val_df,
         # y_val_df=val_df[[args.label_column]] if val_df is not None else None
     )
