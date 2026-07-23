@@ -1,9 +1,9 @@
 #!/bin/bash
-# run_ml_pipeline-in_domain-spacy_large.sh - Baseline with three seeds
+# run_ml_pipeline-in_domain-spacy_large-word_averaged.sh - Baseline with three seeds
 #
 # Usage:
-#   chmod +x run_ml_pipeline-in_domain-spacy_large.sh
-#   bash run_ml_pipeline-in_domain-spacy_large.sh
+#   chmod +x run_ml_pipeline-in_domain-spacy_large-word_averaged.sh
+#   bash run_ml_pipeline-in_domain-spacy_large-word_averaged.sh
 set -e
 cd ../../../prediction_classification_experiments-v2
 echo "Starting ML Pipeline (In-Domain Baseline) — spacy_large"
@@ -33,12 +33,12 @@ for seed in 3 7 33; do
     echo "============================================================"
     echo ""
     echo ">>> Running Baseline (Standard) — spacy_large"
-    python ml-train.py \
+    python ml-experiment.py \
         --dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
         --val_size 0.2 \
         --seed $seed \
         --embedding_model spacy_large \
-        --embedding_level sentence
+        --embedding_level word_averaged
 done
 # ============================================================
 # AGGREGATE RESULTS

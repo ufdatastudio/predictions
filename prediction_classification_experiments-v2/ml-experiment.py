@@ -63,7 +63,7 @@ def load_dataset(script_dir, dataset_path):
     
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    # df = df.sample(n=1000, random_state=args.seed)
+    df = df.sample(n=1000, random_state=args.seed)
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
@@ -149,6 +149,38 @@ def extract_sentence_embeddings(df, text_column='Base Sentence', embedding_model
     embeddings_col_name = f'{text_column} Embedding'
 
     return embeddings_df, embeddings_col_name
+
+def extract_averaged_word_embeddings(df, text_column='Base Sentence', embedding_model_name='spacy_large'):
+    print("\n" + "="*40)
+    print("EXTRACT AVERAGED WORD EMBEDDINGS")
+    print("="*40)
+    print(f"Using text column: '{text_column}'")
+    print(f"Using embedding model: '{embedding_model_name}'")
+
+    if embedding_model_name.startswith('st_'):
+        raise ValueError("Sentence Transformers do not support word-level averaging in this pipeline.")
+
+    # 1. Extract word-level embeddings
+    spacy_fe = SpacyFeatureExtraction(df, text_column, embedding_model_name=embedding_model_name)
+    tokenized_df = spacy_fe.split_words_in_sentence()
+    word_embeddings_df = spacy_fe.word_embeddings_extraction(
+        tokenized_words_with_metadata_df=tokenized_df,
+        reorder_cols=[text_column, "Word", "Word Embedding"]
+    )
+
+    # 2. Fast pandas groupby to mean the vectors per sentence
+    print("Averaging word embeddings per sentence...")
+    sentence_to_embedding = dict(zip(
+        word_embeddings_df.groupby(text_column, sort=False).groups.keys(),
+        word_embeddings_df.groupby(text_column, sort=False)['Word Embedding'].apply(lambda x: np.mean(np.vstack(x), axis=0))
+    ))
+    
+    # 3. Map back to original dataframe structure
+    df_out = df.copy()
+    embeddings_col_name = f'{text_column} Embedding'
+    df_out[embeddings_col_name] = df_out[text_column].map(sentence_to_embedding)
+
+    return df_out, embeddings_col_name
 
 
 def resample_train_data(X_train_df, technique, col_name, seed, embeddings_col_name, y_col_name, save_visual_path):
@@ -759,7 +791,8 @@ def evaluate_external_datasets(
     train_val_metrics,
     seed,
     script_dir,
-    embedding_model_name
+    embedding_model_name,
+    embedding_level
 ):
     """Handle loading, extracting, and evaluating all external cross-domain datasets."""
     print("\n" + "="*40)
@@ -770,7 +803,12 @@ def evaluate_external_datasets(
     for test_dataset_path in test_dataset_paths:
         # Extract dataset name from path
         test_dataset_name = os.path.splitext(os.path.basename(test_dataset_path))[0]
-        metrics_folder_name = f'external_{test_dataset_name}'
+        # metrics_folder_name = f'external_{test_dataset_name}'
+        metrics_folder_name = os.path.join(
+            embedding_model_name,
+            embedding_level,
+            f'external_{test_dataset_name}'
+        )
         
         print(f"\n{'='*40}")
         print(f"Testing on: {test_dataset_name}")
@@ -788,10 +826,22 @@ def evaluate_external_datasets(
             continue
         
         # Extract embeddings for external test set using the same embedding model
-        external_embeddings_df, external_embeddings_col = extract_sentence_embeddings(
-            external_test_df, text_column=text_column, embedding_model_name=embedding_model_name
-        )
-        
+        # external_embeddings_df, external_embeddings_col = extract_sentence_embeddings(
+        #     external_test_df, text_column=text_column, embedding_model_name=embedding_model_name
+        # )
+
+        if embedding_level == 'word_averaged':
+            external_embeddings_df, external_embeddings_col = extract_averaged_word_embeddings(
+                external_test_df,
+                text_column=text_column,
+                embedding_model_name=embedding_model_name
+            )
+        else:
+            external_embeddings_df, external_embeddings_col = extract_sentence_embeddings(
+                external_test_df,
+                text_column=text_column,
+                embedding_model_name=embedding_model_name
+            )
         # Prepare test data
         X_external_test_df = external_embeddings_df
         y_external_test = external_embeddings_df[[label_column]]
@@ -838,20 +888,37 @@ def generate_all_explanations(
 ):
     """
     Generate SHAP and LIME explanations for trained models.
+
+    Supports both:
+        {model_name: trained_model}
+    and
+        {model_name: (trained_model, predictions)}
     """
-    print("\n" + "="*40)
+
+    print("\n" + "=" * 40)
     print("MODEL EXPLAINABILITY")
-    print("="*40)
-    
-    # Remove the old comparison file if it exists so we don't append to a previous run
+    print("=" * 40)
+
+    # Remove previous comparison file so each run starts fresh
     comparison_file = os.path.join(save_path, 'lime_comparison_all_models.html')
     if os.path.exists(comparison_file):
         os.remove(comparison_file)
-    for model_name, models_and_predictions in trained_models_with_predictions_dict.items():
+
+    for model_name, model_or_tuple in trained_models_with_predictions_dict.items():
+
         print(f"\nExplaining {model_name}...")
-        
-        ml_model, _ = models_and_predictions
-        # SHAP explainability
+
+        # Handle both storage formats:
+        # 1. trained_model
+        # 2. (trained_model, predictions)
+        if isinstance(model_or_tuple, tuple):
+            ml_model, _ = model_or_tuple
+        else:
+            ml_model = model_or_tuple
+
+        # ============================================================
+        # SHAP
+        # ============================================================
         Explainability.explain_model(
             X_train_df=X_train_df,
             embeddings_col_name=embeddings_col_name,
@@ -860,8 +927,10 @@ def generate_all_explanations(
             save_path=save_path,
             include_version=False
         )
-        
-        # LIME explainability
+
+        # ============================================================
+        # LIME INDIVIDUAL EXPLANATIONS
+        # ============================================================
         Explainability.explain_text_with_lime(
             X_train_df=X_train_df,
             text_col_name=text_col_name,
@@ -870,10 +939,12 @@ def generate_all_explanations(
             model_name=model_name,
             save_path=save_path,
             num_samples=3,
-            num_features=10 
+            num_features=10
         )
-        
-        # LIME explainability comparison (appending one by one)
+
+        # ============================================================
+        # LIME MODEL COMPARISON
+        # ============================================================
         Explainability.add_to_lime_comparison(
             X_train_df=X_train_df,
             text_col_name=text_col_name,
@@ -884,9 +955,9 @@ def generate_all_explanations(
             num_features=10,
             num_samples=50
         )
-        
+
         print(f"  ✓ Explanations saved for {model_name}")
-        
+
     print("\n✓ All model explanations complete\n")
 
 def create_experiment_log(args, experiment_name, seed_dir, ml_model_names, splits, removed_embeddings_dict, embedding_model_name):
@@ -905,6 +976,7 @@ def create_experiment_log(args, experiment_name, seed_dir, ml_model_names, split
     log_lines.append(f"Text Column:                 {args.text_column}")
     log_lines.append(f"Label Column:                {args.label_column}")
     log_lines.append(f"Embedding Model Name:        {embedding_model_name}")
+    log_lines.append(f"Embedding Level:             {args.embedding_level}")
     log_lines.append("")
     log_lines.append("--- Splits ---")
     log_lines.append(f"No Test Split:     {args.no_test_split}")
@@ -944,7 +1016,7 @@ def create_experiment_log(args, experiment_name, seed_dir, ml_model_names, split
     else:
         log_lines.append("  None")
     log_lines.append("")
-    log_dir = os.path.join(seed_dir, 'in_domain', embedding_model_name, 'experiment_log')
+    log_dir = os.path.join(seed_dir, 'in_domain', embedding_model_name, args.embedding_level, 'experiment_log')
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, 'experiment_log.txt')
     with open(log_path, 'w') as f:
@@ -1014,6 +1086,10 @@ if __name__ == "__main__":
                                  'st_mpnet_base', 'st_distilroberta', 'st_minilm_l12', 'st_minilm_l6'],
                         help='SpaCy embedding model to use for sentence vectorization.'
                         )
+    parser.add_argument('--embedding_level', 
+                        default='sentence', 
+                        choices=['sentence', 'word_averaged'],
+                        help='Extract embeddings at sentence level or word level (averaged). Default: sentence')
     args = parser.parse_args()
     
     # ============================================================
@@ -1066,19 +1142,22 @@ if __name__ == "__main__":
         df = get_which_dataset(df, args.dataset_type)
     
     if args.stratified_kfold is None:
-        shuffled_df = shuffle_dataset(df, seed=args.seed)
-        embeddings_df, embeddings_col_name = extract_sentence_embeddings(
-            shuffled_df, 
+        processed_df = shuffle_dataset(df, seed=args.seed)
+    else:
+        processed_df = df
+        
+    if args.embedding_level == 'word_averaged':
+        embeddings_df, embeddings_col_name = extract_averaged_word_embeddings(
+            processed_df, 
             text_column=args.text_column,
             embedding_model_name=args.embedding_model
         )
     else:
         embeddings_df, embeddings_col_name = extract_sentence_embeddings(
-            df, 
+            processed_df, 
             text_column=args.text_column,
             embedding_model_name=args.embedding_model
         )
-
     # ============================================================
     # 4. SPLIT DATA
     # ============================================================
@@ -1107,7 +1186,7 @@ if __name__ == "__main__":
     # If using K-Fold, extract the folds list
     all_folds = splits.get('folds')
 
-    model_checkpoint_path = os.path.join(seed_dir, 'model_checkpoints', args.embedding_model)
+    model_checkpoint_path = os.path.join(seed_dir, 'model_checkpoints', args.embedding_model, args.embedding_level)
     os.makedirs(model_checkpoint_path, exist_ok=True)
 
     # ============================================================
@@ -1115,7 +1194,7 @@ if __name__ == "__main__":
     # ============================================================
     # LLM classifiers load this file directly into few-shot prompt
     if X_train_df is not None and y_train_df is not None:
-        in_domain_train_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model)
+        in_domain_train_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, args.embedding_level)
         os.makedirs(in_domain_train_dir, exist_ok=True)
         # Combine X and y into one file so LLM script only needs one path
         x_y_train_df = X_train_df.copy()
@@ -1131,7 +1210,7 @@ if __name__ == "__main__":
 
     # LLM and RNN classifiers load this file for hyperparameter tuning / validation tracking.
     if X_val_df is not None and y_val_df is not None:
-        in_domain_val_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model)
+        in_domain_val_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, args.embedding_level)
         os.makedirs(in_domain_val_dir, exist_ok=True)
         # Combine X and y into one file
         x_y_val_df = X_val_df.copy()
@@ -1148,7 +1227,7 @@ if __name__ == "__main__":
     # LLM classifiers load this file directly so they evaluate
     # on the exact same test sentences as the ML models.
     if X_test_df is not None and y_test_df is not None:
-        in_domain_test_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model)
+        in_domain_test_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, args.embedding_level)
         os.makedirs(in_domain_test_dir, exist_ok=True)
         # Combine X and y into one file so LLM script only needs one path
         x_y_test_df = X_test_df.copy()
@@ -1188,7 +1267,7 @@ if __name__ == "__main__":
                 embeddings_col_name=embeddings_col_name, 
                 label_column=args.label_column, 
                 output_dir=seed_dir, 
-                metrics_folder_name=os.path.join('in_domain', args.embedding_model),
+                metrics_folder_name=os.path.join('in_domain', args.embedding_model, args.embedding_level),
                 csv_prefix='ml_classifiers_in_domain', 
                 train_val_metrics=train_val_metrics,
                 seed=args.seed
@@ -1207,7 +1286,8 @@ if __name__ == "__main__":
                 train_val_metrics=train_val_metrics,
                 seed=args.seed,
                 script_dir=script_dir,
-                embedding_model_name=args.embedding_model
+                embedding_model_name=args.embedding_model,
+                embedding_level=args.embedding_level
             )
     else:
         for fold_idx, fold in enumerate(all_folds, start=1):
@@ -1237,7 +1317,7 @@ if __name__ == "__main__":
                     embeddings_col_name=embeddings_col_name, 
                     label_column=args.label_column, 
                     output_dir=seed_dir, 
-                    metrics_folder_name=os.path.join('in_domain', args.embedding_model, f'fold_{fold_idx}'),
+                    metrics_folder_name=os.path.join('in_domain', args.embedding_model, args.embedding_level, f'fold_{fold_idx}'),
                     csv_prefix=f'ml_classifiers_in_domain_fold_{fold_idx}',
                     train_val_metrics=train_val_metrics,
                     seed=args.seed
@@ -1259,7 +1339,8 @@ if __name__ == "__main__":
                     train_val_metrics=train_val_metrics,
                     seed=args.seed,
                     script_dir=script_dir,
-                    embedding_model_name=args.embedding_model
+                    embedding_model_name=args.embedding_model,
+                    embedding_level=args.embedding_level
                 )
 
     # ============================================================
@@ -1275,8 +1356,14 @@ if __name__ == "__main__":
                 X_train_df=X_train_df,
                 embeddings_col_name=embeddings_col_name,
                 text_col_name=args.text_column,
-                save_path=seed_dir
+                save_path=os.path.join(
+                    seed_dir,
+                    'in_domain',
+                    args.embedding_model,
+                    args.embedding_level
+                )
             )
+
 
     create_experiment_log(args, experiment_name, seed_dir, ml_model_names, splits, removed_embeddings_dict, args.embedding_model)
 
@@ -1289,6 +1376,7 @@ if __name__ == "__main__":
     print(f"Experiment: {experiment_name}")
     print(f"Training data: {experiment_base}")
     print(f"Embedding model: {args.embedding_model}")
+    print(f"Embedding level: {args.embedding_level}")
     if args.test_datasets:
         print(f"External test sets: {len(args.test_datasets)}")
     print(f"\n✓ All outputs saved to: {experiment_dir}\n")
