@@ -1,18 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=ml_spacy_large_word
-#SBATCH --output=logs/ml_pipeline_spacy_large_word/logs_%x_%j.out
-#SBATCH --error=logs/ml_pipeline_spacy_large_word/logs_%x_%j.err
+#SBATCH --job-name=ml_spacy_small_word
+#SBATCH --output=logs/ml_pipeline_spacy_small_word/logs_%x_%j.out
+#SBATCH --error=logs/ml_pipeline_spacy_small_word/logs_%x_%j.err
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=dj.brinkley@ufl.edu
 
 set -e
 
-mkdir -p logs/ml_pipeline_spacy_large_word
+mkdir -p logs/ml_pipeline_spacy_small_word
 
 cd ../../../prediction_classification_experiments-v2
 
@@ -20,7 +20,7 @@ source /orange/ufdatastudios/dj.brinkley/predictions/.venv/bin/activate
 
 DATE=$(date +%Y-%m-%d)
 EXPERIMENT="july_2026_results_${DATE}"
-EMBEDDING_MODEL="spacy_large"
+EMBEDDING_MODEL="spacy_small"
 
 echo "============================================================"
 echo "ML Pipeline (In-Domain Baseline) — ${EMBEDDING_MODEL}"
