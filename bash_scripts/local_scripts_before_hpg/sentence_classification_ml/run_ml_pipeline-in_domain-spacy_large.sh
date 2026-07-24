@@ -37,7 +37,8 @@ for seed in 3 7 33; do
         --dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
         --val_size 0.2 \
         --seed $seed \
-        --embedding_model spacy_large
+        --embedding_model spacy_large \
+        --embedding_level sentence
 done
 # ============================================================
 # AGGREGATE RESULTS
