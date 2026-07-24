@@ -61,7 +61,8 @@ for seed in 3 7 33; do
         --dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
         --val_size 0.2 \
         --seed $seed \
-        --embedding_model ${EMBEDDING_MODEL}
+        --embedding_model ${EMBEDDING_MODEL} \
+        --embedding_level word_averaged
 done
 
 # ============================================================
