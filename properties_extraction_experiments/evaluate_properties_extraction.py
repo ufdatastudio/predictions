@@ -21,20 +21,6 @@ from feature_extraction import SpacyFeatureExtraction
 def embed_properties(y_df, y_hat_df, col_names):
     """
     Generate spaCy embeddings for each property column in both y and y_hat DataFrames.
-
-    Parameters
-    ----------
-    y_df : pd.DataFrame
-        Ground truth DataFrame.
-    y_hat_df : pd.DataFrame
-        Model prediction DataFrame.
-    col_names : list of str
-        Property columns to embed.
-
-    Returns
-    -------
-    list of dict
-        Each dict contains property_name, y_data, y_hat_data with embeddings attached.
     """
     property_results = []
 
@@ -61,31 +47,6 @@ def embed_properties(y_df, y_hat_df, col_names):
 def map_words_to_labels(y_df, y_hat_df, col_name):
     """
     Map word-level predictions to binary classification labels using cosine similarity.
-
-    Compares ground truth to LLM predicted word for a given property column by computing
-    cosine similarity between their embeddings. Each example is assigned a TP, FN, FP,
-    or TN label based on the presence of embeddings and semantic similarity threshold.
-
-    Parameters
-    ----------
-    y_df : pd.DataFrame
-        Ground truth dataframe containing the property column and its embedding column.
-    y_hat_df : pd.DataFrame
-        Predicted dataframe containing the property column and its embedding column.
-    col_name : str
-        Name of the property column to evaluate (e.g., 'Source', 'Target', 'Date', 'Outcome').
-        Expects a corresponding '{col_name} Embedding' column in both dataframes.
-
-    Returns
-    -------
-    tps : list of dict
-        True positives — y and y_hat are both present and cosine similarity >= 0.9.
-    fns : list of dict
-        False negatives — y is present but y_hat is absent or cosine similarity < 0.9.
-    fps : list of dict
-        False positives — y is absent but y_hat is present.
-    tns : list of dict
-        True negatives — both y and y_hat are absent.
     """
     tps = []
     fns = []
@@ -117,6 +78,7 @@ def map_words_to_labels(y_df, y_hat_df, col_name):
 
         elif y_embed is None:
             if y_hat_embed is not None:
+                # Note: If y_hat_word == 'PARSE_ERROR', it counts as a False Positive here naturally.
                 fps.append(    {'y_word': y_word, 'y_hat_word': y_hat_word, 'cs': None, 'y': 0, 'y_hat': 1})
             else:
                 tns.append(    {'y_word': y_word, 'y_hat_word': y_hat_word, 'cs': None, 'y': 0, 'y_hat': 0})
@@ -124,27 +86,9 @@ def map_words_to_labels(y_df, y_hat_df, col_name):
     return tps, fns, fps, tns
 
 
-def evaluate_properties(property_results, model_name, seed):
+def evaluate_properties(property_results, model_name, seed, parse_error_count, parse_error_rate):
     """
     Compute classification metrics per property column.
-
-    Builds classification report and confusion matrix across
-    Source, Target, Date, and Outcome.
-
-    Parameters
-    ----------
-    property_results : list of dict
-        Output from embed_properties(). Each dict contains
-        property_name, y_data, y_hat_data.
-    model_name : str
-        Name of the model being evaluated.
-    seed : int
-        Random seed used for reproducibility tracking.
-
-    Returns
-    -------
-    pd.DataFrame
-        Metrics summary with one row per property.
     """
     metrics_summary = []
 
@@ -182,6 +126,8 @@ def evaluate_properties(property_results, model_name, seed):
             'seed':               seed,
             'model':              model_name,
             'property':           property_name,
+            'parse_error_count':  parse_error_count,
+            'parse_error_rate':   parse_error_rate,
             'test_accuracy':      eval_report.get('accuracy', None),
             'precision_class_0':  eval_report.get('0', {}).get('precision', None),
             'precision_class_1':  eval_report.get('1', {}).get('precision', None),
@@ -199,14 +145,6 @@ def evaluate_properties(property_results, model_name, seed):
 
 
 if __name__ == "__main__":
-    """
-    Usage:
-        python3 evaluate_properties_extraction.py \
-            --y_path classification_results/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/extract_properties/seed3/ground_truth/llama-3.1-8b-instant/extracted_properties.csv \
-            --y_hat_path classification_results/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/extract_properties/seed3/classification/openai_gpt-oss-120b/extracted_properties.csv \
-            --model_name "openai/gpt-oss-120b" \
-            --seed 3
-    """
     print("\n" + "="*50)
     print("PROPERTY EXTRACTION EVALUATION")
     print("="*50)
@@ -215,36 +153,16 @@ if __name__ == "__main__":
     # 1. Configuration and Arguments
     # ============================================================
     parser = argparse.ArgumentParser(description='Evaluate prediction property extraction.')
-    parser.add_argument(
-        '--y_path',
-        type=str,
-        required=True,
-        help='Path to ground truth CSV relative to base_data_path.'
-    )
-    parser.add_argument(
-        '--y_hat_path',
-        type=str,
-        required=True,
-        help='Path to model predictions CSV relative to base_data_path.'
-    )
-    parser.add_argument(
-        '--model_name',
-        type=str,
-        default='openai/gpt-oss-120b',
-        help='Name of the model being evaluated.'
-    )
-    parser.add_argument(
-        '--seed',
-        type=int,
-        default=7, 
-        help='Random seed for reproducibility tracking.'
-    )
+    parser.add_argument('--y_path', type=str, required=True, help='Path to ground truth CSV.')
+    parser.add_argument('--y_hat_path', type=str, required=True, help='Path to model predictions CSV.')
+    parser.add_argument('--model_name', type=str, default='openai/gpt-oss-120b', help='Model name.')
+    parser.add_argument('--seed', type=int, default=7, help='Random seed.')
     args = parser.parse_args()
 
     base_data_path = DataProcessing.load_base_data_path(script_dir)
 
     # ============================================================
-    # 2. Load Data
+    # 2. Load Data & Calculate Parse Errors
     # ============================================================
     print("\n" + "="*50)
     print("STEP: LOAD DATA")
@@ -259,7 +177,14 @@ if __name__ == "__main__":
     print(f"Ground truth shape    : {y_df.shape}")
     print(f"Model prediction shape: {y_hat_df.shape}")
 
-    # Property columns to evaluate (columns 4 through 8)
+    # Calculate Parse Error Rate
+    total_rows = len(y_hat_df)
+    parse_error_count = (y_hat_df.get('No Property', pd.Series()) == 'PARSE_ERROR').sum()
+    parse_error_rate = parse_error_count / total_rows if total_rows > 0 else 0.0
+
+    print(f"\nParse Error Count: {parse_error_count} / {total_rows}")
+    print(f"Parse Error Rate : {parse_error_rate:.2%}")
+
     col_names = y_df.loc[:, ["No Property", "Source", "Target", "Date", "Outcome"]].columns.tolist()
     print(f"Property columns: {col_names}")
 
@@ -269,7 +194,6 @@ if __name__ == "__main__":
     print("\n" + "="*50)
     print("STEP: EMBED PROPERTIES")
     print("="*50)
-
     property_results = embed_properties(y_df, y_hat_df, col_names)
 
     # ============================================================
@@ -278,8 +202,7 @@ if __name__ == "__main__":
     print("\n" + "="*50)
     print("STEP: EVALUATE PROPERTIES")
     print("="*50)
-
-    metrics_summary_df = evaluate_properties(property_results, args.model_name, args.seed)
+    metrics_summary_df = evaluate_properties(property_results, args.model_name, args.seed, parse_error_count, parse_error_rate)
     print(f"\nMetrics Summary:\n{metrics_summary_df}\n")
 
     # ============================================================
@@ -289,35 +212,19 @@ if __name__ == "__main__":
     print("STEP: SAVE RESULTS")
     print("="*50)
 
-    # Extract dataset folder name from y_path
-    # e.g., "extract_properties/ground_truth/synthetic-fpb-.../llama.../extracted_properties.csv"
-    # -> "synthetic-fpb-..."
     path_parts = args.y_path.split('/')
-    # print(f"PATH PARTS: {type(path_parts)}, {path_parts}, \n\n{path_parts[1]}\n\n{path_parts[:-1]}")
-    # dataset_folder = path_parts[1] + path_parts[2]
     dataset_folders = path_parts[:-4]
     dataset_folder = '/'.join(dataset_folders)
-
-    # Replace "/" with "_" in model name to avoid nested folder creation
-    # e.g., "openai/gpt-oss-120b" -> "openai_gpt-oss-120b"
     clean_model_name = args.model_name.replace('/', '_')
 
     eval_save_path = os.path.join(
-        base_data_path,
-        dataset_folder,
-        'classification',
-        f'seed{args.seed}',
-        clean_model_name
+        base_data_path, dataset_folder, 'classification', f'seed{args.seed}', clean_model_name
     )
     os.makedirs(eval_save_path, exist_ok=True)
 
     DataProcessing.save_to_file(
-        metrics_summary_df,
-        path=eval_save_path,
-        prefix=f'metrics_summary_{clean_model_name}',
-        save_file_type='csv',
-        include_version=True
+        metrics_summary_df, path=eval_save_path, prefix=f'metrics_summary_{clean_model_name}',
+        save_file_type='csv', include_version=True
     )
-
     print(f"✓ Saved metrics summary to: {eval_save_path}")
     print("\n✓ Evaluation complete!")

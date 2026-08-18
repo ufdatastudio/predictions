@@ -333,8 +333,35 @@ if __name__ == "__main__":
             args.output_name + '_unfiltered',
             include_version=not args.no_version
         )
+    
     # ============================================================
-    # 8. Pipeline Complete
+    # 8. Visualize Distribution
+    # ============================================================
+    if 'Dataset Name' in final_df.columns and not args.no_save:
+        print("\n" + "="*60)
+        print("SAVE DISTRIBUTION PLOT")
+        print("="*60)
+        
+        # Save plot in the same directory as the CSV
+        plot_dir = os.path.join(args.save_path, args.output_name)
+        os.makedirs(plot_dir, exist_ok=True)
+        
+        # Create descriptive filename: output_name_distribution.png
+        plot_filename = f"{args.output_name}_distribution.png"
+        plot_path = os.path.join(plot_dir, plot_filename)
+        
+        print(f"Plotting stacked Dataset Name distribution...")
+        DataVisualizing.plot_stacked_distribution(
+            final_df,
+            category_col='Dataset Name',
+            label_col='Ground Truth',
+            save_path=plot_dir,
+            filename=plot_filename  # Pass explicit filename
+        )
+        print(f"✓ Saved plot: {plot_path}")
+    
+    # ============================================================
+    # 9. Pipeline Complete
     # ============================================================
     print("\n" + "="*60)
     print("PIPELINE COMPLETE")
@@ -353,6 +380,8 @@ if __name__ == "__main__":
         non_pred_count = (final_df['Ground Truth'] == 0).sum()
         print(f"  Prediction Count     (Label=1): {pred_count} ({round(pred_count/total*100, 2)}%)")
         print(f"  Non-Prediction Count (Label=0): {non_pred_count} ({round(non_pred_count/total*100, 2)}%)")
+
+    print("\n" + "="*60 + "\n")
 
     # if args.predictions_only:
     #     final_df = final_df[final_df['Ground Truth'] == 1]

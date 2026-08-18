@@ -24,7 +24,6 @@ BATCH_SIZE = 10
 # STOP_AFTER = 10
 STOP_AFTER = None
 
-
 def load_dataset(base_data_path, dataset_name):
     """
     Load a dataset from a CSV file into a pandas DataFrame.
@@ -49,7 +48,7 @@ def load_dataset(base_data_path, dataset_name):
     print(f"Dataset path: {dataset_name}")
 
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    df = df.sample(n=7, random_state=42)
+    # df = df.sample(n=7, random_state=42)
 
     # Reset index so we have a clean 0, 1, 2, ... row numbers.
     # This is important for the resume logic later — we track which
@@ -388,31 +387,144 @@ def extract_properties(
 
     print(f"\n✓ Processing complete. Results saved to {results_path}\n")
 
+def create_properties_experiment_log(
+    args, 
+    model_name, 
+    output_dir, 
+    df_original_shape,
+    df_sampled_shape,
+    base_prompt,
+    task,
+    format_output
+):
+    """
+    Generate and save a human-readable experiment log for property extraction.
+    
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments
+    model_name : str
+        Name of the LLM model used
+    output_dir : str
+        Directory where log will be saved
+    df_original_shape : tuple
+        Shape of dataset before sampling (rows, cols)
+    df_sampled_shape : tuple
+        Shape of dataset after sampling (rows, cols)
+    base_prompt : str
+        Base prompt template used
+    task : str
+        Task instruction string
+    format_output : str
+        Expected output format string
+    """
+    from datetime import datetime
+    
+    log_lines = []
+    log_lines.append("="*60)
+    log_lines.append("PROPERTY EXTRACTION EXPERIMENT LOG")
+    log_lines.append("="*60)
+    log_lines.append(f"Timestamp:         {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log_lines.append(f"Task:              {args.task_name}")
+    log_lines.append(f"Seed:              {args.seed}")
+    log_lines.append("")
+    
+    log_lines.append("--- Data ---")
+    log_lines.append(f"Dataset Source:    {args.dataset or args.dataset_path}")
+    log_lines.append(f"Text Column:       {args.text_column}")
+    log_lines.append(f"Original Shape:    {df_original_shape}")
+    
+    if args.sample_fraction:
+        log_lines.append(f"Sample Fraction:   {args.sample_fraction}")
+        log_lines.append(f"Stratify Cols:     {args.stratify_cols}")
+        log_lines.append(f"Sampling Method:   {args.sampling_method}")
+        log_lines.append(f"Sampled Shape:     {df_sampled_shape}")
+    else:
+        log_lines.append(f"Sampling:          None (full dataset)")
+    
+    log_lines.append("")
+    log_lines.append("--- Model ---")
+    log_lines.append(f"Model Name:        {model_name}")
+    log_lines.append(f"Clean Model Name:  {args.model_name.replace('/', '_')}")
+    log_lines.append("")
+    
+    log_lines.append("--- Prompts ---")
+    log_lines.append("Base Prompt:")
+    log_lines.append(base_prompt[:500] + "..." if len(base_prompt) > 500 else base_prompt)
+    log_lines.append("")
+    log_lines.append("Task Instruction:")
+    log_lines.append(task)
+    log_lines.append("")
+    log_lines.append("Format Output:")
+    log_lines.append(format_output)
+    log_lines.append("")
+    
+    log_lines.append("--- Output ---")
+    log_lines.append(f"Output Directory:  {output_dir}")
+    log_lines.append(f"Results File:      {os.path.join(output_dir, 'extracted_properties.csv')}")
+    log_lines.append(f"Metadata File:     {os.path.join(output_dir, 'extracted_properties_metadata.json')}")
+    log_lines.append("")
+    
+    log_lines.append("--- Processing ---")
+    log_lines.append(f"BATCH_SIZE:        {BATCH_SIZE}")
+    log_lines.append(f"STOP_AFTER:        {STOP_AFTER if STOP_AFTER else 'None (process all)'}")
+    log_lines.append("")
+    
+    log_lines.append("="*60)
+    
+    # Save to log file
+    log_dir = os.path.join(output_dir, 'experiment_log')
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, 'experiment_log.txt')
+    
+    with open(log_path, 'w') as f:
+        f.write("\n".join(log_lines))
+    
+    print(f"✓ Experiment log saved to: {log_path}")
+
 if __name__ == "__main__":
     """
     Usage:
         Be sure to run: source .venv_predictions/bin/activate
 
-        # Load via named loader
-        python3 extract_properties.py \
-            --dataset chronicle2050 \
-            --model_name "openai/gpt-oss-120b" \
-            --task_name ground_truth \
-            --seed 3
+        # ============================================================
+        # STEP 1: Create combined dataset (run once)
+        # ============================================================
+        python3 create_combined_dataset.py \
+            --datasets synthetic financial_phrasebank chronicle2050 timebank yt news_api mf_climate \
+            --predictions_only_datasets yt news_api mf_climate \
+            --output_name properties_july_2026 \
+            --no_version
 
-        # Load via pre-saved CSV — ground truth
-        python3 extract_properties.py \
-            --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
+        # ============================================================
+        # STEP 2: Extract properties for ground truth (with 10% sampling)
+        # ============================================================
+        python3 llm-experiment.py \
+            --dataset_path combined_datasets/properties_july_2026/properties_july_2026.csv \
             --model_name "llama-3.1-8b-instant" \
             --task_name ground_truth \
-            --seed 3
+            --sample_fraction 0.1 \
+            --seed 7
 
-        # Load via pre-saved CSV — classification
-        python3 extract_properties.py \
-            --dataset_path combined_datasets/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate/synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate.csv \
-            --model_name "openai/gpt-oss-120b" \
+        # ============================================================
+        # STEP 3: Test LLM extraction ability (classification task)
+        # ============================================================
+        python3 llm-experiment.py \
+            --dataset_path combined_datasets/properties_july_2026/properties_july_2026.csv \
+            --model_name "llama-3.1-8b-instant" \
             --task_name classification \
-            --seed 3
+            --sample_fraction 0.1 \
+            --seed 7
+
+        # ============================================================
+        # Alternative: Load via named loader (for quick testing)
+        # ============================================================
+        python3 llm-experiment.py \
+            --dataset chronicle2050 \
+            --model_name "llama-3.1-8b-instant" \
+            --task_name ground_truth \
+            --seed 7
     """
     print("\n" + "="*50)
     print("SENTENCE PROPERTY EXTRACTION")
@@ -425,12 +537,16 @@ if __name__ == "__main__":
     base_data_path = DataProcessing.load_base_data_path(script_dir)
 
     dataset_loader_map = {
-        'synthetic':          DataProcessing.load_synthetic_dataset,
-        'financial_phrasebank': DataProcessing.load_financial_phrasebank_dataset,
+        'synthetic':            DataProcessing.load_synthetic_dataset,
+        'fin_phrasebank':       DataProcessing.load_financial_phrasebank_dataset,
         'chronicle2050':        DataProcessing.load_chronicle2050_dataset,
         'news_api':             DataProcessing.load_news_api_dataset,
         'yt':                   DataProcessing.load_yt_dataset,
-        'timebank':           DataProcessing.load_timebank_dataset 
+        'timebank':             DataProcessing.load_timebank_dataset,
+        'mf_climate':           DataProcessing.load_mf_climate_dataset,
+        'clients_rivals_rouges': DataProcessing.load_clients_rivals_rouges_dataset,
+        'forecast_bench':       DataProcessing.load_forecast_bench_dataset,
+        'smart_hospitals':      DataProcessing.load_smart_hospitals_dataset
     }
 
     task_name_map = {
@@ -438,25 +554,25 @@ if __name__ == "__main__":
         'classification': 'classification'
     }
 
-    parser = argparse.ArgumentParser(description='Extract properties from sentences using a single LLM.')
+    parser = argparse.ArgumentParser(description='Extract properties from sentences using LLMs.')
     parser.add_argument(
         '--dataset',
         type=str,
         choices=list(dataset_loader_map.keys()),
         default=None,
-        help='Named dataset to load via DataProcessing loader.'
+        help='Named dataset to load via DataProcessing loader (for quick testing).'
     )
     parser.add_argument(
         '--dataset_path',
         type=str,
         default=None,
-        help='Path to a pre-saved CSV file relative to base_data_path.'
+        help='Path to a pre-saved CSV file relative to base_data_path (primary workflow).'
     )
     parser.add_argument(
         '--model_name',
         type=str,
         default='llama-3.1-8b-instant',
-        help='Single model name to use for extraction.'
+        help='LLM model name to use for extraction.'
     )
     parser.add_argument(
         '--text_column',
@@ -469,19 +585,38 @@ if __name__ == "__main__":
         type=str,
         choices=list(task_name_map.keys()),
         default='ground_truth',
-        help='Either ground_truth for pre-labeling or classification for evaluation.'
+        help='Either ground_truth for establishing labels or classification for testing extraction.'
     )
     parser.add_argument(
         '--seed', 
         type=int, 
         default=7, 
-        help='Random seed for reproducibility tracking.'
+        help='Random seed for reproducibility.'
+    )
+    parser.add_argument(
+        '--sample_fraction',
+        type=float,
+        default=None,
+        help='Take stratified sample (e.g., 0.1 for 10%). Maintains dataset/label proportions.'
+    )
+    parser.add_argument(
+        '--stratify_cols',
+        nargs='+',
+        default=['Ground Truth', 'Dataset Name'],
+        help='Columns to stratify by when sampling. Default: Ground Truth, Dataset Name'
+    )
+    parser.add_argument(
+        '--sampling_method',
+        choices=['hierarchical', 'pair', 'simple'],
+        default='hierarchical',
+        help='Stratified sampling strategy. Default: hierarchical'
     )
     args = parser.parse_args()
 
     print(f"Task       : {args.task_name}")
     print(f"Model      : {args.model_name}")
     print(f"Dataset    : {args.dataset or args.dataset_path}")
+    print(f"Seed       : {args.seed}")
 
     # ============================================================
     # 2. Load Prompts and Model
@@ -491,8 +626,6 @@ if __name__ == "__main__":
     # ============================================================
     # 3. Setup Model Name for Output Directory
     # ============================================================
-    # Replace "/" with "_" to avoid creating nested folders
-    # e.g., "openai/gpt-oss-120b" becomes "openai_gpt-oss-120b"
     clean_model_name = args.model_name.replace('/', '_')
 
     # ============================================================
@@ -504,7 +637,7 @@ if __name__ == "__main__":
 
     elif args.dataset is not None:
         loader = dataset_loader_map[args.dataset]
-        df = loader(script_dir)
+        df = loader(script_dir, visualize=False)
         dataset_basename = args.dataset
 
     elif args.dataset_path is not None:
@@ -520,26 +653,45 @@ if __name__ == "__main__":
         print(f"Available columns: {list(df.columns)}")
         sys.exit(1)
 
-    # ============================================================
-    # 3b. Finish Output Directory Setup (needs dataset_basename from Step 4)
-    # ============================================================
+    # Track original shape for logging
+    df_original_shape = (len(df), df.shape[1])
 
-    # eventually, store same as binary classification
+    # ============================================================
+    # 5. Apply Sampling (Optional)
+    # ============================================================
+    if args.sample_fraction:
+        df = DataProcessing.stratified_sample_dataset(
+            df=df,
+            sample_fraction=args.sample_fraction,
+            stratify_cols=args.stratify_cols,
+            random_state=args.seed,
+            sampling_method=args.sampling_method
+        )
+        df_sampled_shape = (len(df), df.shape[1])
+    else:
+        df_sampled_shape = df_original_shape
+
+    # ============================================================
+    # 6. Setup Output Directory
+    # ============================================================
     output_dir = os.path.join(
         base_data_path,
         "classification_results",
         dataset_basename,
-        "extract_properties", # vs ~binary_classification (bc)
+        "extract_properties",
         args.task_name,
-        f"seed{args.seed}", # vs seeds within (bc)
+        f"seed{args.seed}",
         clean_model_name
     )
     os.makedirs(output_dir, exist_ok=True)
 
     results_path = os.path.join(output_dir, "extracted_properties.csv")
-    print(f"Output Directory : {output_dir}")
+    print(f"\nOutput Directory : {output_dir}")
     print(f"Results File     : {results_path}")
 
+    # ============================================================
+    # 7. Save Metadata
+    # ============================================================
     metadata = {
         "timestamp":        pd.Timestamp.now().isoformat(),
         "dataset":          args.dataset or args.dataset_path,
@@ -547,6 +699,12 @@ if __name__ == "__main__":
         "text_column":      args.text_column,
         "task_name":        args.task_name,
         "model_used":       args.model_name,
+        "seed":             args.seed,
+        "sample_fraction":  args.sample_fraction,
+        "stratify_cols":    args.stratify_cols if args.sample_fraction else None,
+        "sampling_method":  args.sampling_method if args.sample_fraction else None,
+        "original_shape":   df_original_shape,
+        "sampled_shape":    df_sampled_shape,
         "prompts": {
             "base_prompt":   base_prompt,
             "task":          task,
@@ -563,12 +721,26 @@ if __name__ == "__main__":
         print(f"Metadata already exists at: {metadata_path}")
 
     # ============================================================
-    # 5. Resume Check — Skip Already Processed Sentences
+    # 8. Create Experiment Log
+    # ============================================================
+    create_properties_experiment_log(
+        args=args,
+        model_name=args.model_name,
+        output_dir=output_dir,
+        df_original_shape=df_original_shape,
+        df_sampled_shape=df_sampled_shape,
+        base_prompt=base_prompt,
+        task=task,
+        format_output=format_output
+    )
+
+    # ============================================================
+    # 9. Resume Check — Skip Already Processed Sentences
     # ============================================================
     df_to_process = get_remaining_data(df, results_path)
 
     # ============================================================
-    # 6. Extract Properties
+    # 10. Extract Properties
     # ============================================================
     if df_to_process.empty:
         print("\n✓ All sentences have already been processed!")
@@ -587,7 +759,7 @@ if __name__ == "__main__":
         )
 
     # ============================================================
-    # 7. Final Summary
+    # 11. Final Summary
     # ============================================================
     if os.path.exists(results_path):
         try:
@@ -608,4 +780,14 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Could not print summary: {e}")
 
-    print("\n✓ Pipeline complete!")
+    print("\n" + "="*50)
+    print("PIPELINE COMPLETE")
+    print("="*50)
+    print(f"✓ Experiment: {dataset_basename}")
+    print(f"✓ Task: {args.task_name}")
+    print(f"✓ Model: {args.model_name}")
+    print(f"✓ Seed: {args.seed}")
+    if args.sample_fraction:
+        print(f"✓ Sample: {args.sample_fraction*100}% ({df_sampled_shape[0]} sentences)")
+    print(f"✓ Results: {output_dir}")
+    print()
