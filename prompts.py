@@ -106,29 +106,6 @@ class BasePrompt(ABC):
         return self.system_identity(), self.task(), self.format_output(), self.default_steps()
 
 
-class EntityExtractionPrompt(BasePrompt):
-    """
-    Prompt for extracting and labeling TOLSA-M entities from text.
-    Identifies source, target, date, and outcome components.
-    """
-
-    def default_system_identity(self):
-        tolsa_m_definition = PredictionProperties.get_tolsa_m_definition()
-        return f"""You are a linguistic expert that specializes in identifying TOLSA-M (Target Outcome with optionaL Source, dAte, and Metadata) from a given text input.
-        {tolsa_m_definition}
-"""
-
-    def default_task(self):
-        return """For each word within the sentence "label" as either a "no_label": 0, "source": 1, "target": 2, "date": 3, "outcome": 4. IMPORTANT: Keep multi-word entities together as single items in the list."""
-
-    def default_format_output(self):
-        return """
-        Respond ONLY with valid JSON in this exact format: {0: [word_from_sentence]}, {1: [word_from_sentence]}, {2: [word_from_sentence]}, {3: [word_from_sentence]}, {4: [word_from_sentence]}, where key is int ranging from 0 to 4 and the value is the words_from_sentence, split by a comma/all placed into a list, so {int: [word_from_sentence_1, word_from_sentence_2, ..., word_from_sentence_W]}. For 2 and 3, some words may be a prefix or a position or title before/after 2 or 3. Be sure to take that into account.
-        Do NOT reason or provide anything other than the aforementioned. Also, stop responding in reverse format {word_from_sentence: 0}, {word_from_sentence: 1}, {word_from_sentence: 2}, {word_from_sentence: 3}, {word_from_sentence: 4} or in any other format.
-        Respond ONLY with valid JSON in this exact format: {0: [word_from_sentence]}, {1: [word_from_sentence]}, {2: [word_from_sentence]}, {3: [word_from_sentence]}, {4: [word_from_sentence]}, where key is int ranging from 0 to 4 and the value is the words_from_sentence, split by a comma/all placed into a list, so {int: [word_from_sentence_1, word_from_sentence_2, ..., word_from_sentence_W]}.
-"""
-
-
 class SentenceClassificationPrompt(BasePrompt):
     """
     Prompt for classifying sentences as TOLSA-M or non-TOLSA-M.
@@ -236,3 +213,76 @@ class SentenceClassificationPrompt(BasePrompt):
         - Step 5: Verify the statement meets at least one indicator requirement (predictive language, temporal constructions, or attribution).
         - Step 6: Synthesize your findings to classify the sentence as a "TOLSA-M": 1 or "non-TOLSA-M": 0.
 """
+
+
+class EntityExtractionPrompt(BasePrompt):
+    """
+    Prompt for extracting and labeling TOLSA-M entities from text.
+    Identifies source, target, date, and outcome components.
+    """
+
+    def default_system_identity(self):
+        tolsa_m_definition = PredictionProperties.get_tolsa_m_definition()
+        return f"""You are a linguistic expert that specializes in identifying TOLSA-M (Target Outcome with optionaL Source, dAte, and Metadata) properties from a given text input.
+        {tolsa_m_definition}
+"""
+
+    def default_task(self):
+        return """For each word or span within the sentence, label it as either "no_property": 0, "source": 1, "target": 2, "date": 3, "outcome": 4. IMPORTANT: Keep multi-word spans together as single items in the list. Return [] for any property not present in the sentence."""
+
+    def few_shot(self):
+        """
+        Few-shot prompting for slot filling: Provides explicit sentence-to-JSON
+        mapping examples using real TOLSA-M property examples from PredictionProperties.
+
+        Returns
+        -------
+        tuple
+            system_identity, task, format_output, few_shot_examples
+        """
+        source_ex  = PredictionProperties.get_source_examples()
+        target_ex  = PredictionProperties.get_target_examples()
+        date_ex    = PredictionProperties.get_date_examples()
+        outcome_ex = PredictionProperties.get_outcome_examples()
+
+        few_shot_examples = f"""
+        Here are examples of how to map a sentence to the required JSON format.
+        Key schema: {{"0": [no_property], "1": [source], "2": [target], "3": [date], "4": [outcome]}}
+
+        Example 1 (finance — all properties present):
+        Sentence: "Goldman Sachs predicts Apple stock will rise by 20% in Q3."
+        Output: {{"0": ["predicts", "will", "by", "in"], "1": ["{source_ex[0]}"], "2": ["{target_ex[0]}", "stock"], "3": ["{date_ex[10]}"], "4": ["{outcome_ex['slope'][0]}", "20%"]}}
+
+        Example 2 (weather — source and date present):
+        Sentence: "The National Weather Service expects temperatures at the Gulf Coast to rise sharply by 2025."
+        Output: {{"0": ["expects", "temperatures", "at", "the", "to", "by"], "1": ["{source_ex[5]}"], "2": ["{target_ex[7]}"], "3": ["{date_ex[8]}"], "4": ["{outcome_ex['slope'][4]}"]}}
+
+        Example 3 (sports — no source):
+        Sentence: "Simone Biles is expected to win in Q3."
+        Output: {{"0": ["is", "expected", "to", "win", "in"], "1": [], "2": ["{target_ex[4]}"], "3": ["{date_ex[10]}"], "4": ["{outcome_ex['attribute_of_interest'][1]}"]}}
+
+        Example 4 (health — no date):
+        Sentence: "Dr. Keith L. Black predicts the CDC heart rate monitoring program will decrease."
+        Output: {{"0": ["predicts", "the", "monitoring", "program", "will"], "1": ["{source_ex[9]}"], "2": ["{target_ex[12]}"], "3": [], "4": ["{outcome_ex['slope'][5]}"]}}
+
+        Example 5 (non-TOLSA-M — return empty lists for all properties except no_property):
+        Sentence: "The company held its annual meeting last Tuesday."
+        Output: {{"0": ["The", "company", "held", "its", "annual", "meeting", "last", "Tuesday."], "1": [], "2": [], "3": [], "4": []}}
+
+        Key reminders:
+        - Source examples: {source_ex[:4]}
+        - Target examples: {target_ex[:4]}
+        - Date examples:   {date_ex[:4]}
+        - Outcome examples (attribute): {outcome_ex['attribute_of_interest'][:3]}
+        - Outcome examples (slope):     {outcome_ex['slope'][:3]}
+        - Return [] for any property not present in the sentence.
+        - Keep multi-word spans together as single list items.
+        """
+
+        return self.system_identity(), self.task(), self.format_output(), few_shot_examples
+
+    def default_format_output(self):
+        if self.get_prompt_name() == 'zero-shot' or self.get_prompt_name() == 'few-shot':
+            return """Respond ONLY with valid JSON: {"0": [], "1": [], "2": [], "3": [], "4": []}. Do NOT include reasoning or additional text. Return [] for any property not present in the sentence."""
+        elif self.get_prompt_name() == 'chain-of-thought':
+            return """Respond ONLY with valid JSON in this exact format: {"0": [], "1": [], "2": [], "3": [], "4": [], "reasoning": "[insert your reasoning]"}. Be sure to reason and do NOT provide anything other than the aforementioned format."""

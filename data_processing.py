@@ -1633,6 +1633,137 @@ class DataProcessing:
             except:
                 return None
     
+    def parse_slot_filling_response(text: str) -> dict:
+        """
+        Robustly parse a slot-filling JSON response from a raw LLM output string.
+
+        Unlike parse_llm_json_response (designed for simple SC responses like {"y_hat": 1}),
+        this function is specifically tuned for slot filling responses of the form:
+        {"0": [...], "1": [...], "2": [...], "3": [...], "4": [...]}
+
+        Attempts parsing in the following order:
+        1. Standard json.loads after extracting JSON block
+        2. ast.literal_eval fallback for integer keys or single-quoted strings
+        3. Per-key extraction for truncated/partial responses
+        4. Returns empty-list defaults for all keys if all attempts fail
+
+        Parameters
+        ----------
+        text : str
+            Raw string output from an LLM slot-filling response.
+
+        Returns
+        -------
+        dict
+            Parsed dictionary with string keys "0" through "4".
+            Any key that cannot be recovered defaults to an empty list [].
+            Never returns None — always returns a dict.
+
+        Notes
+        -----
+        Handles common LLM slot-filling failure modes:
+        - Markdown code blocks (```json ... ```)
+        - Integer keys instead of string keys ({0: [...]} vs {"0": [...]})
+        - Single-quoted strings ({'0': [...]})
+        - Truncated responses that end mid-list or mid-key
+        - Responses with reasoning text before or after the JSON block
+        - Completely unparseable responses (returns all empty lists)
+
+        Examples
+        --------
+        >>> parse_slot_filling_response('{"0": ["predicts"], "1": ["Goldman Sachs"], "2": [], "3": [], "4": []}')
+        {'0': ['predicts'], '1': ['Goldman Sachs'], '2': [], '3': [], '4': []}
+
+        >>> parse_slot_filling_response('{0: ["predicts"], 1: ["Goldman Sachs"]}')
+        {'0': ['predicts'], '1': ['Goldman Sachs'], '2': [], '3': [], '4': []}
+
+        >>> parse_slot_filling_response('{"0": ["The", "company"')  # truncated
+        {'0': ['The', 'company'], '1': [], '2': [], '3': [], '4': []}
+        """
+        # Default structure — always returned even on total failure
+        default_result = {"0": [], "1": [], "2": [], "3": [], "4": []}
+
+        if not text or not isinstance(text, str):
+            return default_result
+
+        text = text.strip()
+
+        # ============================================================
+        # STEP 1: Extract JSON block from markdown or filler text
+        # ============================================================
+        # Try to pull from markdown code block first
+        markdown_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+        if markdown_match:
+            json_str = markdown_match.group(1)
+        else:
+            # Grab from first { to last } (handles filler text before/after)
+            brace_match = re.search(r'(\{.*\})', text, re.DOTALL)
+            json_str = brace_match.group(1) if brace_match else text
+
+        # ============================================================
+        # STEP 2: Standard json.loads
+        # ============================================================
+        try:
+            parsed = json.loads(json_str)
+            if isinstance(parsed, dict):
+                result = default_result.copy()
+                for k in ["0", "1", "2", "3", "4"]:
+                    # Accept both string and int keys from the parsed dict
+                    value = parsed.get(k) or parsed.get(int(k), [])
+                    result[k] = value if isinstance(value, list) else []
+                return result
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # ============================================================
+        # STEP 3: ast.literal_eval fallback (handles integer keys,
+        #         single-quoted strings)
+        # ============================================================
+        try:
+            parsed = ast.literal_eval(json_str)
+            if isinstance(parsed, dict):
+                result = default_result.copy()
+                for k in ["0", "1", "2", "3", "4"]:
+                    value = parsed.get(k) or parsed.get(int(k), [])
+                    result[k] = value if isinstance(value, list) else []
+                return result
+        except (ValueError, SyntaxError):
+            pass
+
+        # ============================================================
+        # STEP 4: Per-key partial extraction for truncated responses
+        # Attempts to recover each key independently using regex
+        # so a truncated key 3 does not destroy keys 0, 1, and 2
+        # ============================================================
+        result = default_result.copy()
+        recovered_any = False
+
+        for key in ["0", "1", "2", "3", "4"]:
+            # Match both string key "0" and integer key 0
+            # Captures the list content, even if the list is truncated
+            pattern = rf'["\']?{key}["\']?\s*:\s*\[([^\]]*)'
+            match = re.search(pattern, text)
+            if match:
+                raw_list_content = match.group(1).strip()
+                if raw_list_content:
+                    # Split on commas, strip quotes and whitespace from each token
+                    items = []
+                    for item in raw_list_content.split(','):
+                        cleaned = item.strip().strip('"').strip("'").strip()
+                        if cleaned:
+                            items.append(cleaned)
+                    result[key] = items
+                    recovered_any = True
+
+        if recovered_any:
+            return result
+
+        # ============================================================
+        # STEP 5: Total failure — return empty default
+        # ============================================================
+        print(f"[parse_slot_filling_response] ⚠️  Could not parse response: {text[:100]}...")
+        return default_result
+
     def expand_pipe_separated_rows(df: pd.DataFrame, col_names: list) -> pd.DataFrame:
         """
         Expand pipe-separated values in property columns into separate rows.

@@ -226,8 +226,8 @@ def process_single_result(input_index, text, raw_response, model_name, seed) -> 
     -------
     pd.DataFrame
         A single-row DataFrame with columns:
-        Input_Index, Sentence, Raw Response, Model Name,
-        No Property, Source, Target, Date, Outcome.
+        Seed, Input_Index, Sentence, Raw Response, Model Name,
+        Parse Status, No Property, Source, Target, Date, Outcome.
     """
     # Start with an empty structure — we will fill in the properties below
     data = {
@@ -236,6 +236,7 @@ def process_single_result(input_index, text, raw_response, model_name, seed) -> 
         'Sentence':     [text],
         'Raw Response': [raw_response],
         'Model Name':   [model_name],
+        'Parse Status': [''],
         'No Property':  [''],
         'Source':       [''],
         'Target':       [''],
@@ -244,23 +245,26 @@ def process_single_result(input_index, text, raw_response, model_name, seed) -> 
     }
     results_df = pd.DataFrame(data)
 
-    # Try to parse the raw LLM response as a JSON dictionary
-    parsed = DataProcessing.parse_llm_json_response(raw_response)
+    # parse_slot_filling_response always returns a dict — never None
+    # Keys are always strings "0" through "4", defaulting to [] on failure
+    parsed = DataProcessing.parse_slot_filling_response(raw_response)
 
-    if parsed and isinstance(parsed, dict):
-        try:
-            # The model returns keys 0-4 (sometimes as int, sometimes as string)
-            # 0 = no property, 1 = source, 2 = target, 3 = date, 4 = outcome
-            results_df.at[0, 'No Property'] = join_property(parsed.get(0, []) or parsed.get("0", []))
-            results_df.at[0, 'Source']      = join_property(parsed.get(1, []) or parsed.get("1", []))
-            results_df.at[0, 'Target']      = join_property(parsed.get(2, []) or parsed.get("2", []))
-            results_df.at[0, 'Date']        = join_property(parsed.get(3, []) or parsed.get("3", []))
-            results_df.at[0, 'Outcome']     = join_property(parsed.get(4, []) or parsed.get("4", []))
-        except Exception as e:
-            print(f"Error mapping JSON to columns for index {input_index}: {e}")
-    else:
-        # If we could not parse the response, mark it so we can review it later
-        results_df.at[0, 'No Property'] = "PARSE_ERROR"
+    try:
+        results_df.at[0, 'No Property'] = join_property(parsed.get("0", []))
+        results_df.at[0, 'Source']      = join_property(parsed.get("1", []))
+        results_df.at[0, 'Target']      = join_property(parsed.get("2", []))
+        results_df.at[0, 'Date']        = join_property(parsed.get("3", []))
+        results_df.at[0, 'Outcome']     = join_property(parsed.get("4", []))
+
+        # If all values came back empty, the parse silently failed
+        all_empty = all(
+            parsed.get(k, []) == [] for k in ["0", "1", "2", "3", "4"]
+        )
+        results_df.at[0, 'Parse Status'] = 'PARSE_ERROR' if all_empty else 'OK'
+
+    except Exception as e:
+        print(f"Error mapping JSON to columns for index {input_index}: {e}")
+        results_df.at[0, 'Parse Status'] = 'PARSE_ERROR'
 
     return results_df
 
