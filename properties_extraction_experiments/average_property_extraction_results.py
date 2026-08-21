@@ -283,7 +283,7 @@ if __name__ == "__main__":
         '--dataset',
         type=str,
         default='naacl_2026_submission',
-        help='Dataset folder name under classification_results.'
+        help='Dataset folder name under extraction_results.'
     )
     args = parser.parse_args()
 
@@ -291,10 +291,9 @@ if __name__ == "__main__":
 
     dataset_folder = os.path.join(
         base_data_path,
-        'classification_results',
+        'extraction_results',
         args.dataset,
-        'extract_properties',
-        'classification'
+        'extract_properties'
     )
 
     avg_save_path = os.path.join(dataset_folder, 'average')

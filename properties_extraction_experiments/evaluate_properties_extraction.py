@@ -179,7 +179,7 @@ if __name__ == "__main__":
 
     # Calculate Parse Error Rate
     total_rows = len(y_hat_df)
-    parse_error_count = (y_hat_df.get('No Property', pd.Series()) == 'PARSE_ERROR').sum()
+    parse_error_count = (y_hat_df.get('Parse Status', pd.Series()) == 'PARSE_ERROR').sum()
     parse_error_rate = parse_error_count / total_rows if total_rows > 0 else 0.0
 
     print(f"\nParse Error Count: {parse_error_count} / {total_rows}")
@@ -218,7 +218,7 @@ if __name__ == "__main__":
     clean_model_name = args.model_name.replace('/', '_')
 
     eval_save_path = os.path.join(
-        base_data_path, dataset_folder, 'classification', f'seed{args.seed}', clean_model_name
+        base_data_path, dataset_folder, 'extraction_results', f'seed{args.seed}', clean_model_name
     )
     os.makedirs(eval_save_path, exist_ok=True)
 

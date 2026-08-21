@@ -21,8 +21,8 @@ from text_generation_models import TextGenerationModelFactory
 BATCH_SIZE = 10
 
 # Stop after this many sentences (set to None to process all)
-# STOP_AFTER = 10
-STOP_AFTER = None
+STOP_AFTER = 40
+# STOP_AFTER = None
 
 def load_dataset(base_data_path, dataset_name):
     """
@@ -60,51 +60,47 @@ def load_dataset(base_data_path, dataset_name):
     print(f"\nLast 7 rows:\n{df.tail(7)}\n")
     return df
 
-def load_prompts_and_llm(model_name=None):
+def load_prompts_and_llm(model_name=None, prompt_type='few-shot'):
     """
     Build the base prompt and load a single language model.
-
-    The base prompt combines:
-    - Who the model is (system identity)
-    - What a prediction looks like (prediction properties)
-    - Rules the model must follow (requirements)
-    - Examples to guide the model (few-shot examples)
 
     Parameters
     ----------
     model_name : str, optional
         Model name to load. Defaults to 'llama-3.1-8b-instant'.
-
-    Returns
-    -------
-    base_prompt : str
-        The full prompt sent to the model before each sentence.
-    task : str
-        The labeling instruction for the model.
-    format_output : str
-        The expected JSON output format.
-    model : object
-        Loaded model instance.
+    prompt_type : str, optional
+        Prompting strategy: 'zero-shot', 'few-shot', or 'chain-of-thought'.
+        Default is 'few-shot'.
     """
     print("\n" + "="*50)
-    print("STEP: LOAD PROMPTS & MODEL")
+    print(f"STEP: LOAD PROMPTS & MODEL ({prompt_type})")
     print("="*50)
 
-    # Get prediction properties and requirements from PredictionProperties
     prediction_properties, prediction_requirements = PredictionProperties.get_prediction_properties_and_requirements()
 
-    # Build the prompt using EntityExtractionPrompt with few-shot examples
-    prompt = EntityExtractionPrompt()
-    system_identity, task, format_output, examples = prompt.few_shot()
+    prompt = EntityExtractionPrompt(prompt_type_name=prompt_type)
 
-    # Combine everything into one base prompt that will be sent before each sentence
+    if prompt_type == 'zero-shot':
+        system_identity, task, format_output = prompt.zero_shot()
+        examples_text = ""
+    elif prompt_type == 'few-shot':
+        system_identity, task, format_output, examples = prompt.few_shot()
+        examples_text = f"Examples:\n{examples}"
+    elif prompt_type == 'chain-of-thought':
+        system_identity, task, format_output, steps = prompt.chain_of_thought()
+        examples_text = f"Steps:\n{steps}"
+    else:
+        raise ValueError(
+            f"Unknown prompt_type: '{prompt_type}'. "
+            f"Choose from: 'zero-shot', 'few-shot', 'chain-of-thought'"
+        )
+
     base_prompt = f"""{system_identity}
     Prediction Properties:
     {prediction_properties}
     Requirements:
     {prediction_requirements}
-    Examples:
-    {examples}
+    {examples_text}
     """
 
     print("\n--- Base Prompt ---")
@@ -112,7 +108,6 @@ def load_prompts_and_llm(model_name=None):
     print("--- End Base Prompt ---\n")
     print("✓ Prompts loaded")
 
-    # Load the single model
     if model_name is None:
         model_name = 'llama-3.1-8b-instant'
 
@@ -205,62 +200,37 @@ def join_property(values):
 
 def process_single_result(input_index, text, raw_response, model_name, seed) -> pd.DataFrame:
     """
-    Convert a single LLM response into a structured one-row DataFrame.
+    Convert one LLM slot-filling response into a structured DataFrame row.
 
-    The LLM returns a raw string (hopefully JSON). This function parses
-    that string and maps each key to the correct property column.
-
-    Parameters
-    ----------
-    input_index : int
-        The row number of this sentence in the original dataset.
-        Stored so the resume logic can skip this row on future runs.
-    text : str
-        The original sentence that was sent to the model.
-    raw_response : str
-        The raw string response returned by the model.
-    model_name : str
-        The name of the model that generated the response.
-
-    Returns
-    -------
-    pd.DataFrame
-        A single-row DataFrame with columns:
-        Seed, Input_Index, Sentence, Raw Response, Model Name,
-        Parse Status, No Property, Source, Target, Date, Outcome.
+    Parse Status values:
+    - OK: Complete JSON/dictionary parsed successfully.
+    - PARTIAL_PARSE: Some slots recovered from malformed or truncated output.
+    - PARSE_ERROR: No slots could be recovered.
     """
-    # Start with an empty structure — we will fill in the properties below
     data = {
-        'Seed':         [seed],
-        'Input_Index':  [input_index],
-        'Sentence':     [text],
-        'Raw Response': [raw_response],
-        'Model Name':   [model_name],
-        'Parse Status': [''],
-        'No Property':  [''],
-        'Source':       [''],
-        'Target':       [''],
-        'Date':         [''],
-        'Outcome':      ['']
+        'Seed':          [seed],
+        'Input_Index':   [input_index],
+        'Base Sentence': [text],
+        'Raw Response':  [raw_response],
+        'Model Name':    [model_name],
+        'Parse Status':  [''],
+        'No Property':   [''],
+        'Source':        [''],
+        'Target':        [''],
+        'Date':          [''],
+        'Outcome':       ['']
     }
     results_df = pd.DataFrame(data)
 
-    # parse_slot_filling_response always returns a dict — never None
-    # Keys are always strings "0" through "4", defaulting to [] on failure
-    parsed = DataProcessing.parse_slot_filling_response(raw_response)
+    parsed, parse_status = DataProcessing.parse_slot_filling_response(raw_response)
 
     try:
         results_df.at[0, 'No Property'] = join_property(parsed.get("0", []))
-        results_df.at[0, 'Source']      = join_property(parsed.get("1", []))
-        results_df.at[0, 'Target']      = join_property(parsed.get("2", []))
-        results_df.at[0, 'Date']        = join_property(parsed.get("3", []))
-        results_df.at[0, 'Outcome']     = join_property(parsed.get("4", []))
-
-        # If all values came back empty, the parse silently failed
-        all_empty = all(
-            parsed.get(k, []) == [] for k in ["0", "1", "2", "3", "4"]
-        )
-        results_df.at[0, 'Parse Status'] = 'PARSE_ERROR' if all_empty else 'OK'
+        results_df.at[0, 'Source'] = join_property(parsed.get("1", []))
+        results_df.at[0, 'Target'] = join_property(parsed.get("2", []))
+        results_df.at[0, 'Date'] = join_property(parsed.get("3", []))
+        results_df.at[0, 'Outcome'] = join_property(parsed.get("4", []))
+        results_df.at[0, 'Parse Status'] = parse_status
 
     except Exception as e:
         print(f"Error mapping JSON to columns for index {input_index}: {e}")
@@ -374,10 +344,18 @@ def extract_properties(
         time.sleep(7)
 
         if raw_response is None:
-            raw_response = str({"0": ["ERROR_MAX_RETRIES"], "1": [], "2": [], "3": [], "4": []})
+            raw_response = "ERROR_MAX_RETRIES"
 
         single_df = process_single_result(idx, text, raw_response, model.__name__(), seed)
-        single_df['Dataset Source'] = dataset_basename
+
+        # Preserve row-level dataset identity from the source dataframe.
+        # This gives us 'synthetic', 'financial_phrasebank', etc. per row
+        # instead of stamping every row with the combined file basename.
+        if 'Dataset Name' in row.index:
+            single_df['Dataset Name'] = row['Dataset Name']
+        else:
+            single_df['Dataset Name'] = dataset_basename
+
         batch_results.append(single_df)
 
         sentences_processed += 1
@@ -454,6 +432,7 @@ def create_properties_experiment_log(
     log_lines.append("")
     
     log_lines.append("--- Prompts ---")
+    log_lines.append(f"Prompt Type:       {args.prompt_type}")
     log_lines.append("Base Prompt:")
     log_lines.append(base_prompt[:500] + "..." if len(base_prompt) > 500 else base_prompt)
     log_lines.append("")
@@ -505,9 +484,10 @@ if __name__ == "__main__":
         # STEP 2: Extract properties for ground truth (with 10% sampling)
         # ============================================================
         python3 llm-experiment.py \
-            --dataset_path combined_datasets/properties_july_2026/properties_july_2026.csv \
+            --dataset_path combined_datasets/naacl_2026_submission/naacl_2026_submission.csv \
             --model_name "llama-3.1-8b-instant" \
             --task_name ground_truth \
+            --prompt_type few-shot \
             --sample_fraction 0.1 \
             --seed 7
 
@@ -515,19 +495,22 @@ if __name__ == "__main__":
         # STEP 3: Test LLM extraction ability (classification task)
         # ============================================================
         python3 llm-experiment.py \
-            --dataset_path combined_datasets/properties_july_2026/properties_july_2026.csv \
+            --dataset_path combined_datasets/naacl_2026_submission/naacl_2026_submission.csv \
             --model_name "llama-3.1-8b-instant" \
             --task_name classification \
+            --prompt_type few-shot \
             --sample_fraction 0.1 \
             --seed 7
 
         # ============================================================
-        # Alternative: Load via named loader (for quick testing)
+        # Zero-shot variant
         # ============================================================
         python3 llm-experiment.py \
-            --dataset chronicle2050 \
+            --dataset_path combined_datasets/naacl_2026_submission/naacl_2026_submission.csv \
             --model_name "llama-3.1-8b-instant" \
             --task_name ground_truth \
+            --prompt_type zero-shot \
+            --sample_fraction 0.1 \
             --seed 7
     """
     print("\n" + "="*50)
@@ -615,17 +598,28 @@ if __name__ == "__main__":
         default='hierarchical',
         help='Stratified sampling strategy. Default: hierarchical'
     )
+    parser.add_argument(
+        '--prompt_type',
+        type=str,
+        choices=['zero-shot', 'few-shot', 'chain-of-thought'],
+        default='few-shot',
+        help='Prompting strategy for slot filling extraction. Default: few-shot'
+    )
     args = parser.parse_args()
 
     print(f"Task       : {args.task_name}")
     print(f"Model      : {args.model_name}")
     print(f"Dataset    : {args.dataset or args.dataset_path}")
     print(f"Seed       : {args.seed}")
+    print(f"Prompt Type: {args.prompt_type}")
 
     # ============================================================
     # 2. Load Prompts and Model
     # ============================================================
-    base_prompt, task, format_output, model = load_prompts_and_llm(args.model_name)
+    base_prompt, task, format_output, model = load_prompts_and_llm(
+        model_name=args.model_name,
+        prompt_type=args.prompt_type
+    )
 
     # ============================================================
     # 3. Setup Model Name for Output Directory
@@ -680,10 +674,10 @@ if __name__ == "__main__":
     # ============================================================
     output_dir = os.path.join(
         base_data_path,
-        "classification_results",
+        "extraction_results",
         dataset_basename,
-        "extract_properties",
         args.task_name,
+        args.prompt_type,
         f"seed{args.seed}",
         clean_model_name
     )
@@ -709,6 +703,7 @@ if __name__ == "__main__":
         "sampling_method":  args.sampling_method if args.sample_fraction else None,
         "original_shape":   df_original_shape,
         "sampled_shape":    df_sampled_shape,
+        "prompt_type":      args.prompt_type,
         "prompts": {
             "base_prompt":   base_prompt,
             "task":          task,
@@ -773,11 +768,13 @@ if __name__ == "__main__":
             print("="*50)
 
             summary = {
-                "total_processed": len(final_df),
-                "shape":           final_df.shape,
-                "columns":         list(final_df.columns),
-                "model_used":      list(final_df['Model Name'].unique()),
-                "sample_results":  final_df[['Sentence', 'Source', 'Target', 'Date', 'Model Name']].head(3).to_dict('records') if not final_df.empty else []
+                "total_processed":   len(final_df),
+                "shape":             final_df.shape,
+                "columns":           list(final_df.columns),
+                "model_used":        list(final_df['Model Name'].unique()),
+                "parse_error_count": int((final_df.get('Parse Status', pd.Series()) == 'PARSE_ERROR').sum()),
+                "parse_error_rate":  round((final_df.get('Parse Status', pd.Series()) == 'PARSE_ERROR').sum() / max(len(final_df), 1), 4),
+                "sample_results":    final_df[['Base Sentence', 'Source', 'Target', 'Date', 'Model Name']].head(3).to_dict('records') if not final_df.empty else []
             }
 
             print(json.dumps(summary, indent=2))

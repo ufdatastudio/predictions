@@ -1633,136 +1633,129 @@ class DataProcessing:
             except:
                 return None
     
-    def parse_slot_filling_response(text: str) -> dict:
+    def parse_slot_filling_response(text: str) -> tuple[dict, str]:
         """
-        Robustly parse a slot-filling JSON response from a raw LLM output string.
-
-        Unlike parse_llm_json_response (designed for simple SC responses like {"y_hat": 1}),
-        this function is specifically tuned for slot filling responses of the form:
-        {"0": [...], "1": [...], "2": [...], "3": [...], "4": [...]}
-
-        Attempts parsing in the following order:
-        1. Standard json.loads after extracting JSON block
-        2. ast.literal_eval fallback for integer keys or single-quoted strings
-        3. Per-key extraction for truncated/partial responses
-        4. Returns empty-list defaults for all keys if all attempts fail
-
-        Parameters
-        ----------
-        text : str
-            Raw string output from an LLM slot-filling response.
+        Parse an LLM slot-filling response.
 
         Returns
         -------
-        dict
-            Parsed dictionary with string keys "0" through "4".
-            Any key that cannot be recovered defaults to an empty list [].
-            Never returns None — always returns a dict.
+        tuple[dict, str]
+            - Parsed slot dictionary with keys "0" through "4"
+            - Parse status: "OK", "PARTIAL_PARSE", or "PARSE_ERROR"
 
-        Notes
-        -----
-        Handles common LLM slot-filling failure modes:
-        - Markdown code blocks (```json ... ```)
-        - Integer keys instead of string keys ({0: [...]} vs {"0": [...]})
-        - Single-quoted strings ({'0': [...]})
-        - Truncated responses that end mid-list or mid-key
-        - Responses with reasoning text before or after the JSON block
-        - Completely unparseable responses (returns all empty lists)
+        Status definitions
+        ------------------
+        OK:
+            The complete response parsed successfully as JSON or a Python dict.
+            This includes valid all-empty output:
+            {"0": [], "1": [], "2": [], "3": [], "4": []}
 
-        Examples
-        --------
-        >>> parse_slot_filling_response('{"0": ["predicts"], "1": ["Goldman Sachs"], "2": [], "3": [], "4": []}')
-        {'0': ['predicts'], '1': ['Goldman Sachs'], '2': [], '3': [], '4': []}
+        PARTIAL_PARSE:
+            The full response was malformed or truncated, but one or more
+            slot values were recovered independently.
 
-        >>> parse_slot_filling_response('{0: ["predicts"], 1: ["Goldman Sachs"]}')
-        {'0': ['predicts'], '1': ['Goldman Sachs'], '2': [], '3': [], '4': []}
-
-        >>> parse_slot_filling_response('{"0": ["The", "company"')  # truncated
-        {'0': ['The', 'company'], '1': [], '2': [], '3': [], '4': []}
+        PARSE_ERROR:
+            No valid full parse or recoverable slot content was found.
         """
-        # Default structure — always returned even on total failure
         default_result = {"0": [], "1": [], "2": [], "3": [], "4": []}
 
         if not text or not isinstance(text, str):
-            return default_result
+            return default_result, "PARSE_ERROR"
 
         text = text.strip()
 
         # ============================================================
-        # STEP 1: Extract JSON block from markdown or filler text
+        # 1. Extract JSON object from markdown or surrounding text
         # ============================================================
-        # Try to pull from markdown code block first
-        markdown_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+        markdown_match = re.search(
+            r'```(?:json)?\s*(\{.*?\})\s*```',
+            text,
+            re.DOTALL
+        )
+
         if markdown_match:
             json_str = markdown_match.group(1)
         else:
-            # Grab from first { to last } (handles filler text before/after)
             brace_match = re.search(r'(\{.*\})', text, re.DOTALL)
             json_str = brace_match.group(1) if brace_match else text
 
         # ============================================================
-        # STEP 2: Standard json.loads
+        # 2. Standard JSON parse
         # ============================================================
         try:
             parsed = json.loads(json_str)
+
             if isinstance(parsed, dict):
                 result = default_result.copy()
-                for k in ["0", "1", "2", "3", "4"]:
-                    # Accept both string and int keys from the parsed dict
-                    value = parsed.get(k) or parsed.get(int(k), [])
-                    result[k] = value if isinstance(value, list) else []
-                return result
-        except (json.JSONDecodeError, ValueError):
+
+                for key in ["0", "1", "2", "3", "4"]:
+                    value = parsed.get(key, parsed.get(int(key), []))
+                    result[key] = value if isinstance(value, list) else []
+
+                return result, "OK"
+
+        except (json.JSONDecodeError, ValueError, TypeError):
             pass
 
         # ============================================================
-        # STEP 3: ast.literal_eval fallback (handles integer keys,
-        #         single-quoted strings)
+        # 3. Python dictionary fallback
+        # Handles integer keys and single-quoted values.
         # ============================================================
         try:
             parsed = ast.literal_eval(json_str)
+
             if isinstance(parsed, dict):
                 result = default_result.copy()
-                for k in ["0", "1", "2", "3", "4"]:
-                    value = parsed.get(k) or parsed.get(int(k), [])
-                    result[k] = value if isinstance(value, list) else []
-                return result
-        except (ValueError, SyntaxError):
+
+                for key in ["0", "1", "2", "3", "4"]:
+                    value = parsed.get(key, parsed.get(int(key), []))
+                    result[key] = value if isinstance(value, list) else []
+
+                return result, "OK"
+
+        except (ValueError, SyntaxError, TypeError):
             pass
 
         # ============================================================
-        # STEP 4: Per-key partial extraction for truncated responses
-        # Attempts to recover each key independently using regex
-        # so a truncated key 3 does not destroy keys 0, 1, and 2
+        # 4. Recover individual slots from malformed/truncated output
         # ============================================================
         result = default_result.copy()
-        recovered_any = False
+        recovered_any_slot = False
 
         for key in ["0", "1", "2", "3", "4"]:
-            # Match both string key "0" and integer key 0
-            # Captures the list content, even if the list is truncated
             pattern = rf'["\']?{key}["\']?\s*:\s*\[([^\]]*)'
             match = re.search(pattern, text)
+
             if match:
+                recovered_any_slot = True
                 raw_list_content = match.group(1).strip()
-                if raw_list_content:
-                    # Split on commas, strip quotes and whitespace from each token
-                    items = []
-                    for item in raw_list_content.split(','):
-                        cleaned = item.strip().strip('"').strip("'").strip()
-                        if cleaned:
-                            items.append(cleaned)
-                    result[key] = items
-                    recovered_any = True
 
-        if recovered_any:
-            return result
+                # A matched empty list is still a recovered slot.
+                if not raw_list_content:
+                    result[key] = []
+                    continue
+
+                items = []
+                for item in raw_list_content.split(','):
+                    cleaned = item.strip().strip('"').strip("'").strip()
+
+                    if cleaned:
+                        items.append(cleaned)
+
+                result[key] = items
+
+        if recovered_any_slot:
+            return result, "PARTIAL_PARSE"
 
         # ============================================================
-        # STEP 5: Total failure — return empty default
+        # 5. Nothing recoverable
         # ============================================================
-        print(f"[parse_slot_filling_response] ⚠️  Could not parse response: {text[:100]}...")
-        return default_result
+        print(
+            "[parse_slot_filling_response] "
+            f"⚠️ Could not parse response: {text[:100]}..."
+        )
+
+        return default_result, "PARSE_ERROR"
 
     def expand_pipe_separated_rows(df: pd.DataFrame, col_names: list) -> pd.DataFrame:
         """
