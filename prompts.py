@@ -228,7 +228,7 @@ class EntityExtractionPrompt(BasePrompt):
 """
 
     def default_task(self):
-        return """For each word or span within the sentence, label it as either "no_property": 0, "source": 1, "target": 2, "date": 3, "outcome": 4. IMPORTANT: Keep multi-word spans together as single items in the list. Return [] for any property not present in the sentence."""
+        return """For each word or span within the sentence, label it as either "source": 1, "target": 2, "date": 3, "outcome": 4. IMPORTANT: Keep multi-word spans together as single items in the list. Return [] for any property not present in the sentence. Only extract words that fit these 4 categories."""
 
     def few_shot(self):
         """
@@ -247,28 +247,27 @@ class EntityExtractionPrompt(BasePrompt):
 
         few_shot_examples = f"""
         Here are examples of how to map a sentence to the required JSON format.
-        Key schema: {{"0": [no_property], "1": [source], "2": [target], "3": [date], "4": [outcome]}}
+        Key schema: {{"1": [source], "2": [target], "3": [date], "4": [outcome]}}
 
         Example 1 (finance — all properties present):
         Sentence: "Goldman Sachs predicts Apple stock will rise by 20% in Q3."
-        Output: {{"0": ["predicts", "will", "by", "in"], "1": ["{source_ex[0]}"], "2": ["{target_ex[0]}", "stock"], "3": ["{date_ex[10]}"], "4": ["{outcome_ex['slope'][0]}", "20%"]}}
+        Output: {{"1": ["{source_ex[0]}"], "2": ["{target_ex[0]}", "stock"], "3": ["{date_ex[10]}"], "4": ["{outcome_ex['slope'][0]}", "20%"]}}
 
         Example 2 (weather — source and date present):
         Sentence: "The National Weather Service expects temperatures at the Gulf Coast to rise sharply by 2025."
-        Output: {{"0": ["expects", "temperatures", "at", "the", "to", "by"], "1": ["{source_ex[5]}"], "2": ["{target_ex[7]}"], "3": ["{date_ex[8]}"], "4": ["{outcome_ex['slope'][4]}"]}}
+        Output: {{"1": ["{source_ex[5]}"], "2": ["{target_ex[7]}"], "3": ["{date_ex[8]}"], "4": ["{outcome_ex['slope'][4]}"]}}
 
         Example 3 (sports — no source):
         Sentence: "Simone Biles is expected to win in Q3."
-        Output: {{"0": ["is", "expected", "to", "win", "in"], "1": [], "2": ["{target_ex[4]}"], "3": ["{date_ex[10]}"], "4": ["{outcome_ex['attribute_of_interest'][1]}"]}}
+        Output: {{"1": [], "2": ["{target_ex[4]}"], "3": ["{date_ex[10]}"], "4": ["{outcome_ex['attribute_of_interest'][1]}"]}}
 
         Example 4 (health — no date):
         Sentence: "Dr. Keith L. Black predicts the CDC heart rate monitoring program will decrease."
-        Output: {{"0": ["predicts", "the", "monitoring", "program", "will"], "1": ["{source_ex[9]}"], "2": ["{target_ex[12]}"], "3": [], "4": ["{outcome_ex['slope'][5]}"]}}
+        Output: {{"1": ["{source_ex[9]}"], "2": ["{target_ex[12]}"], "3": [], "4": ["{outcome_ex['slope'][5]}"]}}
 
-        Example 5 (non-TOLSA-M — return empty lists for all properties except no_property):
+        Example 5 (non-TOLSA-M — return empty lists for all properties):
         Sentence: "The company held its annual meeting last Tuesday."
-        Output: {{"0": ["The", "company", "held", "its", "annual", "meeting", "last", "Tuesday."], "1": [], "2": [], "3": [], "4": []}}
-
+        Output: {{"1": [], "2": [], "3": [], "4": []}}
         Key reminders:
         - Source examples: {source_ex[:4]}
         - Target examples: {target_ex[:4]}
@@ -283,6 +282,7 @@ class EntityExtractionPrompt(BasePrompt):
 
     def default_format_output(self):
         if self.get_prompt_name() == 'zero-shot' or self.get_prompt_name() == 'few-shot':
-            return """Respond ONLY with valid JSON: {"0": [], "1": [], "2": [], "3": [], "4": []}. Do NOT include reasoning or additional text. Return [] for any property not present in the sentence."""
+            return """Respond ONLY with valid JSON: {"1": [], "2": [], "3": [], "4": []}. Do NOT include reasoning or additional text. Return [] for any property not present in the sentence."""
         elif self.get_prompt_name() == 'chain-of-thought':
-            return """Respond ONLY with valid JSON in this exact format: {"0": [], "1": [], "2": [], "3": [], "4": [], "reasoning": "[insert your reasoning]"}. Be sure to reason and do NOT provide anything other than the aforementioned format."""
+            return """Respond ONLY with valid JSON in this exact format: {"1": [], "2": [], "3": [], "4": [], "reasoning": "[insert your reasoning]"}. Be sure to reason and do NOT provide anything other than the 
+            aforementioned format."""

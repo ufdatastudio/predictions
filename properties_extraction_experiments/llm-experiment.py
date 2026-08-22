@@ -214,7 +214,6 @@ def process_single_result(input_index, text, raw_response, model_name, seed) -> 
         'Raw Response':  [raw_response],
         'Model Name':    [model_name],
         'Parse Status':  [''],
-        'No Property':   [''],
         'Source':        [''],
         'Target':        [''],
         'Date':          [''],
@@ -225,13 +224,13 @@ def process_single_result(input_index, text, raw_response, model_name, seed) -> 
     parsed, parse_status = DataProcessing.parse_slot_filling_response(raw_response)
 
     try:
-        results_df.at[0, 'No Property'] = join_property(parsed.get("0", []))
         results_df.at[0, 'Source'] = join_property(parsed.get("1", []))
         results_df.at[0, 'Target'] = join_property(parsed.get("2", []))
         results_df.at[0, 'Date'] = join_property(parsed.get("3", []))
         results_df.at[0, 'Outcome'] = join_property(parsed.get("4", []))
         results_df.at[0, 'Parse Status'] = parse_status
-
+        
+        # Determine if OK but empty vs soft failure is handled by the parser now
     except Exception as e:
         print(f"Error mapping JSON to columns for index {input_index}: {e}")
         results_df.at[0, 'Parse Status'] = 'PARSE_ERROR'

@@ -1657,11 +1657,11 @@ class DataProcessing:
         PARSE_ERROR:
             No valid full parse or recoverable slot content was found.
         """
-        default_result = {"0": [], "1": [], "2": [], "3": [], "4": []}
-
-        if not text or not isinstance(text, str):
-            return default_result, "PARSE_ERROR"
-
+        default_result = {"1": [], "2": [], "3": [], "4": []}
+        
+        if not text or not isinstance(text, str) or text.strip() == "" or "ERROR_MAX_RETRIES" in text:
+            return default_result, "API_ERROR"
+            
         text = text.strip()
 
         # ============================================================
@@ -1688,7 +1688,7 @@ class DataProcessing:
             if isinstance(parsed, dict):
                 result = default_result.copy()
 
-                for key in ["0", "1", "2", "3", "4"]:
+                for key in ["1", "2", "3", "4"]:
                     value = parsed.get(key, parsed.get(int(key), []))
                     result[key] = value if isinstance(value, list) else []
 
@@ -1707,7 +1707,7 @@ class DataProcessing:
             if isinstance(parsed, dict):
                 result = default_result.copy()
 
-                for key in ["0", "1", "2", "3", "4"]:
+                for key in ["1", "2", "3", "4"]:
                     value = parsed.get(key, parsed.get(int(key), []))
                     result[key] = value if isinstance(value, list) else []
 
@@ -1722,7 +1722,7 @@ class DataProcessing:
         result = default_result.copy()
         recovered_any_slot = False
 
-        for key in ["0", "1", "2", "3", "4"]:
+        for key in ["1", "2", "3", "4"]:
             pattern = rf'["\']?{key}["\']?\s*:\s*\[([^\]]*)'
             match = re.search(pattern, text)
 

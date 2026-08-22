@@ -185,7 +185,7 @@ if __name__ == "__main__":
     print(f"\nParse Error Count: {parse_error_count} / {total_rows}")
     print(f"Parse Error Rate : {parse_error_rate:.2%}")
 
-    col_names = y_df.loc[:, ["No Property", "Source", "Target", "Date", "Outcome"]].columns.tolist()
+    col_names = y_df.loc[:, ["Source", "Target", "Date", "Outcome"]].columns.tolist()
     print(f"Property columns: {col_names}")
 
     # ============================================================
