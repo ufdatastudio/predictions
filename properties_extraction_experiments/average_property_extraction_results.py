@@ -220,23 +220,16 @@ def combine_and_save_all_models(averaged_results, avg_save_path):
 def export_to_latex(result_df, avg_save_path):
     """
     Export combined averaged results to a LaTeX table.
-
-    Parameters
-    ----------
-    result_df : pd.DataFrame
-        Combined averaged results from all models.
-    avg_save_path : str
-        Directory path to save the LaTeX file.
     """
     print("\n" + "="*60)
     print("LATEX TABLE")
     print("="*60)
 
-    # Select key columns for LaTeX table
-    # Adjust based on what columns matter most for your paper
+    # ADDED 'parse_error_rate' here!
     latex_cols = [
         'model',
         'property',
+        'parse_error_rate',
         'test_accuracy',
         'precision_class_0',
         'precision_class_1',
@@ -247,11 +240,9 @@ def export_to_latex(result_df, avg_save_path):
         'tn', 'fp', 'fn', 'tp'
     ]
 
-    # Only keep columns that exist
     available_latex_cols = [col for col in latex_cols if col in result_df.columns]
     latex_df = result_df[available_latex_cols].copy()
 
-    # Round to 4 decimal places for cleaner LaTeX output
     numeric_cols = latex_df.select_dtypes(include=[np.number]).columns
     latex_df[numeric_cols] = latex_df[numeric_cols].round(4)
 
@@ -291,8 +282,8 @@ if __name__ == "__main__":
     parser.add_argument(
         '--dataset',
         type=str,
-        default='synthetic-fpb-chronicle2050-yt-news-timebank-mf_climate',
-        help='Dataset folder name under classification_results.'
+        default='naacl_2026_submission',
+        help='Dataset folder name under extraction_results.'
     )
     args = parser.parse_args()
 
@@ -300,10 +291,9 @@ if __name__ == "__main__":
 
     dataset_folder = os.path.join(
         base_data_path,
-        'classification_results',
+        'extraction_results',
         args.dataset,
-        'extract_properties',
-        'classification'
+        'extract_properties'
     )
 
     avg_save_path = os.path.join(dataset_folder, 'average')

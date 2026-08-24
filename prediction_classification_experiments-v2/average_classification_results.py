@@ -38,7 +38,7 @@ def get_latest_seed_version(experiment_dir, base_seed):
     latest_version, latest_folder = max(versioned_folders, key=lambda x: x[0])
     return latest_folder
 
-def collect_results(results_dir, mode='cross_dataset', target_experiment=None, filter_experiments=None, model_type='ml', embedding_model=None):
+def collect_results(results_dir, mode='cross_dataset', target_experiment=None, filter_experiments=None, model_type='ml', embedding_model=None, prompting_strategy=None):
     """
     Collect all metrics_summary csv files and group by experiment AND test set.
     """
@@ -87,7 +87,17 @@ def collect_results(results_dir, mode='cross_dataset', target_experiment=None, f
             seed_folder_path = os.path.join(exp_dir_path, seed_folder)
             
             if embedding_model:
-                walk_root = os.path.join(seed_folder_path, 'in_domain', embedding_model)
+                # walk_root = os.path.join(seed_folder_path, 'in_domain', embedding_model)
+                walk_root = os.path.join(
+                seed_folder_path,
+                'in_domain',
+                embedding_model
+                )
+                if prompting_strategy:
+                    walk_root = os.path.join(
+                        walk_root,
+                        prompting_strategy
+                    )
                 if not os.path.exists(walk_root):
                     print(f"    ⚠️  Skipping {seed_folder}: no results for {embedding_model}")
                     continue
@@ -478,6 +488,11 @@ if __name__ == "__main__":
                 'st_mpnet_base', 'st_distilroberta', 'st_minilm_l12', 'st_minilm_l6'],
         help='Scope results collection and averaging to a specific embedding model subfolder.'
     )
+    parser.add_argument(
+        '--prompting_strategy',
+        default=None,
+        help='Optional prompting strategy subfolder (e.g. chain-of-thought)'
+    )
     args = parser.parse_args()
     
     if args.mode == 'single' and not args.experiment:
@@ -504,7 +519,8 @@ if __name__ == "__main__":
         target_experiment=args.experiment,
         filter_experiments=args.experiments,
         model_type=args.model_type,
-        embedding_model=args.embedding_model
+        embedding_model=args.embedding_model,
+        prompting_strategy=args.prompting_strategy
     )
     
     if not experiments:

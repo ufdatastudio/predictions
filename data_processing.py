@@ -353,6 +353,160 @@ class DataProcessing:
         print(f"  Dataset distribution: {dataset_counts}")
         
         return result
+    def stratified_sample_dataset(
+            df: pd.DataFrame,
+            sample_fraction: float = 0.1,
+            stratify_cols: list = None,
+            random_state: int = 42,
+            sampling_method: str = 'hierarchical') -> pd.DataFrame:
+        """
+        Take a stratified sample from a dataset maintaining proportions across specified columns.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Full dataset to sample from
+        sample_fraction : float, default=0.1
+            Fraction of data to keep (e.g., 0.1 for 10%)
+        stratify_cols : list of str, optional
+            Columns to stratify by. If None, defaults to ['Dataset Name', 'Ground Truth'].
+            First column is treated as primary (must be balanced).
+            Example: ['Ground Truth', 'Dataset Name']
+        random_state : int, default=42
+            Random seed for reproducibility
+        sampling_method : str, default='hierarchical'
+            Sampling strategy to use:
+            - 'hierarchical': Balance primary column first, then diversify by secondary
+            - 'pair': Sample pairs (1 positive + 1 negative) from each dataset
+            - 'simple': Single-level stratification (only uses first stratify_col)
+        
+        Returns
+        -------
+        pd.DataFrame
+            Stratified sample with reset index
+        
+        Examples
+        --------
+        # 10% sample balanced on Ground Truth, diverse across Dataset Name
+        sample_df = DataProcessing.stratified_sample_dataset(
+            df, 
+            sample_fraction=0.1,
+            stratify_cols=['Ground Truth', 'Dataset Name'],
+            random_state=7
+        )
+        
+        # Pair sampling for maximum diversity
+        sample_df = DataProcessing.stratified_sample_dataset(
+            df,
+            sample_fraction=0.1,
+            sampling_method='pair',
+            random_state=7
+        )
+        
+        Notes
+        -----
+        - Uses same random_state pattern as split_data for consistency
+        - Integrates with existing multi_stratified_sample and balanced_pair_sampling
+        - Validates stratification columns exist before sampling
+        """
+        if stratify_cols is None:
+            stratify_cols = ['Dataset Name', 'Ground Truth']
+        
+        # Validate stratification columns exist
+        missing_cols = [col for col in stratify_cols if col not in df.columns]
+        if missing_cols:
+            print(f"⚠️  Warning: Stratification columns {missing_cols} not found.")
+            print(f"   Available columns: {list(df.columns)}")
+            print(f"   Falling back to random sample.")
+            return df.sample(frac=sample_fraction, random_state=random_state).reset_index(drop=True)
+        
+        # Calculate number of samples
+        n_samples = int(len(df) * sample_fraction)
+        if n_samples < 1:
+            raise ValueError(f"Sample fraction {sample_fraction} too small. Results in {n_samples} samples.")
+        
+        print("\n" + "="*60)
+        print("STRATIFIED SAMPLING")
+        print("="*60)
+        print(f"Original size: {len(df)}")
+        print(f"Sample fraction: {sample_fraction}")
+        print(f"Target samples: {n_samples}")
+        print(f"Stratify by: {stratify_cols}")
+        print(f"Method: {sampling_method}")
+        print(f"Random state: {random_state}")
+        
+        # Route to appropriate sampling method
+        if sampling_method == 'hierarchical':
+            sampled_df = DataProcessing.multi_stratified_sample(
+                df=df,
+                stratify_columns=stratify_cols,
+                n_samples=n_samples,
+                random_state=random_state
+            )
+        
+        elif sampling_method == 'pair':
+            if len(stratify_cols) < 2:
+                raise ValueError("Pair sampling requires at least 2 stratify_cols (label_col and dataset_col)")
+            
+            label_col = stratify_cols[0]
+            dataset_col = stratify_cols[1]
+            
+            sampled_df = DataProcessing.balanced_pair_sampling(
+                df=df,
+                label_column=label_col,
+                dataset_column=dataset_col,
+                n_samples=n_samples,
+                random_state=random_state
+            )
+        
+        elif sampling_method == 'simple':
+            # Single-level stratification using sklearn pattern
+            from sklearn.model_selection import train_test_split
+            
+            primary_col = stratify_cols[0]
+            print(f"\nUsing simple stratification on: {primary_col}")
+            
+            # Use train_test_split with stratify to get our sample
+            sampled_df, _ = train_test_split(
+                df,
+                train_size=sample_fraction,
+                random_state=random_state,
+                stratify=df[primary_col]
+            )
+            sampled_df = sampled_df.reset_index(drop=True)
+            
+            print(f"\nSample distribution ({primary_col}):")
+            print(sampled_df[primary_col].value_counts())
+        
+        else:
+            raise ValueError(
+                f"Unknown sampling_method: '{sampling_method}'. "
+                f"Choose from: 'hierarchical', 'pair', 'simple'"
+            )
+        
+        # Verify final sample size
+        actual_samples = len(sampled_df)
+        print(f"\n✓ Sampling complete: {actual_samples} samples")
+        
+        # Show distribution verification
+        print("\n" + "-"*60)
+        print("SAMPLE VERIFICATION")
+        print("-"*60)
+        for col in stratify_cols:
+            if col in sampled_df.columns:
+                print(f"\n{col} distribution:")
+                original_dist = df[col].value_counts(normalize=True).sort_index()
+                sampled_dist = sampled_df[col].value_counts(normalize=True).sort_index()
+                
+                comparison = pd.DataFrame({
+                    'Original %': (original_dist * 100).round(2),
+                    'Sample %': (sampled_dist * 100).round(2)
+                })
+                print(comparison)
+        
+        print("\n" + "="*60 + "\n")
+        
+        return sampled_df
 
     def join_predictions_with_labels(df: pd.DataFrame, true_labels: pd.Series, y_predictions: pd.Series, model) -> pd.DataFrame:
         """Join the predictions with the true labels DF
@@ -1479,6 +1633,130 @@ class DataProcessing:
             except:
                 return None
     
+    def parse_slot_filling_response(text: str) -> tuple[dict, str]:
+        """
+        Parse an LLM slot-filling response.
+
+        Returns
+        -------
+        tuple[dict, str]
+            - Parsed slot dictionary with keys "0" through "4"
+            - Parse status: "OK", "PARTIAL_PARSE", or "PARSE_ERROR"
+
+        Status definitions
+        ------------------
+        OK:
+            The complete response parsed successfully as JSON or a Python dict.
+            This includes valid all-empty output:
+            {"0": [], "1": [], "2": [], "3": [], "4": []}
+
+        PARTIAL_PARSE:
+            The full response was malformed or truncated, but one or more
+            slot values were recovered independently.
+
+        PARSE_ERROR:
+            No valid full parse or recoverable slot content was found.
+        """
+        default_result = {"1": [], "2": [], "3": [], "4": []}
+        
+        if not text or not isinstance(text, str) or text.strip() == "" or "ERROR_MAX_RETRIES" in text:
+            return default_result, "API_ERROR"
+            
+        text = text.strip()
+
+        # ============================================================
+        # 1. Extract JSON object from markdown or surrounding text
+        # ============================================================
+        markdown_match = re.search(
+            r'```(?:json)?\s*(\{.*?\})\s*```',
+            text,
+            re.DOTALL
+        )
+
+        if markdown_match:
+            json_str = markdown_match.group(1)
+        else:
+            brace_match = re.search(r'(\{.*\})', text, re.DOTALL)
+            json_str = brace_match.group(1) if brace_match else text
+
+        # ============================================================
+        # 2. Standard JSON parse
+        # ============================================================
+        try:
+            parsed = json.loads(json_str)
+
+            if isinstance(parsed, dict):
+                result = default_result.copy()
+
+                for key in ["1", "2", "3", "4"]:
+                    value = parsed.get(key, parsed.get(int(key), []))
+                    result[key] = value if isinstance(value, list) else []
+
+                return result, "OK"
+
+        except (json.JSONDecodeError, ValueError, TypeError):
+            pass
+
+        # ============================================================
+        # 3. Python dictionary fallback
+        # Handles integer keys and single-quoted values.
+        # ============================================================
+        try:
+            parsed = ast.literal_eval(json_str)
+
+            if isinstance(parsed, dict):
+                result = default_result.copy()
+
+                for key in ["1", "2", "3", "4"]:
+                    value = parsed.get(key, parsed.get(int(key), []))
+                    result[key] = value if isinstance(value, list) else []
+
+                return result, "OK"
+
+        except (ValueError, SyntaxError, TypeError):
+            pass
+
+        # ============================================================
+        # 4. Recover individual slots from malformed/truncated output
+        # ============================================================
+        result = default_result.copy()
+        recovered_any_slot = False
+
+        for key in ["1", "2", "3", "4"]:
+            pattern = rf'["\']?{key}["\']?\s*:\s*\[([^\]]*)'
+            match = re.search(pattern, text)
+
+            if match:
+                recovered_any_slot = True
+                raw_list_content = match.group(1).strip()
+
+                # A matched empty list is still a recovered slot.
+                if not raw_list_content:
+                    result[key] = []
+                    continue
+
+                items = []
+                for item in raw_list_content.split(','):
+                    cleaned = item.strip().strip('"').strip("'").strip()
+
+                    if cleaned:
+                        items.append(cleaned)
+
+                result[key] = items
+
+        if recovered_any_slot:
+            return result, "PARTIAL_PARSE"
+
+        # ============================================================
+        # 5. Nothing recoverable
+        # ============================================================
+        print(
+            "[parse_slot_filling_response] "
+            f"⚠️ Could not parse response: {text[:100]}..."
+        )
+
+        return default_result, "PARSE_ERROR"
+
     def expand_pipe_separated_rows(df: pd.DataFrame, col_names: list) -> pd.DataFrame:
         """
         Expand pipe-separated values in property columns into separate rows.

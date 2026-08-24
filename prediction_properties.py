@@ -53,7 +53,6 @@ class PredictionProperties:
 """
         return required_properties
 
-
     def get_optional_properties():
         """
         Returns the three OPTIONAL properties for TOLSA-M identification.
@@ -91,7 +90,6 @@ class PredictionProperties:
                     - Context: Whether the TOLSA-M requires surrounding text to be fully understood (without context: self-contained in one sentence, with context: requires multiple sentences or prior/surrounding text)
 """
         return optional_properties
-
 
     def get_tolsa_m_properties():
         """

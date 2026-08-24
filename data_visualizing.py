@@ -88,6 +88,7 @@ class DataVisualizing:
         label_col: str = 'Sentence Label',
         title: str = None,
         save_path: Optional[str] = None,
+        filename: Optional[str] = None,
     ) -> None:
         """Plot horizontal stacked bar chart with labels below each bar."""
         import matplotlib.pyplot as plt
@@ -136,9 +137,16 @@ class DataVisualizing:
         ax.set_xlim(0, max_val * 1.15)
 
         plt.tight_layout()
+        
         if save_path:
             from data_processing import DataProcessing
-            DataProcessing.save_to_file(None, save_path, f'{category_col}_stacked_distribution', 'png', include_version=True)
+            if filename:
+                # Strip the extension if provided, since save_to_file adds it automatically
+                clean_prefix = filename.replace('.png', '')
+                DataProcessing.save_to_file(None, save_path, clean_prefix, 'png', include_version=False)
+            else:
+                DataProcessing.save_to_file(None, save_path, f'{category_col}_stacked_distribution', 'png', include_version=True)
+                
         plt.show()
         plt.close()
 
