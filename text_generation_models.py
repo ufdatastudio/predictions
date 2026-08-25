@@ -32,7 +32,7 @@ load_dotenv()  # Load environment variables from .env file
 class TextGenerationModelFactory(ABC):
     """An abstract base class to load any pre-trained generation model"""
     
-    def __init__(self, temperature: float = 0.8, top_p: float = 0.9):
+    def __init__(self, temperature: float = 0.1, top_p: float = 0.6):
         """In the init method (also called constructor), initialize our class with variables or attributes.
         
         Notes:
@@ -58,6 +58,15 @@ class TextGenerationModelFactory(ABC):
         temperature=0.1, top_p=0.6 — use words in sentence, while reasoning about structure and phrasing (ie: Rep. Jasmine Crockett, a congresswoman from Texas)
         temperature=0.8, top_p=0.9 — more flexible, which helps the model reason across varied sentence structures and phrasing.
 
+        Ideal Values for Property Extraction
+        Recommended: temperature=0.1, top_p=0.6
+
+        This matches your own note: "use words in sentence, while reasoning about structure and phrasing."
+
+        Here is why this is the right balance for slot filling:
+
+        Low temperature (0.1) keeps the model grounded. You want it to copy exact spans from the sentence, not invent paraphrases. A creative model might write "Goldman Sachs analyst" when the sentence says "Goldman Sachs" — that is a slot-filling error.
+        Top-P at 0.6 gives just enough flexibility for the model to handle complex multi-word spans, titles, and edge cases like "Rep. Jasmine Crockett, a congresswoman from Texas" without collapsing to a single dominant token pattern.
 
         """
         self.temperature = temperature
