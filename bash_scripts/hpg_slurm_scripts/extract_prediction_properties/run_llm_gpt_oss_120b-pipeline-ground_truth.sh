@@ -18,7 +18,7 @@ cd ../../../prediction_classification_experiments-v2
 
 source /orange/ufdatastudios/dj.brinkley/predictions/.venv/bin/activate
 
-MODEL_NAME="openai/gpt-oss-120b"
+MODEL_NAME="gpt-oss-120b"
 PROMPT_TYPE="zero-shot"
 TASK_NAME="ground_truth"
 
@@ -51,13 +51,13 @@ echo "Dataset ready."
 # ============================================================
 echo ""
 echo "======================================"
-echo "Running Ground Truth Extraction — Seed 7"
+echo "Running Ground Truth Extraction — Seed 3"
 echo "======================================"
 
 cd ../properties_extraction_experiments
 echo "Current directory: $(pwd)"
 
-for seed in 7; do
+for seed in 3; do
     echo ""
     echo "============================================================"
     echo "                      SEED: $seed"
@@ -80,5 +80,5 @@ echo "======================================"
 echo "✓ Ground-truth property extraction completed"
 echo "✓ Model: ${MODEL_NAME}"
 echo "✓ Prompt type: ${PROMPT_TYPE}"
-echo "✓ Seeds: 7"
+echo "✓ Seeds: 3"
 echo ""
