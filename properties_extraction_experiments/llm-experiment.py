@@ -21,7 +21,7 @@ from text_generation_models import TextGenerationModelFactory
 BATCH_SIZE = 10
 
 # Stop after this many sentences (set to None to process all)
-STOP_AFTER = 40
+STOP_AFTER = 100
 # STOP_AFTER = None
 
 def load_dataset(base_data_path, dataset_name):
