@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=prop_llama_31_8b_cls
-#SBATCH --output=logs/prop_extraction_llama_31_8b/logs_%x_%j.out
-#SBATCH --error=logs/prop_extraction_llama_31_8b/logs_%x_%j.err
+#SBATCH --job-name=prop_gpt_oss_20b_cls
+#SBATCH --output=logs/prop_extraction_gpt_oss_20b/logs_%x_%j.out
+#SBATCH --error=logs/prop_extraction_gpt_oss_20b/logs_%x_%j.err
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -12,13 +12,13 @@
 
 set -e
 
-mkdir -p logs/prop_extraction_llama_31_8b
+mkdir -p logs/prop_extraction_gpt_oss_20b
 
 cd ../../../prediction_classification_experiments-v2
 
 source /orange/ufdatastudios/dj.brinkley/predictions/.venv/bin/activate
 
-MODEL_NAME="llama-3.1-8b-instruct"
+MODEL_NAME="gpt-oss-20b"
 PROMPT_TYPE="zero-shot"
 TASK_NAME="classification"
 
