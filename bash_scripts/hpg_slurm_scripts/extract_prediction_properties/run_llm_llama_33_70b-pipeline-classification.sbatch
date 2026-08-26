@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=prop_mistral_7b_cls
-#SBATCH --output=logs/prop_extraction_mistral_7b/logs_%x_%j.out
-#SBATCH --error=logs/prop_extraction_mistral_7b/logs_%x_%j.err
+#SBATCH --job-name=prop_llama_33_70b_cls
+#SBATCH --output=logs/prop_extraction_llama_33_70b/logs_%x_%j.out
+#SBATCH --error=logs/prop_extraction_llama_33_70b/logs_%x_%j.err
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -12,13 +12,13 @@
 
 set -e
 
-mkdir -p logs/prop_extraction_mistral_7b
+mkdir -p logs/prop_extraction_llama_33_70b
 
 cd ../../../prediction_classification_experiments-v2
 
 source /orange/ufdatastudios/dj.brinkley/predictions/.venv/bin/activate
 
-MODEL_NAME="mistral-7b-instruct"
+MODEL_NAME="llama-3.3-70b-instruct"
 PROMPT_TYPE="zero-shot"
 TASK_NAME="classification"
 
