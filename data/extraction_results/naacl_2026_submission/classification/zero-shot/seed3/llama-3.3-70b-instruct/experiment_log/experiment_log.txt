@@ -1,0 +1,42 @@
+============================================================
+PROPERTY EXTRACTION EXPERIMENT LOG
+============================================================
+Timestamp:         2026-08-26 11:20:19
+Task:              classification
+Seed:              3
+
+--- Data ---
+Dataset Source:    combined_datasets/naacl_2026_submission/naacl_2026_submission.csv
+Text Column:       Base Sentence
+Original Shape:    (26198, 3)
+Sample Fraction:   0.1
+Stratify Cols:     ['Ground Truth', 'Dataset Name']
+Sampling Method:   hierarchical
+Sampled Shape:     (2619, 3)
+
+--- Model ---
+Model Name:        llama-3.3-70b-instruct
+Clean Model Name:  llama-3.3-70b-instruct
+
+--- Prompts ---
+Prompt Type:       zero-shot
+Base Prompt:
+You are a linguistic expert that specializes in identifying TOLSA-M (Target Outcome with optionaL Source, dAte, and Metadata) properties from a given text input.
+        TOLSA-M is defined as a proposal of any tense (past, present, future) document with properties—must contain some target (the entities of interests within the document) and measurable outcomes (either being an attribute, metric, or slope) with optional source (the entity declaring the document) and date (of declaration and of fru...
+
+Task Instruction:
+For each word or span within the sentence, label it as either "source": 1, "target": 2, "date": 3, "outcome": 4. IMPORTANT: Keep multi-word spans together as single items in the list. Return [] for any property not present in the sentence. Only extract words that fit these 4 categories.
+
+Format Output:
+Respond ONLY with valid JSON: {"1": [], "2": [], "3": [], "4": []}. Do NOT include reasoning or additional text. Return [] for any property not present in the sentence.
+
+--- Output ---
+Output Directory:  /orange/ufdatastudios/dj.brinkley/predictions/properties_extraction_experiments/../data/extraction_results/naacl_2026_submission/classification/zero-shot/seed3/llama-3.3-70b-instruct
+Results File:      /orange/ufdatastudios/dj.brinkley/predictions/properties_extraction_experiments/../data/extraction_results/naacl_2026_submission/classification/zero-shot/seed3/llama-3.3-70b-instruct/extracted_properties.csv
+Metadata File:     /orange/ufdatastudios/dj.brinkley/predictions/properties_extraction_experiments/../data/extraction_results/naacl_2026_submission/classification/zero-shot/seed3/llama-3.3-70b-instruct/extracted_properties_metadata.json
+
+--- Processing ---
+BATCH_SIZE:        10
+STOP_AFTER:        None (process all)
+
+============================================================
