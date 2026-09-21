@@ -1129,7 +1129,15 @@ class DataProcessing:
             bbox_inches = kwargs.get('bbox_inches', 'tight')
             plt.savefig(file_path, dpi=dpi, bbox_inches=bbox_inches)
             plt.close()
-
+        elif save_file_type in ['txt', 'tokens']:
+            if include_version:
+                file_name = f"{prefix}-v{next_number}.tokens"
+            else:
+                file_name = f"{prefix}.tokens"
+            file_path = os.path.join(path, file_name)
+            print(f"Saving tokens file to: {file_path}")
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.writelines(data)
         else:
             raise ValueError(f"Unsupported file type: {save_file_type}. Choose from [json, csv, png]")
 
@@ -1171,6 +1179,9 @@ class DataProcessing:
             data = pd.read_json(path)
             df = pd.DataFrame(data)
             return df
+        elif file_type in ['txt', 'tokens']:
+            with open(path, 'r', encoding=encoding) as f:
+                return f.readlines()
         else:
             return 'Did not properly load'
 
