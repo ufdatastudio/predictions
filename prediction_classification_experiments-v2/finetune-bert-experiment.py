@@ -1,13 +1,14 @@
 # Fine-tune a pretrained BERT model for binary single-sentence classification.
 #
 # Example:
-# python finetune_bert_sentence_classifier.py \
-#     --dataset combined_datasets/combined-full_synthetic-v1.csv \
+# python finetune-bert-experiment.py \
+#     --dataset ../data/combined_datasets/naacl_2026_submission/naacl_2026_submission.csv \
 #     --text_column "Base Sentence" \
 #     --label_column "Ground Truth" \
 #     --val_size 0.2 \
 #     --test_size 0.2 \
-#     --model_name bert-base-cased
+#     --model_name bert-base-uncased \
+#     --seed 140
 
 import os
 import sys
@@ -65,71 +66,21 @@ def set_all_seeds(seed):
 # PATHS AND OUTPUTS
 # ============================================================
 
-def resolve_path(base_data_path, file_path):  
-    """Return an absolute path for either absolute or data-relative input."""  
-    if os.path.isabs(file_path):  
-        return file_path  
-    return os.path.join(base_data_path, file_path)  
-  
-  
-def load_dataset(base_data_path, dataset_path, text_column, label_column):  
-    """Load, validate, and clean a sentence-classification dataset."""  
-    print("\n" + "=" * 40)  
-    print("LOAD DATASET")  
-    print("=" * 40)  
-  
-    data_path = resolve_path(base_data_path, dataset_path)  
-    print(f"Dataset path: {data_path}")  
-  
-    # Uses your custom DataProcessing class to load the file
-    df = DataProcessing.load_from_file(data_path, "csv", sep=",")
-
-    df = df.sample(n=1000, random_state=140).reset_index(drop=True)
-  
-    required_columns = [text_column, label_column]  
-    missing_columns = [column for column in required_columns if column not in df.columns]  
-  
-    if missing_columns:  
-        raise ValueError(  
-            f"Required columns are missing: {missing_columns}\n"  
-            f"Available columns: {list(df.columns)}"  
-        )  
-  
-    original_count = len(df)  
-  
-    # Remove missing text and missing labels.  
-    df = df.dropna(subset=[text_column, label_column]).copy()  
-  
-    # Ensure all text values are strings.  
-    df[text_column] = df[text_column].astype(str).str.strip()  
-  
-    # Remove blank sentences.  
-    df = df[df[text_column] != ""].copy()  
-  
-    # Standardize labels as strings before creating integer label IDs.  
-    df[label_column] = df[label_column].astype(str).str.strip()  
-  
-    print(f"Original rows: {original_count}")  
-    print(f"Usable rows:   {len(df)}")  
-    print(f"Shape:         {df.shape}")  
-  
-    print("\nClass distribution:")  
-    print(df[label_column].value_counts())  
-  
-    print(f"\nPreview:\n{df[[text_column, label_column]].head(5)}\n")  
-  
-    return df.reset_index(drop=True)  
+def resolve_path(base_data_path, file_path):
+    """Return an absolute path for either absolute or data-relative input."""
+    if os.path.isabs(file_path):
+        return file_path
+    return os.path.join(base_data_path, file_path)
 
 
 def create_output_directory(args, experiment_name):
     """Create output directory matching ML pipeline structure."""
-    # classification_results/naacl_2026_submission/seed#/in_domain/bert-base-cased/experiment_name
     seed_dir = os.path.join(
         args.save_path,
         experiment_name,
         f"seed{args.seed}",
         "in_domain",
-        args.model_name.replace("/", "_"),  # e.g. bert-base-cased
+        args.model_name,
     )
 
     os.makedirs(seed_dir, exist_ok=True)
@@ -146,43 +97,48 @@ def create_output_directory(args, experiment_name):
 # DATA LOADING AND CLEANING
 # ============================================================
 
-def load_sentence_dataset(base_data_path, dataset_path, text_column, label_column):
-    """Load and validate a labeled sentence-classification CSV dataset."""
+def load_dataset(base_data_path, dataset_path, text_column, label_column):
+    """Load, validate, and clean a sentence-classification dataset."""
     print("\n" + "=" * 40)
     print("LOAD DATASET")
     print("=" * 40)
 
-    full_dataset_path = resolve_path(base_data_path, dataset_path)
-    print(f"Dataset path: {full_dataset_path}")
+    data_path = resolve_path(base_data_path, dataset_path)
+    print(f"Dataset path: {data_path}")
 
-    df = DataProcessing.load_from_file(
-        full_dataset_path,
-        file_type="csv",
-        sep=",",
-    )
+    # Uses your custom DataProcessing class to load the file.
+    df = DataProcessing.load_from_file(data_path, "csv", sep=",")
 
     required_columns = [text_column, label_column]
-    missing_columns = [
-        column for column in required_columns
-        if column not in df.columns
-    ]
+    missing_columns = [column for column in required_columns if column not in df.columns]
 
     if missing_columns:
         raise ValueError(
-            f"Missing required columns: {missing_columns}\n"
+            f"Required columns are missing: {missing_columns}\n"
             f"Available columns: {list(df.columns)}"
         )
 
     original_count = len(df)
 
+    # Remove missing text and missing labels.
     df = df.dropna(subset=[text_column, label_column]).copy()
+
+    # Ensure all text values are strings.
     df[text_column] = df[text_column].astype(str).str.strip()
+
+    # Remove blank sentences.
     df = df[df[text_column] != ""].copy()
+
+    # Standardize labels as strings before creating integer label IDs.
     df[label_column] = df[label_column].astype(str).str.strip()
 
     print(f"Original rows: {original_count}")
-    print(f"Usable rows: {len(df)}")
-    print(f"\nClass distribution:\n{df[label_column].value_counts()}")
+    print(f"Usable rows:   {len(df)}")
+    print(f"Shape:         {df.shape}")
+
+    print("\nClass distribution:")
+    print(df[label_column].value_counts())
+
     print(f"\nPreview:\n{df[[text_column, label_column]].head(5)}\n")
 
     return df.reset_index(drop=True)
@@ -238,7 +194,6 @@ def split_dataset(df, label_id_column, test_size, val_size, seed):
             random_state=seed,
             stratify=df[label_id_column],
         )
-
         adjusted_val_size = val_size / (1 - test_size)
     else:
         train_val_df = df.copy()
@@ -258,9 +213,9 @@ def split_dataset(df, label_id_column, test_size, val_size, seed):
     if test_df is not None:
         test_df = test_df.reset_index(drop=True)
 
-    print(f"Train size: {len(train_df)}")
+    print(f"Train size:      {len(train_df)}")
     print(f"Validation size: {len(val_df)}")
-    print(f"Test size: {len(test_df) if test_df is not None else 0}")
+    print(f"Test size:       {len(test_df) if test_df is not None else 0}")
 
     return train_df, val_df, test_df
 
@@ -330,52 +285,27 @@ def tokenize_dataset(dataset, tokenizer, text_column, max_length):
 # TRAINER METRICS
 # ============================================================
 
-def build_compute_metrics():
-    """Use EvaluationMetric metrics during Hugging Face validation."""
-    def compute_metrics(eval_pred):
-        logits, y_true = eval_pred
-        y_pred = np.argmax(logits, axis=-1)
+def compute_metrics(eval_pred):
+    """Compute validation metrics from Hugging Face model outputs."""
+    logits, y_true = eval_pred
+    # logits: raw output scores for each class, shape (N, 2).
+    # y_true: ground-truth label IDs from the validation dataset, shape (N,).
+    y_pred = np.argmax(logits, axis=-1)
 
-        return EvaluationMetric.custom_evaluation_metrics(
-            y_true=y_true,
-            y_prediction=y_pred,
-        )
-
-    return compute_metrics
+    return EvaluationMetric.custom_evaluation_metrics(
+        y_true=y_true,
+        y_prediction=y_pred,
+    )
 
 
 # ============================================================
-# BERT FINE-TUNING
+# BERT FINE-TUNING: STEP 1 — LOAD PRETRAINED MODEL
 # ============================================================
 
-def train_bert_model(
-    train_dataset,
-    val_dataset,
-    model_name,
-    label_to_id,
-    id_to_label,
-    tokenizer,
-    output_dir,
-    args,
-):
-    """Fine-tune pretrained BERT and save its final model weights."""
-    print("\n" + "=" * 40)
-    print("FINE-TUNE BERT")
-    print("=" * 40)
-
-    # --------------------------------------------------------
-    # STEP 1: LOAD PRETRAINED BERT
-    # --------------------------------------------------------
-    # From the D2L tutorial [1]: BERT is pretrained on BookCorpus +
-    # English Wikipedia (800M + 2.5B words) using MLM and NSP tasks.
-    # Here we are NOT pretraining — we are loading those pretrained
-    # weights and attaching a new classification head on top.
-    # The warning "Some weights not initialized" is EXPECTED — it refers
-    # to the new classifier.weight and classifier.bias which are
-    # randomly initialized and will be learned during fine-tuning.
-    # From the HuggingFace tutorial: this is called transfer learning.
+def load_pretrained_bert_classifier(model_name, label_to_id, id_to_label):
+    """Load pretrained BERT and add a randomly initialized binary classifier."""
     print(f"\n[1/5] Loading pretrained BERT checkpoint: {model_name}")
-    print(f"      num_labels  : 2 (binary classification)")
+    print("      num_labels  : 2 (binary classification)")
     print(f"      label2id    : {label_to_id}")
     print(f"      id2label    : {id_to_label}")
 
@@ -386,64 +316,88 @@ def train_bert_model(
         id2label=id_to_label,
     )
 
-    total_params     = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total_params = sum(parameter.numel() for parameter in model.parameters())
+    trainable_params = sum(
+        parameter.numel()
+        for parameter in model.parameters()
+        if parameter.requires_grad
+    )
+
     print(f"      Total parameters     : {total_params:,}")
     print(f"      Trainable parameters : {trainable_params:,}")
 
-    # --------------------------------------------------------
-    # STEP 2: CONFIGURE TRAINING ARGUMENTS
-    # --------------------------------------------------------
-    # From the HuggingFace tutorial: TrainingArguments controls
-    # everything about HOW the Trainer will train the model —
-    # learning rate, batch sizes, epochs, evaluation frequency, etc.
-    # From D2L [1]: BERT uses Adam optimizer with weight decay.
-    print(f"\n[2/5] Configuring TrainingArguments")
-    print(f"      Output dir          : {os.path.join(output_dir, 'training_checkpoints')}")
-    print(f"      Learning rate       : {args.learning_rate}")
-    print(f"      Train batch size    : {args.train_batch_size}")
-    print(f"      Eval batch size     : {args.eval_batch_size}")
-    print(f"      Epochs              : {args.epochs}")
-    print(f"      Weight decay        : {args.weight_decay}")
-    print(f"      Eval strategy       : epoch (evaluate after every full pass through train data)")
-    print(f"      Save strategy       : epoch (save checkpoint after every epoch)")
-    print(f"      Logging steps       : {args.logging_steps} (log loss every N steps)")
-    print(f"      Save total limit    : 1 (only keep the best checkpoint on disk)")
-    print(f"      FP16 (mixed prec.)  : {torch.cuda.is_available()} (True only if GPU available)")
-    print(f"      Seed                : {args.seed}")
+    return model
+
+
+# ============================================================
+# BERT FINE-TUNING: STEP 2 — CONFIGURE TRAINING ARGUMENTS
+# ============================================================
+
+def configure_finetuning_arguments(
+    output_dir,
+    learning_rate,
+    train_batch_size,
+    eval_batch_size,
+    epochs,
+    weight_decay,
+    logging_steps,
+    seed,
+):
+    """Configure Hugging Face settings for BERT fine-tuning."""
+    checkpoint_dir = os.path.join(output_dir, "training_checkpoints")
+    use_fp16 = torch.cuda.is_available()
+
+    print("\n[2/5] Configuring TrainingArguments")
+    print(f"      Output dir          : {checkpoint_dir}")
+    print(f"      Learning rate       : {learning_rate}")
+    print(f"      Train batch size    : {train_batch_size}")
+    print(f"      Eval batch size     : {eval_batch_size}")
+    print(f"      Epochs              : {epochs}")
+    print(f"      Weight decay        : {weight_decay}")
+    print("      Eval strategy       : epoch")
+    print("      Save strategy       : epoch")
+    print(f"      Logging steps       : {logging_steps}")
+    print("      Save total limit    : 1")
+    print(f"      FP16               : {use_fp16}")
+    print(f"      Seed                : {seed}")
 
     training_args = TrainingArguments(
-        output_dir=os.path.join(output_dir, "training_checkpoints"),
-        learning_rate=args.learning_rate,
-        per_device_train_batch_size=args.train_batch_size,
-        per_device_eval_batch_size=args.eval_batch_size,
-        num_train_epochs=args.epochs,
-        weight_decay=args.weight_decay,
+        output_dir=checkpoint_dir,
+        learning_rate=learning_rate,
+        per_device_train_batch_size=train_batch_size,
+        per_device_eval_batch_size=eval_batch_size,
+        num_train_epochs=epochs,
+        weight_decay=weight_decay,
         eval_strategy="epoch",
         save_strategy="epoch",
         logging_strategy="steps",
-        logging_steps=args.logging_steps,
+        logging_steps=logging_steps,
         save_total_limit=1,
-        fp16=torch.cuda.is_available(),
+        fp16=use_fp16,
         report_to=[],
-        seed=args.seed,
+        seed=seed,
     )
 
-    # --------------------------------------------------------
-    # STEP 3: BUILD THE TRAINER
-    # --------------------------------------------------------
-    # From the HuggingFace tutorial: the Trainer wraps the model,
-    # data, and training configuration into a single object.
-    # DataCollatorWithPadding dynamically pads each batch to the
-    # length of the longest sentence in that batch — more efficient
-    # than padding everything to max_length upfront.
-    # compute_metrics tells the Trainer to call EvaluationMetric
-    # after each epoch to report Accuracy, Precision, Recall, F1.
-    print(f"\n[3/5] Building Trainer")
+    return training_args
+
+
+# ============================================================
+# BERT FINE-TUNING: STEP 3 — BUILD TRAINER
+# ============================================================
+
+def build_bert_trainer(
+    model,
+    training_args,
+    train_dataset,
+    val_dataset,
+    tokenizer,
+):
+    """Combine model, datasets, tokenizer, metrics, and configuration."""
+    print("\n[3/5] Building Trainer")
     print(f"      Train examples      : {len(train_dataset)}")
     print(f"      Validation examples : {len(val_dataset)}")
-    print(f"      Data collator       : DataCollatorWithPadding (dynamic per-batch padding)")
-    print(f"      Compute metrics     : Accuracy, Precision, Recall, F1 Score")
+    print("      Data collator       : dynamic batch padding")
+    print("      Compute metrics     : Accuracy, Precision, Recall, F1 Score")
 
     trainer = Trainer(
         model=model,
@@ -452,51 +406,44 @@ def train_bert_model(
         eval_dataset=val_dataset,
         tokenizer=tokenizer,
         data_collator=DataCollatorWithPadding(tokenizer=tokenizer),
-        compute_metrics=build_compute_metrics(),
+        compute_metrics=compute_metrics,
     )
 
-    # --------------------------------------------------------
-    # STEP 4: FINE-TUNE
-    # --------------------------------------------------------
-    # From D2L [1]: fine-tuning updates ALL pretrained Transformer
-    # encoder parameters (unlike ELMo which freezes them) while
-    # simultaneously training the new classification head.
-    # The [CLS] token representation is what flows into the
-    # classification head — the same [CLS] token used in BERT's
-    # pretraining NSP task [1].
-    # During training the Hugging Face Trainer will print a log
-    # line every args.logging_steps steps showing:
-    #   loss       → cross-entropy loss on the current training batch
-    #   grad_norm  → magnitude of the gradient (spikes = instability)
-    #   learning_rate → current LR after linear warmup + decay
-    #   epoch      → fractional progress through the dataset
-    # At the end of each epoch it will print eval metrics.
-    print(f"\n[4/5] Starting fine-tuning...")
-    print(f"      Every {args.logging_steps} steps you will see:")
-    print(f"        loss         → cross-entropy loss on that training batch")
-    print(f"        grad_norm    → gradient magnitude (large spikes = instability)")
-    print(f"        learning_rate → current LR value (decays toward 0)")
-    print(f"        epoch        → fractional progress (e.g. 1.5 = halfway through epoch 2)")
-    print(f"      At the end of each epoch you will see eval metrics:")
-    print(f"        eval_loss, eval_Accuracy, eval_Precision, eval_Recall, eval_F1 Score\n")
+    return trainer
+
+
+# ============================================================
+# BERT FINE-TUNING: STEP 4 — FINE-TUNE
+# ============================================================
+
+def run_bert_finetuning(trainer, logging_steps):
+    """Run supervised fine-tuning on the labeled training sentences."""
+    print("\n[4/5] Starting fine-tuning...")
+    print(f"      Logging frequency   : every {logging_steps} steps")
+    print("      Training logs       : loss, grad_norm, learning_rate, epoch")
+    print("      Validation logs     : eval_loss, Accuracy, Precision, Recall, F1 Score")
 
     trainer.train()
 
-    # --------------------------------------------------------
-    # STEP 5: SAVE THE FINE-TUNED MODEL
-    # --------------------------------------------------------
-    # Saves the full fine-tuned BERT model weights + tokenizer so
-    # you can reload them later for inference without retraining.
+    return trainer
+
+
+# ============================================================
+# BERT FINE-TUNING: STEP 5 — SAVE MODEL AND TOKENIZER
+# ============================================================
+
+def save_finetuned_bert(trainer, tokenizer, output_dir):
+    """Save the fine-tuned model weights, configuration, and tokenizer."""
     final_model_dir = os.path.join(output_dir, "final_model")
+
     trainer.save_model(final_model_dir)
     tokenizer.save_pretrained(final_model_dir)
 
-    print(f"\n[5/5] Fine-tuning complete.")
+    print("\n[5/5] Fine-tuning complete.")
     print(f"      ✓ Saved fine-tuned BERT model to : {final_model_dir}")
     print(f"      ✓ Saved tokenizer to             : {final_model_dir}")
-    print(f"      To reload later: AutoModelForSequenceClassification.from_pretrained('{final_model_dir}')")
 
-    return trainer
+    return final_model_dir
 
 
 # ============================================================
@@ -521,6 +468,31 @@ def predict_dataset(trainer, tokenized_dataset):
 
     return y_pred, probabilities
 
+
+# ============================================================
+# GET GROUND-TRUTH LABELS
+# ============================================================
+
+def get_true_labels(source_df, label_id_column):
+    """Extract integer ground-truth labels from the source DataFrame."""
+    return source_df[label_id_column].to_numpy()
+
+
+# ============================================================
+# GET BERT PREDICTIONS AND PROBABILITIES
+# ============================================================
+
+def get_bert_predictions(trainer, tokenized_dataset):
+    """Generate BERT predicted labels and probability vectors."""
+    return predict_dataset(
+        trainer=trainer,
+        tokenized_dataset=tokenized_dataset,
+    )
+
+
+# ============================================================
+# EVALUATE BERT PREDICTIONS
+# ============================================================
 
 def evaluate_predictions(y_true, y_pred, probabilities, split_name, seed):
     """Use EvaluationMetric to evaluate binary BERT predictions."""
@@ -571,12 +543,11 @@ def evaluate_predictions(y_true, y_pred, probabilities, split_name, seed):
     return metrics_df, cm, eval_report
 
 
-def create_predictions_dataframe(
-    source_df,
-    y_pred,
-    probabilities,
-    id_to_label,
-):
+# ============================================================
+# CREATE PREDICTIONS DATAFRAME
+# ============================================================
+
+def create_bert_results_dataframe(source_df, y_pred, probabilities, id_to_label):
     """Attach BERT predictions and probabilities to source data."""
     results_df = source_df.copy()
 
@@ -592,41 +563,39 @@ def create_predictions_dataframe(
     return results_df
 
 
-def evaluate_and_save_split(
-    trainer,
-    source_df,
-    tokenized_dataset,
-    label_id_column,
-    id_to_label,
+# ============================================================
+# CREATE READABLE CONFUSION MATRIX DATAFRAME
+# ============================================================
+
+def create_confusion_matrix_dataframe(cm, id_to_label):
+    """Add readable actual and predicted labels to the confusion matrix."""
+    return pd.DataFrame(
+        cm,
+        index=[
+            f"Actual: {id_to_label[0]}",
+            f"Actual: {id_to_label[1]}",
+        ],
+        columns=[
+            f"Predicted: {id_to_label[0]}",
+            f"Predicted: {id_to_label[1]}",
+        ],
+    )
+
+
+# ============================================================
+# SAVE SPLIT OUTPUTS
+# ============================================================
+
+def save_split_outputs(
+    predictions_df,
+    metrics_df,
+    confusion_matrix_df,
     output_dir,
     split_name,
-    seed,
 ):
-    """Predict, evaluate, and save results for validation, test, or external data."""
-    y_true = source_df[label_id_column].to_numpy()
-
-    y_pred, probabilities = predict_dataset(
-        trainer,
-        tokenized_dataset,
-    )
-
-    metrics_df, cm, report_dict = evaluate_predictions(
-        y_true=y_true,
-        y_pred=y_pred,
-        probabilities=probabilities,
-        split_name=split_name,
-        seed=seed,
-    )
-
+    """Save predictions, metrics, and confusion matrix for one split."""
     split_dir = os.path.join(output_dir, split_name)
     os.makedirs(split_dir, exist_ok=True)
-
-    predictions_df = create_predictions_dataframe(
-        source_df=source_df,
-        y_pred=y_pred,
-        probabilities=probabilities,
-        id_to_label=id_to_label,
-    )
 
     DataProcessing.save_to_file(
         predictions_df,
@@ -644,18 +613,6 @@ def evaluate_and_save_split(
         include_version=False,
     )
 
-    confusion_matrix_df = pd.DataFrame(
-        cm,
-        index=[
-            f"Actual: {id_to_label[0]}",
-            f"Actual: {id_to_label[1]}",
-        ],
-        columns=[
-            f"Predicted: {id_to_label[0]}",
-            f"Predicted: {id_to_label[1]}",
-        ],
-    )
-
     DataProcessing.save_to_file(
         confusion_matrix_df,
         path=split_dir,
@@ -666,7 +623,8 @@ def evaluate_and_save_split(
 
     print(f"✓ Saved {split_name} outputs to: {split_dir}")
 
-    return metrics_df, predictions_df, report_dict
+    return split_dir
+
 
 # ============================================================
 # EXTERNAL / CROSS-DOMAIN EVALUATION
@@ -696,7 +654,6 @@ def evaluate_external_datasets(
     label_id_column = "_label_id"
 
     for dataset_path in external_dataset_paths:
-        # Load external dataset using your custom DataProcessing logic
         external_df = load_dataset(
             base_data_path=base_data_path,
             dataset_path=dataset_path,
@@ -704,10 +661,8 @@ def evaluate_external_datasets(
             label_column=label_column,
         )
 
-        # Map external labels to the IDs used during training
         external_df[label_id_column] = external_df[label_column].map(label_to_id)
 
-        # Check for unseen labels in the external dataset
         unknown_labels = external_df[external_df[label_id_column].isna()][label_column].unique()
 
         if len(unknown_labels) > 0:
@@ -719,14 +674,12 @@ def evaluate_external_datasets(
 
         external_df[label_id_column] = external_df[label_id_column].astype(int)
 
-        # Convert to Hugging Face dataset
         external_dataset = dataframe_to_hf_dataset(
             external_df,
             text_column=text_column,
             label_id_column=label_id_column,
         )
 
-        # Tokenize
         tokenized_external_dataset = tokenize_dataset(
             dataset=external_dataset,
             tokenizer=tokenizer,
@@ -736,16 +689,42 @@ def evaluate_external_datasets(
 
         dataset_name = os.path.splitext(os.path.basename(dataset_path))[0]
 
-        # Predict, evaluate, and save artifacts
-        evaluate_and_save_split(
-            trainer=trainer,
+        y_true = get_true_labels(
             source_df=external_df,
-            tokenized_dataset=tokenized_external_dataset,
             label_id_column=label_id_column,
-            id_to_label=id_to_label,
-            output_dir=output_dir,
+        )
+
+        y_pred, probabilities = get_bert_predictions(
+            trainer=trainer,
+            tokenized_dataset=tokenized_external_dataset,
+        )
+
+        metrics_df, cm, _ = evaluate_predictions(
+            y_true=y_true,
+            y_pred=y_pred,
+            probabilities=probabilities,
             split_name=f"external_{dataset_name}",
             seed=seed,
+        )
+
+        predictions_df = create_bert_results_dataframe(
+            source_df=external_df,
+            y_pred=y_pred,
+            probabilities=probabilities,
+            id_to_label=id_to_label,
+        )
+
+        confusion_matrix_df = create_confusion_matrix_dataframe(
+            cm=cm,
+            id_to_label=id_to_label,
+        )
+
+        save_split_outputs(
+            predictions_df=predictions_df,
+            metrics_df=metrics_df,
+            confusion_matrix_df=confusion_matrix_df,
+            output_dir=output_dir,
+            split_name=f"external_{dataset_name}",
         )
 
 
@@ -824,12 +803,11 @@ if __name__ == "__main__":
         --label_column "Ground Truth" \
         --val_size 0.2 \
         --test_size 0.2 \
-        --model_name bert-base-cased \
+        --model_name bert-base-uncased \
         --seed 140
 
-    
     Example: train on one dataset and evaluate only on external datasets
-    python fintune-bert-experiment.py.py \
+    python finetune-bert-experiment.py \
         --dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
         --text_column "Base Sentence" \
         --label_column "Ground Truth" \
@@ -860,7 +838,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--save_path",
-        default=os.path.join(base_data_path, "classification_results"),  # same root as ML pipeline
+        default=os.path.join(base_data_path, "classification_results"),
         help="Directory in which experiment outputs are saved.",
     )
 
@@ -878,7 +856,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--model_name",
-        default="bert-base-cased",
+        default="bert-base-uncased",
         help="Hugging Face pretrained checkpoint for tokenizer and model.",
     )
 
@@ -972,6 +950,7 @@ if __name__ == "__main__":
     # ============================================================
     # 2. EXPERIMENT SETUP
     # ============================================================
+
     current_date = datetime.now().strftime("%Y-%m-%d")
     dataset_filename = os.path.basename(args.dataset)
     dataset_base = os.path.splitext(dataset_filename)[0]
@@ -979,7 +958,7 @@ if __name__ == "__main__":
     experiment_base = dataset_base + args.experiment_suffix
     experiment_name = f"{experiment_base}_{current_date}"
 
-    print(experiment_name)
+    print(f"\nExperiment name: {experiment_name}")
 
     experiment_dir, seed_dir = create_output_directory(
         args=args,
@@ -1018,12 +997,12 @@ if __name__ == "__main__":
     df[label_id_column] = df[args.label_column].map(label_to_id).astype(int)
 
     print(f"Usable rows:   {len(df)}")
-    print(f"Shape:         {df.shape}")  
-  
-    print("\nClass distribution:")  
-    print(df[label_id_column].value_counts())  
-  
-    print(f"\nPreview:\n{df[[args.text_column, label_id_column]].head(5)}\n")  
+    print(f"Shape:         {df.shape}")
+
+    print("\nClass distribution:")
+    print(df[label_id_column].value_counts())
+
+    print(f"\nPreview:\n{df[[args.text_column, label_id_column]].head(5)}\n")
 
     # ============================================================
     # 4. CREATE AND SAVE DATA SPLITS
@@ -1045,31 +1024,17 @@ if __name__ == "__main__":
     )
 
     # ============================================================
-    # TOKENIZATION EXAMPLE — what each sentence looks like after tokenization
+    # 5. TOKENIZE SINGLE-SENTENCE BERT INPUTS
     # ============================================================
     #
-    # The book image shows a MULTIPLE input sequence:
-    #   Input:    [CLS]  this  movie  is  great  [SEP]  i  like  it  [SEP]
-    #   Segment:  e_A    e_A   e_A    e_A  e_A   e_A   e_B e_B  e_B  e_B
-    #   Position: e_0    e_1   e_2    e_3  e_4   e_5   e_6 e_7  e_8  e_9
+    # YOUR pipeline is a SINGLE-sentence task.
+    # Each sentence is represented as:
+    #   Input:    [CLS]  The  stock  rose  [SEP]  [PAD] ... [PAD]
+    #   Segment:  e_A    e_A   e_A   e_A   e_A    e_A  ...  e_A
+    #   Position: e_0    e_1   e_2   e_3   e_4    e_5  ...  e_127
     #
-    # YOUR pipeline is a SINGLE-sentence task (sentiment / prediction classification).
-    # So each sentence looks like:
-    #   Input:    [CLS]  The  stock  rose  sharply  [SEP]  [PAD] ... [PAD]
-    #   Segment:  e_A    e_A   e_A   e_A    e_A     e_A    e_A  ...  e_A
-    #   Position: e_0    e_1   e_2   e_3    e_4     e_5    e_6  ...  e_127
-    #
-    # The Hugging Face tokenizer handles ALL of this automatically:
-    #   - Inserts [CLS] at position 0
-    #   - Inserts [SEP] after the last real token
-    #   - Pads to max_length with [PAD] tokens
-    #   - Builds attention_mask: 1 for real tokens, 0 for [PAD]
-    #   - input_ids:       integer ID for every token in the vocabulary
-    #   - attention_mask:  tells BERT which tokens to attend to vs. ignore
-    #
-    # NOTE: For single-sentence tasks, segment IDs (token_type_ids) are all 0s
-    # — only segment A (e_A) is used, because there is no second sentence [1].
-    # ============================================================
+    # For single-sentence tasks, segment IDs are all 0s — only
+    # segment A is used, because there is no second sentence [1].
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
 
@@ -1115,14 +1080,13 @@ if __name__ == "__main__":
     else:
         tokenized_test_dataset = None
 
-    print(f"✓ Tokenized training sentences: {len(tokenized_train_dataset)}")
+    print(f"✓ Tokenized training sentences:   {len(tokenized_train_dataset)}")
     print(f"✓ Tokenized validation sentences: {len(tokenized_val_dataset)}")
     print(
-        f"✓ Tokenized test sentences: "
+        f"✓ Tokenized test sentences:       "
         f"{len(tokenized_test_dataset) if tokenized_test_dataset is not None else 0}"
     )
 
-    
     print("\n" + "=" * 40)
     print("TOKENIZATION MINI EXAMPLE — 3 train samples")
     print("=" * 40)
@@ -1132,12 +1096,9 @@ if __name__ == "__main__":
         original_text = train_df.iloc[i][args.text_column]
         label = train_df.iloc[i][label_id_column]
 
-        # Decode token IDs back to human-readable tokens including special tokens
         tokens = tokenizer.convert_ids_to_tokens(example["input_ids"])
-
-        # Count real tokens (attention_mask == 1) vs padding (attention_mask == 0)
         num_real_tokens = sum(example["attention_mask"])
-        num_pad_tokens  = len(example["attention_mask"]) - num_real_tokens
+        num_pad_tokens = len(example["attention_mask"]) - num_real_tokens
 
         print(f"\n--- Example {i + 1} ---")
         print(f"  Original sentence : {original_text}")
@@ -1149,54 +1110,180 @@ if __name__ == "__main__":
         print(f"  Total length      : {len(example['input_ids'])} (max_length={args.max_length})")
 
     # ============================================================
-    # 6. FINE-TUNE PRETRAINED BERT
+    # 6. STEP 1 — LOAD PRETRAINED BERT
     # ============================================================
 
-    trainer = train_bert_model(
-        train_dataset=tokenized_train_dataset,
-        val_dataset=tokenized_val_dataset,
+    model = load_pretrained_bert_classifier(
         model_name=args.model_name,
         label_to_id=label_to_id,
         id_to_label=id_to_label,
-        tokenizer=tokenizer,
-        output_dir=seed_dir,
-        args=args,
     )
 
-    quit()
     # ============================================================
-    # 7. EVALUATE ON VALIDATION DATA
+    # 7. STEP 2 — CONFIGURE TRAINING ARGUMENTS
     # ============================================================
 
-    evaluate_and_save_split(
-        trainer=trainer,
-        source_df=val_df,
-        tokenized_dataset=tokenized_val_dataset,
-        label_id_column=label_id_column,
-        id_to_label=id_to_label,
+    training_args = configure_finetuning_arguments(
         output_dir=seed_dir,
+        learning_rate=args.learning_rate,
+        train_batch_size=args.train_batch_size,
+        eval_batch_size=args.eval_batch_size,
+        epochs=args.epochs,
+        weight_decay=args.weight_decay,
+        logging_steps=args.logging_steps,
+        seed=args.seed,
+    )
+
+    # ============================================================
+    # 8. STEP 3 — BUILD TRAINER
+    # ============================================================
+
+    trainer = build_bert_trainer(
+        model=model,
+        training_args=training_args,
+        train_dataset=tokenized_train_dataset,
+        val_dataset=tokenized_val_dataset,
+        tokenizer=tokenizer,
+    )
+
+    # ============================================================
+    # 9. STEP 4 — FINE-TUNE BERT
+    # ============================================================
+
+    trainer = run_bert_finetuning(
+        trainer=trainer,
+        logging_steps=args.logging_steps,
+    )
+
+    # ============================================================
+    # 10. STEP 5 — SAVE FINE-TUNED MODEL AND TOKENIZER
+    # ============================================================
+
+    save_finetuned_bert(
+        trainer=trainer,
+        tokenizer=tokenizer,
+        output_dir=seed_dir,
+    )
+
+    # ============================================================
+    # 11. GET GROUND-TRUTH LABELS — VALIDATION
+    # ============================================================
+
+    y_true_val = get_true_labels(
+        source_df=val_df,
+        label_id_column=label_id_column,
+    )
+
+    print(f"Validation ground-truth labels: {len(y_true_val)}")
+
+    # ============================================================
+    # 12. GET BERT PREDICTIONS AND PROBABILITIES — VALIDATION
+    # ============================================================
+
+    y_pred_val, probabilities_val = get_bert_predictions(
+        trainer=trainer,
+        tokenized_dataset=tokenized_val_dataset,
+    )
+
+    print(f"Validation predictions: {len(y_pred_val)}")
+
+    # ============================================================
+    # 13. EVALUATE BERT PREDICTIONS — VALIDATION
+    # ============================================================
+
+    metrics_df_val, cm_val, report_dict_val = evaluate_predictions(
+        y_true=y_true_val,
+        y_pred=y_pred_val,
+        probabilities=probabilities_val,
         split_name="validation",
         seed=args.seed,
     )
 
     # ============================================================
-    # 8. EVALUATE ON FINAL IN-DOMAIN TEST DATA
+    # 14. SAVE VALIDATION OUTPUTS
+    # ============================================================
+
+    predictions_df_val = create_bert_results_dataframe(
+        source_df=val_df,
+        y_pred=y_pred_val,
+        probabilities=probabilities_val,
+        id_to_label=id_to_label,
+    )
+
+    confusion_matrix_df_val = create_confusion_matrix_dataframe(
+        cm=cm_val,
+        id_to_label=id_to_label,
+    )
+
+    save_split_outputs(
+        predictions_df=predictions_df_val,
+        metrics_df=metrics_df_val,
+        confusion_matrix_df=confusion_matrix_df_val,
+        output_dir=seed_dir,
+        split_name="validation",
+    )
+
+    # ============================================================
+    # 15. GET GROUND-TRUTH LABELS — IN-DOMAIN TEST
     # ============================================================
 
     if test_df is not None and tokenized_test_dataset is not None:
-        evaluate_and_save_split(
-            trainer=trainer,
+        y_true_test = get_true_labels(
             source_df=test_df,
-            tokenized_dataset=tokenized_test_dataset,
             label_id_column=label_id_column,
-            id_to_label=id_to_label,
-            output_dir=seed_dir,
+        )
+
+        print(f"Test ground-truth labels: {len(y_true_test)}")
+
+        # ============================================================
+        # 16. GET BERT PREDICTIONS AND PROBABILITIES — IN-DOMAIN TEST
+        # ============================================================
+
+        y_pred_test, probabilities_test = get_bert_predictions(
+            trainer=trainer,
+            tokenized_dataset=tokenized_test_dataset,
+        )
+
+        print(f"Test predictions: {len(y_pred_test)}")
+
+        # ============================================================
+        # 17. EVALUATE BERT PREDICTIONS — IN-DOMAIN TEST
+        # ============================================================
+
+        metrics_df_test, cm_test, report_dict_test = evaluate_predictions(
+            y_true=y_true_test,
+            y_pred=y_pred_test,
+            probabilities=probabilities_test,
             split_name="in_domain_test",
             seed=args.seed,
         )
 
+        # ============================================================
+        # 18. SAVE IN-DOMAIN TEST OUTPUTS
+        # ============================================================
+
+        predictions_df_test = create_bert_results_dataframe(
+            source_df=test_df,
+            y_pred=y_pred_test,
+            probabilities=probabilities_test,
+            id_to_label=id_to_label,
+        )
+
+        confusion_matrix_df_test = create_confusion_matrix_dataframe(
+            cm=cm_test,
+            id_to_label=id_to_label,
+        )
+
+        save_split_outputs(
+            predictions_df=predictions_df_test,
+            metrics_df=metrics_df_test,
+            confusion_matrix_df=confusion_matrix_df_test,
+            output_dir=seed_dir,
+            split_name="in_domain_test",
+        )
+
     # ============================================================
-    # 9. EVALUATE ON EXTERNAL DATASETS
+    # 19. EVALUATE ON EXTERNAL DATASETS
     # ============================================================
 
     evaluate_external_datasets(
@@ -1214,7 +1301,7 @@ if __name__ == "__main__":
     )
 
     # ============================================================
-    # 10. SAVE EXPERIMENT LOG
+    # 20. SAVE EXPERIMENT LOG
     # ============================================================
 
     create_experiment_log(
@@ -1228,7 +1315,7 @@ if __name__ == "__main__":
     )
 
     # ============================================================
-    # 11. COMPLETE
+    # 21. COMPLETE
     # ============================================================
 
     print("\n" + "=" * 40)
