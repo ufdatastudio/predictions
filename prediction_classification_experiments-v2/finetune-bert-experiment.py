@@ -1,26 +1,17 @@
 # Fine-tune a pretrained BERT model for binary single-sentence classification.
-#
-# Example:
-# python finetune-bert-experiment.py \
-#     --dataset ../data/combined_datasets/naacl_2026_submission/naacl_2026_submission.csv \
-#     --text_column "Base Sentence" \
-#     --label_column "Ground Truth" \
-#     --val_size 0.2 \
-#     --test_size 0.2 \
-#     --model_name bert-base-uncased \
-#     --seed 140
-
 import os
 import sys
+import torch
 import random
 import argparse
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
-import torch
 
 from datasets import Dataset
+from functools import partial
+from datetime import datetime
+
 from sklearn.model_selection import train_test_split
 
 from transformers import (
@@ -31,10 +22,6 @@ from transformers import (
     TrainingArguments,
     set_seed,
 )
-
-# ============================================================
-# PROJECT IMPORTS
-# ============================================================
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.dirname(script_dir)
@@ -48,11 +35,6 @@ if project_dir not in sys.path:
 from data_processing import DataProcessing
 from metrics import EvaluationMetric
 
-
-# ============================================================
-# REPRODUCIBILITY
-# ============================================================
-
 def set_all_seeds(seed):
     """Set random seeds for reproducible splits and BERT fine-tuning."""
     random.seed(seed)
@@ -61,88 +43,59 @@ def set_all_seeds(seed):
     torch.cuda.manual_seed_all(seed)
     set_seed(seed)
 
-
-# ============================================================
-# PATHS AND OUTPUTS
-# ============================================================
-
 def resolve_path(base_data_path, file_path):
     """Return an absolute path for either absolute or data-relative input."""
     if os.path.isabs(file_path):
         return file_path
     return os.path.join(base_data_path, file_path)
 
-
-def create_output_directory(args, experiment_name):
-    """Create output directory matching ML pipeline structure."""
-    seed_dir = os.path.join(
-        args.save_path,
-        experiment_name,
-        f"seed{args.seed}",
-        "in_domain",
-        args.model_name,
-    )
-
-    os.makedirs(seed_dir, exist_ok=True)
-
-    experiment_dir = os.path.join(args.save_path, experiment_name)
-
-    print(f"\n✓ Experiment directory: {experiment_dir}")
-    print(f"✓ Seed directory: {seed_dir}")
-
-    return experiment_dir, seed_dir
-
-
-# ============================================================
-# DATA LOADING AND CLEANING
-# ============================================================
-
-def load_dataset(base_data_path, dataset_path, text_column, label_column):
-    """Load, validate, and clean a sentence-classification dataset."""
-    print("\n" + "=" * 40)
-    print("LOAD DATASET")
-    print("=" * 40)
-
-    data_path = resolve_path(base_data_path, dataset_path)
-    print(f"Dataset path: {data_path}")
-
-    # Uses your custom DataProcessing class to load the file.
+def load_dataset(base_data_path, dataset_path, text_column, label_column):  
+    """Load, validate, and clean a sentence-classification dataset."""  
+    print("\n" + "=" * 40)  
+    print("LOAD DATASET")  
+    print("=" * 40)  
+  
+    data_path = resolve_path(base_data_path, dataset_path)  
+    print(f"Dataset path: {data_path}")  
+  
+    # Uses your custom DataProcessing class to load the file
     df = DataProcessing.load_from_file(data_path, "csv", sep=",")
 
-    required_columns = [text_column, label_column]
-    missing_columns = [column for column in required_columns if column not in df.columns]
-
-    if missing_columns:
-        raise ValueError(
-            f"Required columns are missing: {missing_columns}\n"
-            f"Available columns: {list(df.columns)}"
-        )
-
-    original_count = len(df)
-
-    # Remove missing text and missing labels.
-    df = df.dropna(subset=[text_column, label_column]).copy()
-
-    # Ensure all text values are strings.
-    df[text_column] = df[text_column].astype(str).str.strip()
-
-    # Remove blank sentences.
-    df = df[df[text_column] != ""].copy()
-
-    # Standardize labels as strings before creating integer label IDs.
-    df[label_column] = df[label_column].astype(str).str.strip()
-
-    print(f"Original rows: {original_count}")
-    print(f"Usable rows:   {len(df)}")
-    print(f"Shape:         {df.shape}")
-
-    print("\nClass distribution:")
-    print(df[label_column].value_counts())
-
-    print(f"\nPreview:\n{df[[text_column, label_column]].head(5)}\n")
-
-    return df.reset_index(drop=True)
-
+    df = df.sample(n=1000, random_state=140).reset_index(drop=True)
+  
+    required_columns = [text_column, label_column]  
+    missing_columns = [column for column in required_columns if column not in df.columns]  
+  
+    if missing_columns:  
+        raise ValueError(  
+            f"Required columns are missing: {missing_columns}\n"  
+            f"Available columns: {list(df.columns)}"  
+        )  
+  
+    original_count = len(df)  
+  
+    # Remove missing text and missing labels.  
+    df = df.dropna(subset=[text_column, label_column]).copy()  
+  
+    # Ensure all text values are strings.  
+    df[text_column] = df[text_column].astype(str).str.strip()  
+  
+    # Remove blank sentences.  
+    df = df[df[text_column] != ""].copy()  
+  
+    # Standardize labels as strings before creating integer label IDs.  
+    df[label_column] = df[label_column].astype(str).str.strip()  
+  
+    print(f"Original rows: {original_count}")  
+    print(f"Usable rows:   {len(df)}")  
+    print(f"Shape:         {df.shape}")  
+  
+    print("\nClass distribution:")  
+    print(df[label_column].value_counts())  
+  
+    print(f"\nPreview:\n{df[[text_column, label_column]].head(5)}\n")  
+  
+    return df.reset_index(drop=True)  
 
 def create_label_mapping(df, label_column):
     """Create BERT-compatible integer IDs for exactly two labels."""
@@ -169,11 +122,6 @@ def create_label_mapping(df, label_column):
         print(f"  {label_id} -> {label}")
 
     return label_to_id, id_to_label
-
-
-# ============================================================
-# TRAIN / VALIDATION / TEST SPLITS
-# ============================================================
 
 def split_dataset(df, label_id_column, test_size, val_size, seed):
     """Create stratified train, validation, and optional test data splits."""
@@ -219,7 +167,6 @@ def split_dataset(df, label_id_column, test_size, val_size, seed):
 
     return train_df, val_df, test_df
 
-
 def save_data_splits(train_df, val_df, test_df, output_dir):
     """Save the exact train, validation, and test splits used."""
     split_dir = os.path.join(output_dir, "data_splits")
@@ -252,11 +199,6 @@ def save_data_splits(train_df, val_df, test_df, output_dir):
 
     print(f"✓ Saved data splits to: {split_dir}")
 
-
-# ============================================================
-# HUGGING FACE DATASET PREPARATION
-# ============================================================
-
 def dataframe_to_hf_dataset(df, text_column, label_id_column):
     """Convert a pandas DataFrame to a Hugging Face Dataset."""
     hf_df = df[[text_column, label_id_column]].copy()
@@ -264,26 +206,74 @@ def dataframe_to_hf_dataset(df, text_column, label_id_column):
 
     return Dataset.from_pandas(hf_df, preserve_index=False)
 
+def tokenize_batch(examples, tokenizer, text_column, max_length):
+    """Tokenize a batch of sentences using a pretrained tokenizer.
+    Apply truncation and maximum sequence length constraints.
+    Return tokenized model inputs (e.g., input IDs and attention masks).
+    """
+    return tokenizer(
+        examples[text_column],
+        truncation=True,
+        max_length=max_length,
+    )
 
-def tokenize_dataset(dataset, tokenizer, text_column, max_length):
-    """Tokenize single-sentence BERT inputs."""
-    def tokenize_batch(examples):
-        return tokenizer(
-            examples[text_column],
-            truncation=True,
-            max_length=max_length,
-        )
-
-    return dataset.map(
-        tokenize_batch,
+def tokenize_dataset(
+    dataset, 
+    tokenizer, 
+    text_column, 
+    max_length, 
+    split_name="dataset", 
+    original_df=None, 
+    label_column=None, 
+    show_examples=False
+):
+    """Tokenize all sentences in a Hugging Face dataset.
+    Apply preprocessing and convert text into BERT-compatible inputs.
+    Optionally display tokenization examples for inspection.
+    """
+    # Use functools.partial to pass the extra arguments without nesting
+    tokenized_dataset = dataset.map(
+        partial(
+            tokenize_batch, 
+            tokenizer=tokenizer, 
+            text_column=text_column, 
+            max_length=max_length
+        ),
         batched=True,
         remove_columns=[text_column],
     )
 
+    # Print tokenized count
+    print(f"✓ Tokenized {split_name} sentences: {len(tokenized_dataset)}")
 
-# ============================================================
-# TRAINER METRICS
-# ============================================================
+    # Print mini-example if requested
+    if show_examples and original_df is not None and label_column is not None:
+        print("\n" + "=" * 40)
+        print(f"TOKENIZATION MINI EXAMPLE — 3 {split_name} samples")
+        print("=" * 40)
+
+        # Ensure we don't try to print more examples than exist
+        num_examples = min(3, len(tokenized_dataset))
+        
+        for i in range(num_examples):
+            example = tokenized_dataset[i]
+            original_text = original_df.iloc[i][text_column]
+            label = original_df.iloc[i][label_column]
+
+            tokens = tokenizer.convert_ids_to_tokens(example["input_ids"])
+            num_real_tokens = sum(example["attention_mask"])
+            num_pad_tokens = len(example["attention_mask"]) - num_real_tokens
+
+            print(f"\n--- Example {i + 1} ---")
+            print(f"  Original sentence : {original_text}")
+            print(f"  Label ID          : {label}")
+            print(f"  Tokens            : {tokens[:num_real_tokens]}")
+            print(f"  input_ids         : {example['input_ids'][:num_real_tokens]}")
+            print(f"  attention_mask    : {example['attention_mask'][:num_real_tokens]} "
+                  f"(+ {num_pad_tokens} zeros for padding)")
+            print(f"  Total length      : {len(example['input_ids'])} (max_length={max_length})")
+
+    return tokenized_dataset
 
 def compute_metrics(eval_pred):
     """Compute validation metrics from Hugging Face model outputs."""
@@ -296,11 +286,6 @@ def compute_metrics(eval_pred):
         y_true=y_true,
         y_prediction=y_pred,
     )
-
-
-# ============================================================
-# BERT FINE-TUNING: STEP 1 — LOAD PRETRAINED MODEL
-# ============================================================
 
 def load_pretrained_bert_classifier(model_name, label_to_id, id_to_label):
     """Load pretrained BERT and add a randomly initialized binary classifier."""
@@ -327,11 +312,6 @@ def load_pretrained_bert_classifier(model_name, label_to_id, id_to_label):
     print(f"      Trainable parameters : {trainable_params:,}")
 
     return model
-
-
-# ============================================================
-# BERT FINE-TUNING: STEP 2 — CONFIGURE TRAINING ARGUMENTS
-# ============================================================
 
 def configure_finetuning_arguments(
     output_dir,
@@ -380,11 +360,6 @@ def configure_finetuning_arguments(
 
     return training_args
 
-
-# ============================================================
-# BERT FINE-TUNING: STEP 3 — BUILD TRAINER
-# ============================================================
-
 def build_bert_trainer(
     model,
     training_args,
@@ -411,11 +386,6 @@ def build_bert_trainer(
 
     return trainer
 
-
-# ============================================================
-# BERT FINE-TUNING: STEP 4 — FINE-TUNE
-# ============================================================
-
 def run_bert_finetuning(trainer, logging_steps):
     """Run supervised fine-tuning on the labeled training sentences."""
     print("\n[4/5] Starting fine-tuning...")
@@ -426,11 +396,6 @@ def run_bert_finetuning(trainer, logging_steps):
     trainer.train()
 
     return trainer
-
-
-# ============================================================
-# BERT FINE-TUNING: STEP 5 — SAVE MODEL AND TOKENIZER
-# ============================================================
 
 def save_finetuned_bert(trainer, tokenizer, output_dir):
     """Save the fine-tuned model weights, configuration, and tokenizer."""
@@ -445,18 +410,12 @@ def save_finetuned_bert(trainer, tokenizer, output_dir):
 
     return final_model_dir
 
-
-# ============================================================
-# PREDICTION AND EVALUATION
-# ============================================================
-
 def softmax(logits):
     """Convert BERT classification logits into class probabilities."""
     shifted_logits = logits - np.max(logits, axis=1, keepdims=True)
     exp_logits = np.exp(shifted_logits)
 
     return exp_logits / np.sum(exp_logits, axis=1, keepdims=True)
-
 
 def predict_dataset(trainer, tokenized_dataset):
     """Generate predicted labels and probabilities for all examples."""
@@ -468,19 +427,9 @@ def predict_dataset(trainer, tokenized_dataset):
 
     return y_pred, probabilities
 
-
-# ============================================================
-# GET GROUND-TRUTH LABELS
-# ============================================================
-
 def get_true_labels(source_df, label_id_column):
     """Extract integer ground-truth labels from the source DataFrame."""
     return source_df[label_id_column].to_numpy()
-
-
-# ============================================================
-# GET BERT PREDICTIONS AND PROBABILITIES
-# ============================================================
 
 def get_bert_predictions(trainer, tokenized_dataset):
     """Generate BERT predicted labels and probability vectors."""
@@ -488,11 +437,6 @@ def get_bert_predictions(trainer, tokenized_dataset):
         trainer=trainer,
         tokenized_dataset=tokenized_dataset,
     )
-
-
-# ============================================================
-# EVALUATE BERT PREDICTIONS
-# ============================================================
 
 def evaluate_predictions(y_true, y_pred, probabilities, split_name, seed):
     """Use EvaluationMetric to evaluate binary BERT predictions."""
@@ -542,11 +486,6 @@ def evaluate_predictions(y_true, y_pred, probabilities, split_name, seed):
 
     return metrics_df, cm, eval_report
 
-
-# ============================================================
-# CREATE PREDICTIONS DATAFRAME
-# ============================================================
-
 def create_bert_results_dataframe(source_df, y_pred, probabilities, id_to_label):
     """Attach BERT predictions and probabilities to source data."""
     results_df = source_df.copy()
@@ -562,11 +501,6 @@ def create_bert_results_dataframe(source_df, y_pred, probabilities, id_to_label)
 
     return results_df
 
-
-# ============================================================
-# CREATE READABLE CONFUSION MATRIX DATAFRAME
-# ============================================================
-
 def create_confusion_matrix_dataframe(cm, id_to_label):
     """Add readable actual and predicted labels to the confusion matrix."""
     return pd.DataFrame(
@@ -580,11 +514,6 @@ def create_confusion_matrix_dataframe(cm, id_to_label):
             f"Predicted: {id_to_label[1]}",
         ],
     )
-
-
-# ============================================================
-# SAVE SPLIT OUTPUTS
-# ============================================================
 
 def save_split_outputs(
     predictions_df,
@@ -624,11 +553,6 @@ def save_split_outputs(
     print(f"✓ Saved {split_name} outputs to: {split_dir}")
 
     return split_dir
-
-
-# ============================================================
-# EXTERNAL / CROSS-DOMAIN EVALUATION
-# ============================================================
 
 def evaluate_external_datasets(
     external_dataset_paths,
@@ -727,11 +651,6 @@ def evaluate_external_datasets(
             split_name=f"external_{dataset_name}",
         )
 
-
-# ============================================================
-# EXPERIMENT LOG
-# ============================================================
-
 def create_experiment_log(
     args,
     experiment_name,
@@ -789,16 +708,12 @@ def create_experiment_log(
 
     print(f"✓ Saved experiment log to: {log_path}")
 
-
-# ============================================================
-# MAIN PIPELINE
-# ============================================================
-
 if __name__ == "__main__":
     """
     Example: in-domain train / validation / test experiment
     python finetune-bert-experiment.py \
         --dataset ../data/combined_datasets/naacl_2026_submission/naacl_2026_submission.csv \
+        --save_path ../data/classification_results/naacl_2026_submission \
         --text_column "Base Sentence" \
         --label_column "Ground Truth" \
         --val_size 0.2 \
@@ -830,117 +745,95 @@ if __name__ == "__main__":
         description="Fine-tune a pretrained BERT model for sentence classification."
     )
 
-    parser.add_argument(
-        "--dataset",
+    parser.add_argument("--dataset",
         required=True,
         help="Dataset path relative to the project's data directory, or an absolute path.",
     )
 
-    parser.add_argument(
-        "--save_path",
-        default=os.path.join(base_data_path, "classification_results"),
+    parser.add_argument("--save_path",
+        default="../data/classification_results/naacl_2026_submission",
         help="Directory in which experiment outputs are saved.",
     )
 
-    parser.add_argument(
-        "--text_column",
+    parser.add_argument("--text_column",
         default="Base Sentence",
         help="Name of the sentence-text column.",
     )
 
-    parser.add_argument(
-        "--label_column",
+    parser.add_argument("--label_column",
         default="Ground Truth",
         help="Name of the classification-label column.",
     )
 
-    parser.add_argument(
-        "--model_name",
-        default="bert-base-uncased",
+    parser.add_argument("--model_name",
+        default="bert-base-cased",
         help="Hugging Face pretrained checkpoint for tokenizer and model.",
     )
 
-    parser.add_argument(
-        "--seed",
+    parser.add_argument("--seed",
         type=int,
-        default=7,
+        default=300,
         help="Random seed for reproducibility.",
     )
 
-    parser.add_argument(
-        "--test_size",
-        type=float,
-        default=0.2,
-        help="Proportion of the in-domain dataset reserved for final testing. Use 0 for no internal test split.",
-    )
-
-    parser.add_argument(
-        "--val_size",
+    parser.add_argument("--val_size",
         type=float,
         default=0.2,
         help="Proportion of the full dataset reserved for validation.",
     )
 
-    parser.add_argument(
-        "--max_length",
+    parser.add_argument("--test_size",
+        type=float,
+        default=0.2,
+        help="Proportion of the in-domain dataset reserved for final testing. Use 0 for no internal test split.",
+    )
+
+    parser.add_argument("--max_length",
         type=int,
-        default=128,
+        default=512,
         help="Maximum number of tokenizer output tokens per sentence.",
     )
 
-    parser.add_argument(
-        "--epochs",
+    parser.add_argument("--epochs",
         type=float,
         default=3,
         help="Number of fine-tuning epochs.",
     )
 
-    parser.add_argument(
-        "--learning_rate",
+    parser.add_argument("--learning_rate",
         type=float,
         default=2e-5,
         help="AdamW learning rate for BERT fine-tuning.",
     )
 
-    parser.add_argument(
-        "--weight_decay",
+    parser.add_argument("--weight_decay",
         type=float,
         default=0.01,
         help="Weight decay regularization.",
     )
 
-    parser.add_argument(
-        "--train_batch_size",
+    parser.add_argument("--train_batch_size",
         type=int,
         default=16,
         help="Training batch size per device.",
     )
 
-    parser.add_argument(
-        "--eval_batch_size",
+    parser.add_argument("--eval_batch_size",
         type=int,
         default=32,
         help="Validation and test batch size per device.",
     )
 
-    parser.add_argument(
-        "--logging_steps",
+    parser.add_argument("--logging_steps",
         type=int,
         default=25,
         help="How frequently Trainer logs training progress.",
     )
 
-    parser.add_argument(
-        "--test_datasets",
+    parser.add_argument("--test_datasets",
         nargs="*",
         default=None,
         help="Optional labeled external datasets for cross-domain evaluation.",
-    )
-
-    parser.add_argument(
-        "--experiment_suffix",
-        default="",
-        help="Optional suffix appended to the experiment directory name.",
     )
 
     args = parser.parse_args()
@@ -954,24 +847,22 @@ if __name__ == "__main__":
     current_date = datetime.now().strftime("%Y-%m-%d")
     dataset_filename = os.path.basename(args.dataset)
     dataset_base = os.path.splitext(dataset_filename)[0]
+    print(f"Dataset base: {dataset_base}")
+    experiment_name = f"{dataset_base}_{current_date}"
+    print(f"Experiment name: {experiment_name}")
 
-    experiment_base = dataset_base + args.experiment_suffix
-    experiment_name = f"{experiment_base}_{current_date}"
-
-    print(f"\nExperiment name: {experiment_name}")
-
-    experiment_dir, seed_dir = create_output_directory(
-        args=args,
-        experiment_name=experiment_name,
+    output_dir = os.path.join(
+        "../data/classification_results",
+        experiment_name,
+        f"seed{args.seed}",
+        "in_domain",
+        args.model_name,
     )
-
-    print(f"\nExperiment: {experiment_name}")
-    print(f"Model: {args.model_name}")
-    print(f"Seed: {args.seed}")
-    print(f"Output directory: {seed_dir}")
+    print(f"Output directory: {output_dir}")
+    os.makedirs(output_dir, exist_ok=True)
 
     # ============================================================
-    # 3. LOAD, CLEAN, AND LABEL THE DATA
+    # 3. DATA: LOAD + TRANSFORM TO HF
     # ============================================================
 
     df = load_dataset(
@@ -1005,7 +896,7 @@ if __name__ == "__main__":
     print(f"\nPreview:\n{df[[args.text_column, label_id_column]].head(5)}\n")
 
     # ============================================================
-    # 4. CREATE AND SAVE DATA SPLITS
+    # 4. CREATE AND SAVE DATA SPLITS (TRAIN/VAL/TEST)
     # ============================================================
 
     train_df, val_df, test_df = split_dataset(
@@ -1020,13 +911,36 @@ if __name__ == "__main__":
         train_df=train_df,
         val_df=val_df,
         test_df=test_df,
-        output_dir=seed_dir,
+        output_dir=output_dir,
     )
 
     # ============================================================
-    # 5. TOKENIZE SINGLE-SENTENCE BERT INPUTS
+    # 5. HF PREPAPRE DATASET FOR TOKENIZATION
     # ============================================================
-    #
+
+    train_dataset = dataframe_to_hf_dataset(
+        train_df,
+        text_column=args.text_column,
+        label_id_column=label_id_column,
+    )
+
+    if val_df is not None:
+        val_dataset = dataframe_to_hf_dataset(
+            val_df,
+            text_column=args.text_column,
+            label_id_column=label_id_column
+        )
+
+    if test_df is not None:
+        test_dataset = dataframe_to_hf_dataset(
+            test_df,
+            text_column=args.text_column,
+            label_id_column=label_id_column
+        )
+
+    # ============================================================
+    # 6. BERT TOKENIZE
+    # ============================================================
     # YOUR pipeline is a SINGLE-sentence task.
     # Each sentence is represented as:
     #   Input:    [CLS]  The  stock  rose  [SEP]  [PAD] ... [PAD]
@@ -1038,77 +952,41 @@ if __name__ == "__main__":
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
 
-    train_dataset = dataframe_to_hf_dataset(
-        train_df,
-        text_column=args.text_column,
-        label_id_column=label_id_column,
-    )
-
-    val_dataset = dataframe_to_hf_dataset(
-        val_df,
-        text_column=args.text_column,
-        label_id_column=label_id_column,
-    )
-
     tokenized_train_dataset = tokenize_dataset(
         dataset=train_dataset,
         tokenizer=tokenizer,
         text_column=args.text_column,
         max_length=args.max_length,
+        split_name="training",
+        original_df=train_df,
+        label_column=label_id_column,
+        show_examples=True  # This triggers the mini-example printout
     )
 
-    tokenized_val_dataset = tokenize_dataset(
-        dataset=val_dataset,
-        tokenizer=tokenizer,
-        text_column=args.text_column,
-        max_length=args.max_length,
-    )
-
-    if test_df is not None:
-        test_dataset = dataframe_to_hf_dataset(
-            test_df,
+    if val_df is not None and val_dataset:
+        tokenized_val_dataset = tokenize_dataset(
+            dataset=val_dataset,
+            tokenizer=tokenizer,
             text_column=args.text_column,
-            label_id_column=label_id_column,
+            max_length=args.max_length,
+            split_name="validation"
         )
+    else:
+        tokenized_val_dataset = None
+        print("✓ Tokenized validation sentences: 0")
 
+    if test_df is not None and test_dataset:
         tokenized_test_dataset = tokenize_dataset(
             dataset=test_dataset,
             tokenizer=tokenizer,
             text_column=args.text_column,
             max_length=args.max_length,
+            split_name="test"
         )
     else:
         tokenized_test_dataset = None
-
-    print(f"✓ Tokenized training sentences:   {len(tokenized_train_dataset)}")
-    print(f"✓ Tokenized validation sentences: {len(tokenized_val_dataset)}")
-    print(
-        f"✓ Tokenized test sentences:       "
-        f"{len(tokenized_test_dataset) if tokenized_test_dataset is not None else 0}"
-    )
-
-    print("\n" + "=" * 40)
-    print("TOKENIZATION MINI EXAMPLE — 3 train samples")
-    print("=" * 40)
-
-    for i in range(3):
-        example = tokenized_train_dataset[i]
-        original_text = train_df.iloc[i][args.text_column]
-        label = train_df.iloc[i][label_id_column]
-
-        tokens = tokenizer.convert_ids_to_tokens(example["input_ids"])
-        num_real_tokens = sum(example["attention_mask"])
-        num_pad_tokens = len(example["attention_mask"]) - num_real_tokens
-
-        print(f"\n--- Example {i + 1} ---")
-        print(f"  Original sentence : {original_text}")
-        print(f"  Label ID          : {label}")
-        print(f"  Tokens            : {tokens[:num_real_tokens]}")
-        print(f"  input_ids         : {example['input_ids'][:num_real_tokens]}")
-        print(f"  attention_mask    : {example['attention_mask'][:num_real_tokens]} "
-              f"(+ {num_pad_tokens} zeros for padding)")
-        print(f"  Total length      : {len(example['input_ids'])} (max_length={args.max_length})")
-
+        print("✓ Tokenized test sentences:       0")
+        
     # ============================================================
     # 6. STEP 1 — LOAD PRETRAINED BERT
     # ============================================================
