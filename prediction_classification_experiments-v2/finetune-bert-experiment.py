@@ -69,7 +69,7 @@ def load_dataset(
     sample_size=None,
     seed=300,
 ):
-    """Load, validate, clean, and optionally sample a classification dataset."""
+    """Load, validate, clean, and optionally sample a dataset."""
     print("\n" + "=" * 40)
     print("LOAD DATASET")
     print("=" * 40)
@@ -84,6 +84,7 @@ def load_dataset(
     )
 
     required_columns = [text_column, label_column]
+
     missing_columns = [
         column
         for column in required_columns
@@ -98,9 +99,14 @@ def load_dataset(
 
     original_count = len(df)
 
-    df = df.dropna(subset=[text_column, label_column]).copy()
+    df = df.dropna(
+        subset=[text_column, label_column]
+    ).copy()
+
     df[text_column] = df[text_column].astype(str).str.strip()
     df = df[df[text_column] != ""].copy()
+
+    # Preserve original labels as readable strings.
     df[label_column] = df[label_column].astype(str).str.strip()
 
     if sample_size is not None:
@@ -134,7 +140,7 @@ def create_label_mapping(df, label_column):
 
     if len(unique_labels) != 2:
         raise ValueError(
-            "This pipeline currently supports binary classification only. "
+            "This pipeline supports binary classification only. "
             f"Found {len(unique_labels)} labels: {unique_labels}"
         )
 
@@ -246,6 +252,7 @@ def save_data_splits(train_df, val_df, test_df, output_dir):
 def dataframe_to_hf_dataset(df, text_column, label_id_column):
     """Convert a pandas DataFrame to a Hugging Face Dataset."""
     hf_df = df[[text_column, label_id_column]].copy()
+
     hf_df = hf_df.rename(
         columns={label_id_column: "labels"}
     )
@@ -261,7 +268,7 @@ def dataframe_to_hf_dataset(df, text_column, label_id_column):
 # ============================================================
 
 def tokenize_batch(examples, tokenizer, text_column, max_length):
-    """Tokenize a batch of sentences using a pretrained tokenizer."""
+    """Tokenize a batch of sentences."""
     return tokenizer(
         examples[text_column],
         truncation=True,
@@ -279,7 +286,7 @@ def tokenize_dataset(
     label_column=None,
     show_examples=False,
 ):
-    """Tokenize all sentences in a Hugging Face dataset."""
+    """Tokenize all sentences in a Hugging Face Dataset."""
     tokenized_dataset = dataset.map(
         partial(
             tokenize_batch,
@@ -302,6 +309,7 @@ def tokenize_dataset(
 
         for i in range(num_examples):
             example = tokenized_dataset[i]
+
             original_text = original_df.iloc[i][text_column]
             label = original_df.iloc[i][label_column]
 
@@ -344,7 +352,7 @@ def load_pretrained_bert_classifier(
     label_to_id,
     id_to_label,
 ):
-    """Load pretrained BERT and add a randomly initialized classifier."""
+    """Load pretrained BERT and add a binary classification head."""
     print(f"\n[1/5] Loading pretrained BERT checkpoint: {model_name}")
     print("      num_labels  : 2 (binary classification)")
     print(f"      label2id    : {label_to_id}")
@@ -384,7 +392,7 @@ def configure_finetuning_arguments(
     logging_steps,
     seed,
 ):
-    """Configure Hugging Face settings for BERT fine-tuning."""
+    """Configure Hugging Face TrainingArguments."""
     checkpoint_dir = os.path.join(
         output_dir,
         "training_checkpoints",
@@ -406,7 +414,7 @@ def configure_finetuning_arguments(
     print(f"      FP16                : {use_fp16}")
     print(f"      Seed                : {seed}")
 
-    training_args = TrainingArguments(
+    return TrainingArguments(
         output_dir=checkpoint_dir,
         learning_rate=learning_rate,
         per_device_train_batch_size=train_batch_size,
@@ -423,13 +431,15 @@ def configure_finetuning_arguments(
         seed=seed,
     )
 
-    return training_args
-
 
 def bert_trainer_metrics(eval_pred):
     """Compute validation metrics from Hugging Face model outputs."""
     logits, y_true = eval_pred
-    y_pred = np.argmax(logits, axis=-1)
+
+    y_pred = np.argmax(
+        logits,
+        axis=-1,
+    )
 
     return EvaluationMetric.custom_evaluation_metrics(
         y_true=y_true,
@@ -444,14 +454,14 @@ def build_bert_trainer(
     val_dataset,
     tokenizer,
 ):
-    """Combine BERT model, datasets, tokenizer, and metrics."""
+    """Build a Hugging Face Trainer."""
     print("\n[3/5] Building Trainer")
     print(f"      Train examples      : {len(train_dataset)}")
     print(f"      Validation examples : {len(val_dataset)}")
     print("      Data collator       : dynamic batch padding")
     print("      Compute metrics     : Accuracy, Precision, Recall, F1 Score")
 
-    trainer = Trainer(
+    return Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
@@ -463,11 +473,9 @@ def build_bert_trainer(
         compute_metrics=bert_trainer_metrics,
     )
 
-    return trainer
-
 
 def run_bert_finetuning(trainer, logging_steps):
-    """Run supervised fine-tuning on labeled training sentences."""
+    """Run supervised BERT fine-tuning."""
     print("\n[4/5] Starting fine-tuning...")
     print(f"      Logging frequency   : every {logging_steps} steps")
     print("      Training logs       : loss, grad_norm, learning_rate, epoch")
@@ -501,7 +509,7 @@ def save_finetuned_bert(
 
 
 # ============================================================
-# EVALUATION: HELPER FUNCTIONS
+# EVALUATION: HELPERS
 # ============================================================
 
 def get_finetuned_bert_predictions(trainer, tokenized_dataset):
@@ -513,6 +521,7 @@ def get_finetuned_bert_predictions(trainer, tokenized_dataset):
     prediction_output = trainer.predict(tokenized_dataset)
 
     logits = prediction_output.predictions
+
     shifted_logits = logits - np.max(
         logits,
         axis=1,
@@ -564,16 +573,16 @@ def evaluate_bert_predictions(
         by_category=True,
     )
 
-    positive_class_probabilities = probabilities[:, 1]
+    positive_probabilities = probabilities[:, 1]
 
     roc_auc_score = EvaluationMetric.get_roc_auc(
         y_true,
-        positive_class_probabilities,
+        positive_probabilities,
     )
 
     pr_auc_score = EvaluationMetric.get_pr_auc(
         y_true,
-        positive_class_probabilities,
+        positive_probabilities,
     )
 
     print(f"Confusion Matrix:\n{cm}\n")
@@ -613,22 +622,30 @@ def evaluate_bert_predictions(
 
 def create_bert_results_dataframe(
     source_df,
+    label_column,
     y_pred,
     probabilities,
     id_to_label,
 ):
-    """Attach BERT predictions and probabilities to source data."""
+    """
+    Attach BERT predictions and probabilities to source data.
+
+    The original readable label column (for example, Ground Truth)
+    is retained as-is. The numeric _label_id column is used for
+    BERT training and evaluation.
+    """
     print("\n" + "=" * 40)
     print("CREATE BERT RESULTS DATAFRAME")
     print("=" * 40)
 
+    if label_column not in source_df.columns:
+        raise ValueError(
+            f"Label column '{label_column}' is not in the results dataframe."
+        )
+
     results_df = source_df.copy()
 
-    if "Ground Truth" in results_df.columns:
-        results_df["Ground Truth"] = results_df[
-            "Ground Truth"
-        ].astype(int)
-
+    # Do not convert the readable original labels to integer IDs.
     results_df["BERT Predicted Label ID"] = y_pred
 
     results_df["BERT Predicted Label"] = [
@@ -662,7 +679,7 @@ def create_confusion_matrix_dataframe(cm, id_to_label):
 
 
 # ============================================================
-# EVALUATION: VALIDATION + TEST + EXTERNAL DATASETS
+# EVALUATION: SAVE RESULTS
 # ============================================================
 
 def evaluate_and_save_bert_results(
@@ -670,14 +687,15 @@ def evaluate_and_save_bert_results(
     tokenized_dataset,
     original_df,
     label_id_column,
+    label_column,
     id_to_label,
     split_name,
     seed,
     output_dir,
     model_name,
-    csv_prefix="bert_predictions",
+    csv_prefix="finetuned_bert_predictions",
 ):
-    """Run full BERT prediction, evaluation, and output-saving pipeline."""
+    """Run BERT prediction, evaluation, and output saving for one split."""
     print("\n" + "=" * 40)
     print(f"BERT EVALUATE AND SAVE: {split_name.upper()}")
     print("=" * 40)
@@ -702,6 +720,7 @@ def evaluate_and_save_bert_results(
 
     predictions_df = create_bert_results_dataframe(
         source_df=original_df,
+        label_column=label_column,
         y_pred=y_pred,
         probabilities=probabilities,
         id_to_label=id_to_label,
@@ -713,11 +732,6 @@ def evaluate_and_save_bert_results(
         prefix=csv_prefix,
         save_file_type="csv",
         include_version=False,
-    )
-
-    print(
-        f"✓ Saved predictions CSV to: "
-        f"{os.path.join(split_dir, f'{csv_prefix}.csv')}"
     )
 
     metrics_df, cm, eval_report = evaluate_bert_predictions(
@@ -737,17 +751,10 @@ def evaluate_and_save_bert_results(
         include_version=False,
     )
 
-    print(
-        f"✓ Saved metrics summary to: "
-        f"{os.path.join(split_dir, 'bert_metrics_summary.csv')}"
-    )
-
     confusion_matrix_df = create_confusion_matrix_dataframe(
         cm=cm,
         id_to_label=id_to_label,
     )
-
-    print(f"\nConfusion Matrix:\n{confusion_matrix_df}\n")
 
     DataProcessing.save_to_file(
         confusion_matrix_df,
@@ -758,7 +765,17 @@ def evaluate_and_save_bert_results(
     )
 
     print(
-        f"✓ Saved confusion matrix to: "
+        f"✓ Saved predictions: "
+        f"{os.path.join(split_dir, f'{csv_prefix}.csv')}"
+    )
+
+    print(
+        f"✓ Saved metrics: "
+        f"{os.path.join(split_dir, 'bert_metrics_summary.csv')}"
+    )
+
+    print(
+        f"✓ Saved confusion matrix: "
         f"{os.path.join(split_dir, 'bert_confusion_matrix.csv')}"
     )
 
@@ -847,6 +864,7 @@ def evaluate_external_datasets(
             tokenized_dataset=tokenized_external_dataset,
             original_df=external_df,
             label_id_column=label_id_column,
+            label_column=label_column,
             id_to_label=id_to_label,
             split_name=f"external_{dataset_name}",
             seed=seed,
@@ -857,8 +875,119 @@ def evaluate_external_datasets(
 
 
 # ============================================================
-# EXPERIMENT LOG
+# EXPERIMENT SUMMARY + LOG
 # ============================================================
+
+def get_split_metric(metrics_df, metric_name):
+    """Extract one metric from a one-row split metrics DataFrame."""
+    if metrics_df is None or metrics_df.empty:
+        return None
+
+    return metrics_df.iloc[0].get(metric_name, None)
+
+
+def create_experiment_summary(
+    train_metrics_df,
+    val_metrics_df,
+    test_metrics_df,
+    output_dir,
+):
+    """Combine train, validation, and test metrics into one seed-level row."""
+    reference_metrics_df = (
+        test_metrics_df
+        if test_metrics_df is not None
+        else val_metrics_df
+    )
+
+    metrics_summary_bert_df = pd.DataFrame([{
+        "seed": get_split_metric(reference_metrics_df, "seed"),
+        "model": get_split_metric(reference_metrics_df, "model"),
+
+        "train_accuracy": get_split_metric(
+            train_metrics_df,
+            "test_accuracy",
+        ),
+        "val_accuracy": get_split_metric(
+            val_metrics_df,
+            "test_accuracy",
+        ),
+        "test_accuracy": get_split_metric(
+            test_metrics_df,
+            "test_accuracy",
+        ),
+
+        "train_f1_class_0": get_split_metric(
+            train_metrics_df,
+            "f1_class_0",
+        ),
+        "train_f1_class_1": get_split_metric(
+            train_metrics_df,
+            "f1_class_1",
+        ),
+        "val_f1_class_0": get_split_metric(
+            val_metrics_df,
+            "f1_class_0",
+        ),
+        "val_f1_class_1": get_split_metric(
+            val_metrics_df,
+            "f1_class_1",
+        ),
+        "test_f1_class_0": get_split_metric(
+            test_metrics_df,
+            "f1_class_0",
+        ),
+        "test_f1_class_1": get_split_metric(
+            test_metrics_df,
+            "f1_class_1",
+        ),
+
+        "train_roc_auc": get_split_metric(
+            train_metrics_df,
+            "roc_auc",
+        ),
+        "val_roc_auc": get_split_metric(
+            val_metrics_df,
+            "roc_auc",
+        ),
+        "test_roc_auc": get_split_metric(
+            test_metrics_df,
+            "roc_auc",
+        ),
+
+        "train_pr_auc": get_split_metric(
+            train_metrics_df,
+            "pr_auc",
+        ),
+        "val_pr_auc": get_split_metric(
+            val_metrics_df,
+            "pr_auc",
+        ),
+        "test_pr_auc": get_split_metric(
+            test_metrics_df,
+            "pr_auc",
+        ),
+    }])
+
+    DataProcessing.save_to_file(
+        metrics_summary_bert_df,
+        path=output_dir,
+        prefix="metrics_summary_bert",
+        save_file_type="csv",
+        include_version=False,
+    )
+
+    print("\n" + "=" * 40)
+    print("BERT EXPERIMENT SUMMARY")
+    print("=" * 40)
+    print(metrics_summary_bert_df)
+
+    print(
+        f"\n✓ Saved BERT summary to: "
+        f"{os.path.join(output_dir, 'metrics_summary_bert.csv')}"
+    )
+
+    return metrics_summary_bert_df
+
 
 def create_bert_experiment_log(
     args,
@@ -889,7 +1018,7 @@ def create_bert_experiment_log(
         f"Validation Size:        {args.val_size}",
         f"Test Size:              {args.test_size}",
         f"Train Rows:             {len(train_df)}",
-        f"Validation Rows:        {len(val_df) if val_df is not None else 'N/A'}",
+        f"Validation Rows:        {len(val_df)}",
         f"Test Rows:              {len(test_df) if test_df is not None else 'N/A'}",
         "",
         "--- BERT Model ---",
@@ -954,15 +1083,15 @@ def create_bert_experiment_log(
 
 if __name__ == "__main__":
     """
-    In-domain train / validation / test experiment:
+    Example:
 
     python finetune-bert-experiment.py \
-        --dataset ../data/combined_datasets/naacl_2026_submission/naacl_2026_submission.csv \
+        --dataset ../../../data/combined_datasets/july_2026_results/july_2026_results.csv \
         --save_path ../data/classification_results/naacl_2026_submission \
         --text_column "Base Sentence" \
         --label_column "Ground Truth" \
-        --model_name bert-base-cased \
-        --seed 200 \
+        --model_name bert-large-cased \
+        --seed 3 \
         --val_size 0.2 \
         --test_size 0.2 \
         --max_length 512 \
@@ -972,33 +1101,7 @@ if __name__ == "__main__":
         --train_batch_size 16 \
         --eval_batch_size 32 \
         --logging_steps 25 \
-        --finetuned_model_name tolsa-bert \
-        --sample_size 1000 \
-        --test_datasets
-
-    Train on one dataset and evaluate external datasets:
-
-    python finetune-bert-experiment.py \
-        --dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
-        --save_path ../data/classification_results/july_2026_results \
-        --text_column "Base Sentence" \
-        --label_column "Ground Truth" \
-        --model_name bert-base-cased \
-        --seed 300 \
-        --val_size 0.2 \
-        --test_size 0 \
-        --max_length 512 \
-        --epochs 1 \
-        --learning_rate 2e-5 \
-        --weight_decay 0.01 \
-        --train_batch_size 16 \
-        --eval_batch_size 32 \
-        --logging_steps 25 \
-        --finetuned_model_name tolsa-bert \
-        --sample_size 1000 \
-        --test_datasets \
-            financial_phrase_bank/fpb.csv \
-            chronicle2050/data.csv
+        --finetuned_model_name tolsa-bert
     """
 
     print("\n" + "=" * 40)
@@ -1023,10 +1126,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         required=True,
-        help=(
-            "Dataset path relative to the project data directory "
-            "or an absolute file path."
-        ),
+        help="Dataset path relative to the data directory or an absolute path.",
     )
 
     parser.add_argument(
@@ -1044,7 +1144,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--label_column",
         default="Ground Truth",
-        help="Name of the classification-label column.",
+        help="Name of the readable classification-label column.",
     )
 
     parser.add_argument(
@@ -1064,7 +1164,7 @@ if __name__ == "__main__":
         "--val_size",
         type=float,
         default=0.2,
-        help="Proportion of the overall data used for validation.",
+        help="Proportion of the overall data reserved for validation.",
     )
 
     parser.add_argument(
@@ -1072,7 +1172,7 @@ if __name__ == "__main__":
         type=float,
         default=0.2,
         help=(
-            "Proportion of the overall data used for in-domain testing. "
+            "Proportion of the overall data reserved for in-domain testing. "
             "Set to 0 for no internal test split."
         ),
     )
@@ -1081,7 +1181,7 @@ if __name__ == "__main__":
         "--max_length",
         type=int,
         default=512,
-        help="Maximum number of BERT tokenizer output tokens.",
+        help="Maximum BERT tokenizer output length.",
     )
 
     parser.add_argument(
@@ -1102,7 +1202,7 @@ if __name__ == "__main__":
         "--weight_decay",
         type=float,
         default=0.01,
-        help="Weight decay regularization.",
+        help="Weight-decay regularization.",
     )
 
     parser.add_argument(
@@ -1136,17 +1236,14 @@ if __name__ == "__main__":
         "--sample_size",
         type=int,
         default=None,
-        help=(
-            "Optional number of rows to randomly sample for debugging. "
-            "Default: use all usable rows."
-        ),
+        help="Optional random debug sample size. Default: all usable rows.",
     )
 
     parser.add_argument(
         "--test_datasets",
         nargs="*",
         default=None,
-        help="Optional labeled datasets for external evaluation.",
+        help="Optional labeled external datasets for evaluation.",
     )
 
     args = parser.parse_args()
@@ -1198,6 +1295,7 @@ if __name__ == "__main__":
 
     label_id_column = "_label_id"
 
+    # Keep original labels in args.label_column and create numeric IDs separately.
     df[label_id_column] = df[
         args.label_column
     ].map(label_to_id).astype(int)
@@ -1207,7 +1305,7 @@ if __name__ == "__main__":
     print(f"Usable rows:   {len(df)}")
     print(f"Shape:         {df.shape}")
 
-    print("\nClass distribution:")
+    print("\nInteger-label distribution:")
     print(df[label_id_column].value_counts())
 
     # ============================================================
@@ -1291,10 +1389,10 @@ if __name__ == "__main__":
         )
     else:
         tokenized_test_dataset = None
-        print("✓ Tokenized test sentences: 0")
+        print("✓ Tokenized in-domain test sentences: 0")
 
     # ============================================================
-    # BERT FINETUNE: LOAD PRETRAINED MODEL
+    # BERT FINETUNE: LOAD + CONFIGURE + TRAIN + SAVE
     # ============================================================
 
     model = load_pretrained_bert_classifier(
@@ -1302,10 +1400,6 @@ if __name__ == "__main__":
         label_to_id=label_to_id,
         id_to_label=id_to_label,
     )
-
-    # ============================================================
-    # BERT FINETUNE: CONFIGURE TRAINING ARGUMENTS
-    # ============================================================
 
     training_args = configure_finetuning_arguments(
         output_dir=output_dir,
@@ -1318,10 +1412,6 @@ if __name__ == "__main__":
         seed=args.seed,
     )
 
-    # ============================================================
-    # BERT FINETUNE: BUILD TRAINER
-    # ============================================================
-
     trainer = build_bert_trainer(
         model=model,
         training_args=training_args,
@@ -1330,18 +1420,10 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
     )
 
-    # ============================================================
-    # BERT FINETUNE: TRAIN
-    # ============================================================
-
     trainer = run_bert_finetuning(
         trainer=trainer,
         logging_steps=args.logging_steps,
     )
-
-    # ============================================================
-    # BERT FINETUNE: SAVE MODEL + TOKENIZER
-    # ============================================================
 
     final_model_dir = save_finetuned_bert(
         finetuned_model_name=args.finetuned_model_name,
@@ -1351,25 +1433,50 @@ if __name__ == "__main__":
     )
 
     # ============================================================
+    # EVALUATION: TRAINING
+    # ============================================================
+
+    train_metrics_df, train_cm, train_report = (
+        evaluate_and_save_bert_results(
+            trainer=trainer,
+            tokenized_dataset=tokenized_train_dataset,
+            original_df=train_df,
+            label_id_column=label_id_column,
+            label_column=args.label_column,
+            id_to_label=id_to_label,
+            split_name="training",
+            seed=args.seed,
+            output_dir=output_dir,
+            model_name=args.finetuned_model_name,
+            csv_prefix="bert_predictions_train",
+        )
+    )
+
+    # ============================================================
     # EVALUATION: VALIDATION
     # ============================================================
 
-    val_metrics_df, val_cm, val_report = evaluate_and_save_bert_results(
-        trainer=trainer,
-        tokenized_dataset=tokenized_val_dataset,
-        original_df=val_df,
-        label_id_column=label_id_column,
-        id_to_label=id_to_label,
-        split_name="validation",
-        seed=args.seed,
-        output_dir=output_dir,
-        model_name=args.finetuned_model_name,
-        csv_prefix="bert_predictions_val",
+    val_metrics_df, val_cm, val_report = (
+        evaluate_and_save_bert_results(
+            trainer=trainer,
+            tokenized_dataset=tokenized_val_dataset,
+            original_df=val_df,
+            label_id_column=label_id_column,
+            label_column=args.label_column,
+            id_to_label=id_to_label,
+            split_name="validation",
+            seed=args.seed,
+            output_dir=output_dir,
+            model_name=args.finetuned_model_name,
+            csv_prefix="bert_predictions_val",
+        )
     )
 
     # ============================================================
     # EVALUATION: IN-DOMAIN TEST
     # ============================================================
+
+    test_metrics_df = None
 
     if test_df is not None and tokenized_test_dataset is not None:
         test_metrics_df, test_cm, test_report = (
@@ -1378,6 +1485,7 @@ if __name__ == "__main__":
                 tokenized_dataset=tokenized_test_dataset,
                 original_df=test_df,
                 label_id_column=label_id_column,
+                label_column=args.label_column,
                 id_to_label=id_to_label,
                 split_name="in_domain_test",
                 seed=args.seed,
@@ -1408,8 +1516,15 @@ if __name__ == "__main__":
     )
 
     # ============================================================
-    # EXPERIMENT LOG
+    # EXPERIMENT SUMMARY + LOG
     # ============================================================
+
+    metrics_summary_bert_df = create_experiment_summary(
+        train_metrics_df=train_metrics_df,
+        val_metrics_df=val_metrics_df,
+        test_metrics_df=test_metrics_df,
+        output_dir=output_dir,
+    )
 
     create_bert_experiment_log(
         args=args,
