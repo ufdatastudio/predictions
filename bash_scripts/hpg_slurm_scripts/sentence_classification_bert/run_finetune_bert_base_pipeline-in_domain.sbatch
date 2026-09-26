@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=finetuned_bert_large_tolsam
+#SBATCH --job-name=finetuned_bert_base_tolsam
 #SBATCH --output=logs/finetuned_bert_pipeline/logs_%x_%j.out
 #SBATCH --error=logs/finetuned_bert_pipeline/logs_%x_%j.err
 #SBATCH --time=24:00:00
@@ -28,8 +28,8 @@ DATASET="../data/combined_datasets/july_2026_results/july_2026_results.csv"
 # OUTPUT: save BERT experiments under NAACL results
 SAVE_PATH="../data/classification_results/naacl_2026_submission"
 
-MODEL_NAME="bert-large-cased"
-FINETUNED_MODEL_NAME="tolsa-bert"
+MODEL_NAME="bert-base-cased"
+FINETUNED_MODEL_NAME="tolsa-bert_base"
 TEXT_COLUMN="Base Sentence"
 LABEL_COLUMN="Ground Truth"
 
