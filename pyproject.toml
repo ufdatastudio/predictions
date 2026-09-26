@@ -65,6 +65,8 @@ dependencies = [
     "imblearn>=0.0",
     "evaluate>=0.4.6",
     "spacy-transformers>=1.4.0",
+    "sacrebleu>=2.6.0",
+    "rouge-score>=0.1.2",
 ]
 
 [tool.setuptools.packages.find]

@@ -15,26 +15,71 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(script_dir, '../'))
 from metrics import EvaluationMetric
 from data_processing import DataProcessing
-from feature_extraction import SpacyFeatureExtraction
+from feature_extraction import SpacyFeatureExtraction, SentenceTransformerFeatureExtraction
 
-
-def embed_properties(y_df, y_hat_df, col_names):
+def embed_properties(y_df, y_hat_df, col_names, embedding_model_name='spacy_large'):
     """
-    Generate spaCy embeddings for each property column in both y and y_hat DataFrames.
+    Generate SpaCy or Sentence‑Transformer embeddings for each property column
+    in both the ground‑truth (y_df) and the LLM predictions (y_hat_df).
+
+    Parameters
+    ----------
+    y_df : pd.DataFrame
+        Ground‑truth dataframe.
+    y_hat_df : pd.DataFrame
+        LLM‑predicted dataframe.
+    col_names : list[str]
+        The property column names (e.g., ['Source', 'Target', ...]).
+    embedding_model_name : str, optional
+        The embedding model to use (default: 'spacy_large').
+
+    Returns
+    -------
+    list[dict]
+        One dictionary per property containing the embedded dataframes.
     """
     property_results = []
 
+    # ------------------------------------------------------------------
+    # Loop over every property and embed ground‑truth and predictions
+    # ------------------------------------------------------------------
     for col_name in col_names:
         print(f"Embeddings for {col_name}")
 
-        y_spacy_fe = SpacyFeatureExtraction(y_df, col_name)
-        embed_y_df = y_spacy_fe.sentence_embeddings_extraction(attach_to_df=True)
+        # ------------------------------------------------------------------
+        # Ground‑truth embeddings
+        # ------------------------------------------------------------------
+        print(f"\tGround Truth")
+        if embedding_model_name.startswith('st_'):
+            # Sentence‑Transformer path
+            y_fe = SentenceTransformerFeatureExtraction(
+                y_df, col_name, embedding_model_name=embedding_model_name
+            )
+        else:
+            # SpaCy path (default or any spacy_<size> model)
+            y_fe = SpacyFeatureExtraction(
+                y_df, col_name, embedding_model_name=embedding_model_name
+            )
+        embed_y_df = y_fe.sentence_embeddings_extraction(attach_to_df=True)
 
-        y_hat_spacy_fe = SpacyFeatureExtraction(y_hat_df, col_name)
-        embed_y_hat_df = y_hat_spacy_fe.sentence_embeddings_extraction(attach_to_df=True)
+        # ------------------------------------------------------------------
+        # LLM prediction embeddings
+        # ------------------------------------------------------------------
+        print(f"\tLLM Extraction")
+        if embedding_model_name.startswith('st_'):
+            y_hat_fe = SentenceTransformerFeatureExtraction(
+                y_hat_df, col_name, embedding_model_name=embedding_model_name
+            )
+        else:
+            y_hat_fe = SpacyFeatureExtraction(
+                y_hat_df, col_name, embedding_model_name=embedding_model_name
+            )
+        embed_y_hat_df = y_hat_fe.sentence_embeddings_extraction(attach_to_df=True)
 
+        # Sanity‑check that we have the same number of rows
         np.testing.assert_equal(len(embed_y_df), len(embed_y_hat_df))
 
+        # Store the pair of dataframes so that downstream code can compare
         property_results.append({
             'property_name': col_name,
             'y_data': embed_y_df,
@@ -42,7 +87,6 @@ def embed_properties(y_df, y_hat_df, col_names):
         })
 
     return property_results
-
 
 def map_words_to_labels(y_df, y_hat_df, col_name):
     """
@@ -66,7 +110,10 @@ def map_words_to_labels(y_df, y_hat_df, col_name):
                     cs = 1.0 if y_word == y_hat_word else 0.0
                 else:
                     cs = EvaluationMetric.get_cosine_similarity(
-                        y_embed, y_hat_embed, per_row=False, idx=idx
+                        y_embed.reshape(1, -1),
+                        y_hat_embed.reshape(1, -1),
+                        per_row=False,
+                        idx=0
                     )
 
                 if cs >= 0.9:
@@ -84,7 +131,6 @@ def map_words_to_labels(y_df, y_hat_df, col_name):
                 tns.append(    {'y_word': y_word, 'y_hat_word': y_hat_word, 'cs': None, 'y': 0, 'y_hat': 0})
 
     return tps, fns, fps, tns
-
 
 def evaluate_properties(property_results, model_name, seed, parse_error_count, parse_error_rate):
     """
@@ -143,8 +189,24 @@ def evaluate_properties(property_results, model_name, seed, parse_error_count, p
 
     return pd.DataFrame(metrics_summary)
 
-
 if __name__ == "__main__":
+    """
+
+    # Same file
+    python3 evaluate_properties_extraction.py \
+  --y_path extraction_results/naacl_2026_submission/classification/zero-shot/seed3/gemma-3-27b-it/extracted_properties.csv \
+  --y_hat_path extraction_results/naacl_2026_submission/classification/zero-shot/seed3/gemma-3-27b-it/extracted_properties.csv \
+  --model_name gemma-3-27b-it \
+  --seed 3
+
+    # Diff files
+    python3 evaluate_properties_extraction.py \
+  --y_path extraction_results/naacl_2026_submission/ground_truth/zero-shot/seed3/gpt-oss-120b/extracted_properties.csv \
+  --y_hat_path extraction_results/naacl_2026_submission/classification/zero-shot/seed3/gemma-3-27b-it/extracted_properties.csv \
+  --model_name 'gpt-oss-120b x gemma-3-27b-it' \
+  --seed 3
+    
+    """
     print("\n" + "="*50)
     print("PROPERTY EXTRACTION EVALUATION")
     print("="*50)
@@ -157,6 +219,11 @@ if __name__ == "__main__":
     parser.add_argument('--y_hat_path', type=str, required=True, help='Path to model predictions CSV.')
     parser.add_argument('--model_name', type=str, default='openai/gpt-oss-120b', help='Model name.')
     parser.add_argument('--seed', type=int, default=7, help='Random seed.')
+    parser.add_argument('--embedding_model',
+                    default='spacy_large',
+                    choices=['spacy_small', 'spacy_medium', 'spacy_large', 'spacy_transformer',
+                             'st_mpnet_base', 'st_distilroberta', 'st_minilm_l12', 'st_minilm_l6'],
+                    help='SpaCy or Sentence‑Transformer model to use for sentence vectorization.')
     args = parser.parse_args()
 
     base_data_path = DataProcessing.load_base_data_path(script_dir)
@@ -194,7 +261,11 @@ if __name__ == "__main__":
     print("\n" + "="*50)
     print("STEP: EMBED PROPERTIES")
     print("="*50)
-    property_results = embed_properties(y_df, y_hat_df, col_names)
+
+    # 👉 New: supply the embedding model selected on the CLI
+    property_results = embed_properties(
+        y_df, y_hat_df, col_names, embedding_model_name=args.embedding_model
+    )
 
     # ============================================================
     # 4. Evaluate Properties
@@ -212,18 +283,18 @@ if __name__ == "__main__":
     print("STEP: SAVE RESULTS")
     print("="*50)
 
-    path_parts = args.y_path.split('/')
+    path_parts = args.y_hat_path.split('/')
     dataset_folders = path_parts[:-4]
     dataset_folder = '/'.join(dataset_folders)
     clean_model_name = args.model_name.replace('/', '_')
 
     eval_save_path = os.path.join(
-        base_data_path, dataset_folder, 'extraction_results', f'seed{args.seed}', clean_model_name
+        base_data_path, dataset_folder, f'seed{args.seed}', clean_model_name, args.embedding_model
     )
     os.makedirs(eval_save_path, exist_ok=True)
 
     DataProcessing.save_to_file(
-        metrics_summary_df, path=eval_save_path, prefix=f'metrics_summary_{clean_model_name}',
+        metrics_summary_df, path=eval_save_path, prefix=f'metrics_summary_{clean_model_name}_{args.embedding_model}',
         save_file_type='csv', include_version=True
     )
     print(f"✓ Saved metrics summary to: {eval_save_path}")
