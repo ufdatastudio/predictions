@@ -61,6 +61,7 @@ def get_target_files(model_type):
         "rnn": ["metrics_summary_rnn.csv"],
         "gru": ["metrics_summary_gru.csv"],
         "bert": ["metrics_summary_bert.csv"],
+        "conll": ["metrics_summary_conll.csv"],
     }
 
     if model_type == "all":
@@ -70,6 +71,7 @@ def get_target_files(model_type):
             "metrics_summary_rnn.csv",
             "metrics_summary_gru.csv",
             "metrics_summary_bert.csv",
+            "metrics_summary_conll.csv",
         ]
 
     return model_files[model_type]
@@ -91,6 +93,9 @@ def get_file_tag(target_file):
 
     if target_file == "metrics_summary_bert.csv":
         return "bert"
+
+    if target_file == "metrics_summary_conll.csv":
+        return "conll"
 
     return "unknown"
 
@@ -125,6 +130,13 @@ def get_walk_root(
     model_name=None,
 ):
     """Return the directory within a seed folder to search for metrics files."""
+    if model_type == "conll":
+        return os.path.join(
+            seed_folder_path,
+            "in_domain",
+            "conll_2010_hedge_rule",
+        )
+
     if model_type == "bert":
         if not model_name:
             raise ValueError(
@@ -929,7 +941,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--model_type",
-        choices=["ml", "llm", "rnn", "gru", "bert", "all"],
+        choices=["ml", "llm", "rnn", "gru", "bert", "conll", "all"],
         default="ml",
         help="Model family whose result files should be averaged.",
     )
