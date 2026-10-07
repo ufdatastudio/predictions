@@ -67,7 +67,7 @@ class Tolsa:
         # Layer 1 — acronym
         # ------------------------------------------------------------
         layer_1 = (
-            "TOLSA (Target Outcome with optionaL Source dAte)"
+            "TOLSA (Target Outcome with optionaL Source and dAte)"
         )
 
         # ------------------------------------------------------------
@@ -133,7 +133,8 @@ class Tolsa:
 
             1. <target>
                 - Defined as:
-                    - Target entity, event, or location of interest that the TOLSA is about.
+                    - Entity, event, or location of interest explicitly stated in the text document.
+                    - In a TOLSA, this represents the target the proposal is about.
                 - Characteristics:
                     - A person with either: a name only, profile name only, gender only,
                       domain-specific title only, or any combination of these.
@@ -145,8 +146,10 @@ class Tolsa:
 
             2. <outcome>
                 - Defined as:
-                    - Measurable outcome of the TOLSA.
-                    - Correctness may be unknown at the time of declaration.
+                    - A measurable outcome, attribute, metric, or slope explicitly stated
+                    in the text document.
+                    - In a TOLSA, this represents the outcome whose correctness may be
+                    unknown at the time of declaration.
                 - Characteristics:
                     - Comprised of one or more of the following:
                         - Attribute of interest
@@ -219,7 +222,7 @@ class Tolsa:
         """
         return tolsa_properties
 
-    def get_requirements():
+    def get_linguistic_cues():
         """
         Returns the linguistic cues and requirements for identifying TOLSA,
         organized into two dimensions:
@@ -319,10 +322,10 @@ class Tolsa:
             "short-term", "long-term"
         ]
 
-        tolsa_requirements = f"""Linguistic Cues for TOLSA Identification:
-
-        NOTE: No single cue below is sufficient on its own. TOLSA prioritizes
-        semantics and properties (target + outcome) over keyword matching.
+        tolsa_requirements = f"""Linguistic Cues for Understanding TOLSA Properties:
+            NOTE: These cues provide context for understanding TOLSA properties.
+            They are not extraction requirements. Extract source, target, date, and 
+            outcome only when the corresponding span is explicitly present in the text document.
 
         ── 1. TENSE ──────────────────────────────────────────────────────────────
         Tense: Future (TF)  — future-related verb constructions (necessary but NOT sufficient)
@@ -345,26 +348,15 @@ class Tolsa:
 
         Keyword: Time Expression (KTE) — captured as <date> context, NOT a standalone classifier
             {temporal_expressions}
-
-        ── 3. SOURCE ATTRIBUTION ─────────────────────────────────────────────────
-        Phrases attributing a claim to a declaring entity:
-            "according to [source]", "[source] predicts", "said [source]",
-            "[source] forecasts", "[source] expects"
-
-        ── CLASSIFICATION REQUIREMENT ────────────────────────────────────────────
-        To qualify as TOLSA, the statement MUST contain:
-            - A <target>   (entity, event, or location of interest)
-            - An <outcome> (attribute, metric, or slope)
-        Source and date are optional but provide valuable context.
         """
         return tolsa_requirements
 
-    def get_prediction_properties_and_requirements():
+    def get_tolsa_properties_and_linguistic_cues():
         """
         Convenience method to retrieve both properties and requirements together.
         Useful for comprehensive prompt construction.
         """
-        return Tolsa.get_tolsa_properties(), Tolsa.get_requirements()
+        return Tolsa.get_tolsa_properties(), Tolsa.get_linguistic_cues()
 
     def get_source_examples():
         """
@@ -425,7 +417,7 @@ class Tolsa:
         Instead, they are captured here as date context under the <date> property,
         representing either declaration time or fruition time.
 
-        Temporal horizon metadata (short-term, long-term, unverifiable) can also
+        Temporal horizon  (short-term, long-term, unverifiable) can also
         be stored here to support downstream narrative tracking.
         """
         examples = [
@@ -441,9 +433,9 @@ class Tolsa:
             "in Q3",                                # quarterly format (KTE → date property)
             "over the next decade",                 # duration format (KTE → date property)
             "upcoming",                             # KTE → date property
-            "near-term",                            # temporal horizon metadata
-            "long-term",                            # temporal horizon metadata
-            "unverifiable"                          # temporal horizon metadata
+            "near-term",                            # temporal horizon 
+            "long-term",                            # temporal horizon 
+            "unverifiable"                          # temporal horizon 
         ]
         return examples
 

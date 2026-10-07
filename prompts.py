@@ -81,7 +81,7 @@ class BasePrompt(ABC):
 
     def few_shot(self):
         """
-        Few-shot prompting: Provides examples for each TOLSA-M property.
+        Few-shot prompting: Provides examples for each TOLSA property.
         Returns system identity, task, format output, and examples.
         """
         source_ex = Tolsa.get_source_examples()
@@ -108,21 +108,23 @@ class BasePrompt(ABC):
 
 class SentenceClassificationPrompt(BasePrompt):
     """
-    Prompt for classifying sentences as TOLSA-M or non-TOLSA-M.
+    Prompt for classifying sentences as TOLSA or non-TOLSA.
     Supports zero-shot, few-shot, and chain-of-thought approaches.
     """
 
     def default_system_identity(self):
         tolsa_definition = Tolsa.get_tolsa_definition()
-        return f"""You are a linguistic expert that specializes in identifying TOLSA-M (Target Outcome with optionaL Source, dAte, and Metadata) from a given text input.
+        return f"""You are a linguistic expert that specializes in extracting TOLSA (Target Outcome with optionaL Source, dAte) properties from a given text document.
         {tolsa_definition}"""
 
+    
+
     def default_task(self):
-        return """Classify the sentence as either a "TOLSA-M": 1 or "non-TOLSA-M": 0."""
+        return """Classify the sentence as either a "TOLSA": 1 or "non-TOLSA": 0."""
 
     def few_shot(self, dataset_path: str = None, stratify_columns: list = None, seed: int = 3):
         """
-        Few-shot prompting: Provides examples for each TOLSA-M property.
+        Few-shot prompting: Provides examples for each TOLSA property.
         Returns system identity, task, format output, and examples.
         
         Parameters
@@ -167,7 +169,7 @@ class SentenceClassificationPrompt(BasePrompt):
             for idx, row in few_shot_df.iterrows():
                 sentence = row['Base Sentence']
                 label = row['Ground Truth']
-                label_name = "TOLSA-M" if label == 1.0 else "non-TOLSA-M"
+                label_name = "TOLSA" if label == 1.0 else "non-TOLSA"
                 
                 # Include dataset info for transparency
                 dataset_info = ""
@@ -202,38 +204,74 @@ class SentenceClassificationPrompt(BasePrompt):
 
     def default_steps(self):
         """
-        Chain-of-thought reasoning steps for TOLSA-M classification.
+        Chain-of-thought reasoning steps for TOLSA classification.
         Updated to handle past, present, and future tenses.
         """
         return """
         - Step 1: Identify the tense (past, present, or future) and check for temporal indicators or predictive language across all tenses.
         - Step 2: Determine if the statement contains a target entity and a measurable outcome (attribute, metric, or slope).
         - Step 3: Check for optional source entity and date information (declaration or fruition).
-        - Step 4: Evaluate if the statement represents uncertainty, expectation, or a previously declared forecast (for past TOLSA-M).
+        - Step 4: Evaluate if the statement represents uncertainty, expectation, or a previously declared forecast (for past TOLSA).
         - Step 5: Verify the statement meets at least one indicator requirement (predictive language, temporal constructions, or attribution).
-        - Step 6: Synthesize your findings to classify the sentence as a "TOLSA-M": 1 or "non-TOLSA-M": 0.
+        - Step 6: Synthesize your findings to classify the sentence as a "TOLSA": 1 or "non-TOLSA": 0.
 """
 
 
 class EntityExtractionPrompt(BasePrompt):
     """
-    Prompt for extracting and labeling TOLSA-M entities from text.
+    Prompt for extracting and labeling TOLSA entities from text.
     Identifies source, target, date, and outcome components.
     """
 
     def default_system_identity(self):
         tolsa_definition = Tolsa.get_tolsa_definition()
-        return f"""You are a linguistic expert that specializes in identifying TOLSA-M (Target Outcome with optionaL Source, dAte, and Metadata) properties from a given text input.
+        return f"""You are a linguistic expert that specializes in extracting TOLSA (Target Outcome with optionaL Source, dAte) properties from a given text input.
         {tolsa_definition}
 """
 
     def default_task(self):
-        return """For each word or span within the sentence, label it as either "source": 1, "target": 2, "date": 3, "outcome": 4. IMPORTANT: Keep multi-word spans together as single items in the list. Return [] for any property not present in the sentence. Only extract words that fit these 4 categories."""
+        return """Extract the source, target, date, and outcome properties from the text document and
+            place each extracted span in the correct JSON list:
+            - "1" = source
+            - "2" = target
+            - "3" = date
+            - "4" = outcome
+
+            The goal is to extract the properties that are explicitly present in the text document,
+            not to first decide whether the text document is a TOLSA. This is an extraction task,
+            not a classification task. Extract each source, target, date, and outcome span that is
+            explicitly supported by the text document.
+                        
+            Extraction requirements:
+                1. Put each distinct extracted span in its own string in the list.
+                2. Keep multi-word spans together as one string.
+                3. Do NOT join multiple spans with "|". The output must contain separate list items; "|"
+                is added later by the processing pipeline.
+                4. Preserve the original order of extracted spans according to their occurrence in the
+                input text document. Do not reorder spans within any property list. For example, if the text document contains "word1"
+                    before "word2" before "word3", the output must be ["word1", "word2", "word3"],
+                    not ["word2", "word1", "word3"].
+                5. Copy each extracted span exactly as it appears in the input text document.
+                6. Preserve the exact wording, spelling, capitalization, whitespace within the span,
+                punctuation, and symbols appearing in the extracted span.
+                7. Preserve symbols such as %, °, $, +, -, /, parentheses, commas, decimal points,
+                and other symbols exactly as they appear when they are part of the extracted span.
+                8. Do not normalize, simplify, remove, or replace symbols or formatting.
+                9. Do not invent, infer, or paraphrase a span. Every extracted span must be a
+                verbatim span from the input text document.
+                10. Return [] for any property that is not explicitly stated in the text document.
+                    Do not leave a property empty merely because the text document may not be a TOLSA.
+                11. Extract target and outcome spans whenever they are explicitly stated, regardless
+                    of whether the text document would qualify as a TOLSA.
+                12. Only extract spans that belong to source, target, date, or outcome.
+            """
+
+
 
     def few_shot(self):
         """
         Few-shot prompting for slot filling: Provides explicit sentence-to-JSON
-        mapping examples using real TOLSA-M property examples from Tolsa.
+        mapping examples using real TOLSA property examples from Tolsa.
 
         Returns
         -------
@@ -265,24 +303,64 @@ class EntityExtractionPrompt(BasePrompt):
         Sentence: "Dr. Keith L. Black predicts the CDC heart rate monitoring program will decrease."
         Output: {{"1": ["{source_ex[9]}"], "2": ["{target_ex[12]}"], "3": [], "4": ["{outcome_ex['slope'][5]}"]}}
 
-        Example 5 (non-TOLSA-M — return empty lists for all properties):
+        Example 5 (non-TOLSA — return empty lists for all properties):
         Sentence: "The company held its annual meeting last Tuesday."
         Output: {{"1": [], "2": [], "3": [], "4": []}}
+
         Key reminders:
-        - Source examples: {source_ex}
-        - Target examples: {target_ex}
-        - Date examples:   {date_ex}
-        - Outcome examples (attribute): {outcome_ex['attribute_of_interest']}
-        - Outcome examples (slope):     {outcome_ex['slope']}
-        - Return [] for any property not present in the sentence.
-        - Keep multi-word spans together as single list items.
+            - Source examples: {source_ex}
+            - Target examples: {target_ex}
+            - Date examples:   {date_ex}
+            - Outcome examples (attribute): {outcome_ex['attribute_of_interest']}
+            - Outcome examples (slope):     {outcome_ex['slope']}
+            - Outcome examples (metric):    {outcome_ex['metric']}
+            - Outcome is a single property. Attribute, slope, and metric spans are all part of
+            the Outcome property when they are explicitly present.
+            - If multiple outcome spans are present, put each span in its own string in the
+            Outcome list and preserve their order of occurrence in the text document.
+            - Do NOT join multiple outcome spans with "|". The processing pipeline adds "|"
+            later when converting the list to the ground-truth format.
+            - Copy every extracted span verbatim from the text document.
+            - Do not invent, infer, or paraphrase.
+            - Return [] when a property is not explicitly stated.
+            - If target or outcome is not explicitly stated, return [] for that property.
         """
 
         return self.system_identity(), self.task(), self.format_output(), few_shot_examples
 
     def default_format_output(self):
         if self.get_prompt_name() == 'zero-shot' or self.get_prompt_name() == 'few-shot':
-            return """Respond ONLY with valid JSON: {"1": [], "2": [], "3": [], "4": []}. Do NOT include reasoning or additional text. Return [] for any property not present in the sentence."""
+            return """Respond ONLY with valid JSON in this exact format:
+                {"1": [], "2": [], "3": [], "4": []}
+
+                Each property value must be a list of strings.
+                Put each extracted span in its own list item.
+                Do NOT use "|" to join spans.
+                Do NOT include reasoning or additional text.
+                Return [] for any property not explicitly stated in the text document.
+            """
         elif self.get_prompt_name() == 'chain-of-thought':
-            return """Respond ONLY with valid JSON in this exact format: {"1": [], "2": [], "3": [], "4": [], "reasoning": "[insert your reasoning]"}. Be sure to reason and do NOT provide anything other than the 
-            aforementioned format."""
+            return """Respond ONLY with valid JSON in this exact format:
+        {"1": [], "2": [], "3": [], "4": [], "reasoning": ""}
+
+        Each property value for "1", "2", "3", and "4" must be a list of strings.
+        - "1" = source
+        - "2" = target
+        - "3" = date
+        - "4" = outcome
+
+        Put each extracted span in its own list item.
+        Keep multi-word spans together as one string.
+        Do NOT use "|" to join spans.
+        Preserve the original order of extracted spans within each property list.
+        Copy each extracted span exactly as it appears in the text document.
+        Preserve capitalization, punctuation, whitespace within the span, and symbols.
+        Do NOT normalize, simplify, remove, or replace symbols or formatting.
+        Do NOT invent, infer, or paraphrase spans.
+        Return [] for any property not explicitly stated in the text document.
+        If target or outcome is not explicitly stated, return [] for that property.
+
+        The "reasoning" field may contain the model's reasoning. Do not put extracted
+        spans or "|" into the reasoning field as a substitute for the required values
+        in keys "1", "2", "3", and "4".
+        """

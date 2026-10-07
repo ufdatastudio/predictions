@@ -7,6 +7,7 @@ import time
 import argparse
 import pandas as pd
 from tqdm import tqdm
+from pathlib import Path
 from typing import List
 
 # Add project modules to path
@@ -18,14 +19,14 @@ from tolsa_properties import Tolsa
 from text_generation_models import TextGenerationModelFactory
 
 # How many sentence results to collect in memory before writing to disk
-BATCH_SIZE = 10
+BATCH_SIZE = 2
 
 # Stop after this many sentences (set to None to process all)
-STOP_AFTER = None
+STOP_AFTER = 10
 
 def load_dataset(base_data_path, dataset_name):
     """
-    Load a dataset from a CSV file into a pandas DataFrame.
+        Load a dataset from a CSV file into a pandas DataFrame.
 
     Parameters
     ----------
@@ -39,25 +40,58 @@ def load_dataset(base_data_path, dataset_name):
     pd.DataFrame
         The loaded dataset with a clean 0..N index.
     """
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("STEP: LOAD DATASET")
-    print("="*50)
+    print("=" * 50)
 
     data_path = os.path.join(base_data_path, dataset_name)
     print(f"Dataset path: {dataset_name}")
 
-    df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    df = df.sample(n=7, random_state=42)
+    suffix = Path(data_path).suffix.lower()
 
-    # Reset index so we have a clean 0, 1, 2, ... row numbers.
-    # This is important for the resume logic later — we track which
-    # row numbers have already been processed.
+    if suffix == ".csv":
+        df = pd.read_csv(data_path)
+
+    elif suffix in [".xlsx", ".xls"]:
+        raw_df = pd.read_excel(data_path, header=None)
+
+        header_row = None
+        for idx, row in raw_df.iterrows():
+            if row.astype(str).str.strip().eq("Base Sentence").any():
+                header_row = idx
+                break
+
+        if header_row is None:
+            raise ValueError("Could not find 'Base Sentence' header row.")
+
+        df = pd.read_excel(data_path, header=header_row)
+
+    else:
+        raise ValueError(f"Unsupported file type: {suffix}")
+
+    if "Base Sentence" not in df.columns:
+        raise ValueError(
+            f"'Base Sentence' column not found. Available columns: {list(df.columns)}"
+        )
+
+    # Keep Base Sentence plus metadata columns used for sampling and row-level dataset name
+    keep_cols = ["Base Sentence"] + [
+        c for c in ["Dataset Name", "Ground Truth"] if c in df.columns
+    ]
+    df = df[keep_cols].copy()
+
+    # Remove empty rows
+    df = df.dropna(subset=["Base Sentence"])
+
     df = df.reset_index(drop=True)
 
     print(f"Shape: {df.shape}")
+    print(f"Columns: {list(df.columns)}")
     print(f"\nFirst 7 rows:\n{df.head(7)}\n")
     print(f"\nLast 7 rows:\n{df.tail(7)}\n")
+
     return df
+
 
 def load_prompts_and_llm(model_name=None, prompt_type='few-shot'):
     """
@@ -75,7 +109,7 @@ def load_prompts_and_llm(model_name=None, prompt_type='few-shot'):
     print(f"STEP: LOAD PROMPTS & MODEL ({prompt_type})")
     print("="*50)
 
-    prediction_properties, prediction_requirements = Tolsa.get_prediction_properties_and_requirements()
+    tolsa_properties, linguistic_cues = Tolsa.get_tolsa_properties_and_linguistic_cues()
 
     prompt = EntityExtractionPrompt(prompt_type_name=prompt_type)
 
@@ -95,10 +129,10 @@ def load_prompts_and_llm(model_name=None, prompt_type='few-shot'):
         )
 
     base_prompt = f"""{system_identity}
-    Prediction Properties:
-    {prediction_properties}
-    Requirements:
-    {prediction_requirements}
+
+    {tolsa_properties}
+
+    {linguistic_cues}
     {examples_text}
     """
 
@@ -197,7 +231,8 @@ def join_property(values):
         return values.strip()
     return ''
 
-def process_single_result(input_index, text, raw_response, model_name, seed) -> pd.DataFrame:
+def process_single_result(input_index, text, raw_response, model_name, seed,
+                          prompt_type, task_name) -> pd.DataFrame:
     """
     Convert one LLM slot-filling response into a structured DataFrame row.
 
@@ -207,6 +242,8 @@ def process_single_result(input_index, text, raw_response, model_name, seed) -> 
     - PARSE_ERROR: No slots could be recovered.
     """
     data = {
+        'Task Name':     [task_name],
+        'Prompt Type':   [prompt_type],
         'Seed':          [seed],
         'Input_Index':   [input_index],
         'Base Sentence': [text],
@@ -278,6 +315,9 @@ def extract_properties(
         results_path, 
         dataset_basename, 
         seed,
+        prompt_type,
+        task_name,
+        sleep_seconds=7,
         stop_after=None):
     """
     Process sentences with batch saving and robust error handling.
@@ -291,7 +331,7 @@ def extract_properties(
     base_prompt : str
         The full prompt sent before each sentence.
     task : str
-        The labeling instruction for the model.
+        The labeling instruction for the model (includes the annotator guidelines).
     format_output : str
         The expected JSON output format.
     model : object
@@ -300,6 +340,14 @@ def extract_properties(
         Path to the results CSV file.
     dataset_basename : str
         The dataset name, stored in results so we know which dataset each row came from.
+    seed : int
+        Random seed, stored in each results row.
+    prompt_type : str
+        Prompting strategy ('zero-shot', 'few-shot', 'chain-of-thought'), stored in each results row.
+    task_name : str
+        Either 'ground_truth' or 'extraction', stored in each results row.
+    sleep_seconds : float
+        Pause between API calls to stay within provider rate limits. Default is 7.
     stop_after : int or None
         If set, stop processing after this many sentences. Useful for testing.
         Default is None (process all sentences).
@@ -325,28 +373,30 @@ def extract_properties(
         text = row[text_column]
 
         prompt = f"""{base_prompt}
-        Sentence to extract the prediction properties: '{text}'
-        {task}
-        {format_output}
-        """
 
-        if idx < 2:
-            print(f"\n--- Sample Prompt (idx={idx}) ---")
-            # print(prompt[:500] + "..." if len(prompt) > 500 else prompt)
-            print(f"PROMPT: {prompt}")
-            quit()
+        <text_document>{text}</text_document>
+
+        {task}
+
+        {format_output}"""
+
+        # Print the first prompt of the run once for a sanity check (does not quit)
+        if sentences_processed == 0:
+            print(f"\n--- Sample Prompt (idx={idx}) ---\n{prompt}\n--- End Sample Prompt ---\n")
 
         input_prompt = model.user(prompt)
         raw_response = model.safe_chat_completion([input_prompt], idx=idx)
 
-        # Proactive sleep to stay within Groq TPM limits
-        # Groq recommends ~6.21s between requests for openai/gpt-oss-120b
-        time.sleep(7)
+        # Proactive sleep to stay within provider rate limits (e.g., Groq TPM limits).
+        # Groq recommends ~6.21s between requests for openai/gpt-oss-120b.
+        time.sleep(sleep_seconds)
 
         if raw_response is None:
             raw_response = "ERROR_MAX_RETRIES"
 
-        single_df = process_single_result(idx, text, raw_response, model.__name__(), seed)
+        single_df = process_single_result(
+            idx, text, raw_response, model.__name__(), seed, prompt_type, task_name
+        )
 
         # Preserve row-level dataset identity from the source dataframe.
         # This gives us 'synthetic', 'financial_phrasebank', etc. per row
@@ -492,12 +542,12 @@ if __name__ == "__main__":
             --seed 7
 
         # ============================================================
-        # STEP 3: Test LLM extraction ability (classification task)
+        # STEP 3: Test LLM extraction ability (extraction task)
         # ============================================================
         python3 llm-experiment.py \
             --dataset_path combined_datasets/naacl_2026_submission/naacl_2026_submission.csv \
             --model_name "llama-3.1-8b-instant" \
-            --task_name classification \
+            --task_name extraction \
             --prompt_type few-shot \
             --sample_fraction 0.1 \
             --seed 7
@@ -518,9 +568,9 @@ if __name__ == "__main__":
         # Zero-shot variant
         # ============================================================
         python3 llm-experiment.py \
-            --dataset_path extract_tolsa_properties/naacl_2026_submission/ground_truth/extracted_properties-ground_truth.xlsx \
-            --model_name "llama-3.1-8b-instant" \
-            --task_name classification \
+            --dataset_path extract_tolsa_properties_results/naacl_2026_submission/ground_truth/extracted_properties-ground_truth_only.csv \
+            --model_name "openai/gpt-oss-20b" \
+            --task_name extraction \
             --prompt_type zero-shot \
             --seed 7
     """
@@ -549,7 +599,7 @@ if __name__ == "__main__":
 
     task_name_map = {
         'ground_truth':   'ground_truth',
-        'classification': 'classification'
+        'extraction': 'extraction'
     }
 
     parser = argparse.ArgumentParser(description='Extract properties from sentences using LLMs.')
@@ -583,7 +633,7 @@ if __name__ == "__main__":
         type=str,
         choices=list(task_name_map.keys()),
         default='ground_truth',
-        help='Either ground_truth for establishing labels or classification for testing extraction.'
+        help='Either ground_truth for establishing labels or extraction for testing extraction.'
     )
     parser.add_argument(
         '--seed', 
@@ -615,6 +665,12 @@ if __name__ == "__main__":
         choices=['zero-shot', 'few-shot', 'chain-of-thought'],
         default='few-shot',
         help='Prompting strategy for slot filling extraction. Default: few-shot'
+    )
+    parser.add_argument(
+        '--sleep_seconds',
+        type=float,
+        default=7.0,
+        help='Pause between API calls for rate limits. Use 0 if the provider has no TPM limit.'
     )
     args = parser.parse_args()
 
@@ -683,18 +739,28 @@ if __name__ == "__main__":
     # ============================================================
     # 6. Setup Output Directory
     # ============================================================
+
+    from datetime import datetime
+
+    today_date = datetime.today().strftime("%Y-%m-%d")
+
     output_dir = os.path.join(
         base_data_path,
-        "extraction_results",
-        dataset_basename,
-        args.task_name,
-        args.prompt_type,
+        "extract_tolsa_properties_results",
+        "naacl_2026_submission",
+        f"naacl_2026_results_{today_date}",
         f"seed{args.seed}",
+        "in_domain",
         clean_model_name
     )
+
     os.makedirs(output_dir, exist_ok=True)
 
-    results_path = os.path.join(output_dir, "extracted_properties.csv")
+    results_path = os.path.join(
+        output_dir,
+        "extracted_properties.csv"
+    )
+
     print(f"\nOutput Directory : {output_dir}")
     print(f"Results File     : {results_path}")
 
@@ -765,6 +831,9 @@ if __name__ == "__main__":
             results_path,
             dataset_basename,
             args.seed,
+            prompt_type=args.prompt_type,
+            task_name=args.task_name,
+            sleep_seconds=args.sleep_seconds,
             stop_after=STOP_AFTER
         )
 
