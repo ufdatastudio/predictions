@@ -14,8 +14,8 @@
 #   7. Identify and save potential FLS from test
 #   8. Evaluate validation predictions against Ground Truth
 #   9. Evaluate test predictions against Ground Truth
-#  10. Save metrics and stop
-
+#  10. Save distributions (all, TOLSA-M, non-TOLSA-M) on combined val+test
+#  11. Save metrics and stop
 #
 # This script does NOT reproduce the paper's later classifier stages:
 #   - manual FLS/non-FLS labeling
@@ -148,13 +148,7 @@ def load_dataset(
     sample_size=None,
     seed=300,
 ):
-    """
-    Load, clean, and optionally sample the input reports.
-
-    The label column is optional because rule-based extraction itself does not
-    require human labels. If supplied, it is retained for optional benchmark
-    metrics so the saved metrics remain compatible with the other pipelines.
-    """
+    """Load, clean, and optionally sample the input reports."""
     print("\n" + "=" * 40)
     print("LOAD DATASET")
     print("=" * 40)
@@ -269,13 +263,7 @@ def save_csv(df, output_dir, prefix):
 # =============================================================================
 
 def matched_time_pairs(doc):
-    """
-    Match a time word followed by a time-period indicator.
-
-    The period indicator must be the next word or follow one intervening
-    alphabetic word. This is the proximity implementation used by the
-    existing Glodd replication.
-    """
+    """Match a time word followed by a time-period indicator."""
     words = [
         token.lower_
         for token in doc
@@ -296,12 +284,7 @@ def matched_time_pairs(doc):
 
 
 def matched_predictive_keywords(doc):
-    """
-    Find predictive vocabulary regardless of part of speech.
-
-    This is retained as a diagnostic signal. It is NOT what determines
-    whether the sentence is a potential FLS.
-    """
+    """Find predictive vocabulary regardless of part of speech."""
     return [
         {
             "text": token.text,
@@ -315,13 +298,7 @@ def matched_predictive_keywords(doc):
 
 
 def matched_predictive_verbs(doc):
-    """
-    Find predictive words when spaCy identifies their use as a VERB.
-
-    This is the important noun-vs.-verb distinction. For example,
-    "project" can be a noun ("a project") or a verb ("we project").
-    Only the verb use contributes to the predictive-verb rule.
-    """
+    """Find predictive words when spaCy identifies their use as a VERB."""
     matches = []
 
     for token in doc:
@@ -428,7 +405,6 @@ def extract_rule_record(doc):
 
         "Matched_UncertainTerms": "; ".join(uncertain_terms),
 
-        # A sentence is a potential FLS when either rule fires.
         CANDIDATE_COLUMN: int(time_hit or verb_hit),
     }
 
@@ -461,7 +437,6 @@ def load_spacy_pipeline(model_key):
             "predictive-verb rule."
         )
 
-    # These components are not needed for the rule-based extraction.
     for component in (
         "ner",
         "entity_ruler",
@@ -474,18 +449,8 @@ def load_spacy_pipeline(model_key):
     return nlp
 
 
-def apply_glodd_rules(
-    df,
-    model_key,
-    nlp,
-    text_column,
-):
-    """
-    Apply the Glodd rule-based extraction to the supplied split only.
-
-    The caller is responsible for splitting the dataset before this function
-    is called. This function does not train, fit, or select a model.
-    """
+def apply_glodd_rules(df, model_key, nlp, text_column):
+    """Apply the Glodd rule-based extraction to the supplied split only."""
     print("\n" + "=" * 40)
     print("APPLY GLODD & HRISTOVA RULES")
     print("=" * 40)
@@ -602,6 +567,37 @@ def save_data_splits(train_df, val_df, test_df, output_dir):
 
 
 # =============================================================================
+# DISTRIBUTIONS
+# =============================================================================
+
+def create_distribution(df):
+    """
+    Count rule signal hits across the supplied rows.
+
+    Mirrors the CoNLL distribution function. Applied to the combined
+    val + test annotated rows only.
+    """
+    return pd.DataFrame({
+        "Category": [
+            "FLS Candidate",
+            "Not FLS Candidate",
+            "Time Period",
+            "Predictive Keyword (Any POS)",
+            "Predictive Verb",
+            "Uncertain Term Present",
+        ],
+        "Count": [
+            int(df[CANDIDATE_COLUMN].sum()),
+            int(len(df) - df[CANDIDATE_COLUMN].sum()),
+            int(df["Rule_TimePeriod"].sum()),
+            int(df["Rule_PredictiveKeyword_AnyPOS"].sum()),
+            int(df["Rule_PredictiveVerb"].sum()),
+            int(df["Rule_UncertainTermPresent"].sum()),
+        ],
+    })
+
+
+# =============================================================================
 # OPTIONAL BENCHMARK METRICS
 # =============================================================================
 
@@ -635,13 +631,18 @@ def evaluate_candidates(df, label_column):
     }
 
 
-def save_metrics_summary(val_df, test_df, model_key, label_column, seed, output_dir):
+def save_metrics_summary(
+    val_df,
+    test_df,
+    model_key,
+    label_column,
+    seed,
+    output_dir,
+):
     """
     Evaluate only the validation and test splits against Ground Truth.
 
-    The full dataset is never benchmarked here. A single row is saved with
-    separate validation and test metric columns, avoiding a split column and
-    avoiding averaging validation/test rows together.
+    A single row is saved with separate validation and test metric columns.
     """
     if label_column not in val_df.columns or test_df is None:
         return None
@@ -732,6 +733,10 @@ def save_experiment_metadata(
         "candidate_definition": (
             "Rule_TimePeriod OR Rule_PredictiveVerb"
         ),
+        "distribution_scope": (
+            "Combined validation and test annotated rows only. "
+            "Train split is never processed or included."
+        ),
         "processing_scope": (
             "Dataset is split before rule application. Glodd rules are applied "
             "only to validation and test splits. The train split is saved but "
@@ -803,66 +808,51 @@ def main():
     parser.add_argument(
         "--dataset",
         required=True,
-        help=(
-            "Dataset path relative to the data directory "
-            "or an absolute path."
-        ),
     )
 
     parser.add_argument(
         "--save_path",
         required=True,
-        help="Directory in which experiment outputs are saved.",
     )
 
     parser.add_argument(
         "--text_column",
         default="Base Sentence",
-        help="Name of the sentence-text column.",
     )
 
     parser.add_argument(
         "--label_column",
         default="Ground Truth",
-        help="Binary human Ground Truth label column used for stratification and benchmark metrics.",
     )
 
     parser.add_argument(
         "--embedding_model",
         required=True,
         choices=list(SPACY_MODELS.keys()),
-        help=(
-            "One spaCy pipeline to use for the rule-based linguistic "
-            "analysis. Run each model separately."
-        ),
     )
 
     parser.add_argument(
         "--seed",
         type=int,
         default=300,
-        help="Random seed used for sampling and stratified data splitting.",
     )
 
     parser.add_argument(
         "--val_size",
         type=float,
         default=0.2,
-        help="Validation-set proportion of the full usable dataset.",
     )
 
     parser.add_argument(
         "--test_size",
         type=float,
         default=0.2,
-        help="Test-set proportion of the full usable dataset.",
     )
 
     parser.add_argument(
         "--sample_size",
         type=int,
         default=None,
-        help="Optional random sample size before splitting. Default: all usable rows.",
     )
 
     args = parser.parse_args()
@@ -920,9 +910,6 @@ def main():
     # -------------------------------------------------------------------------
     # DATA SPLITS: CREATE + SAVE FIRST
     # -------------------------------------------------------------------------
-    # No Glodd rules are applied before this point. This keeps the benchmark
-    # procedure aligned with the ML/BERT/LLM experiments: the held-out sets
-    # are established first, then the method is run on those sets.
 
     train_df, val_df, test_df = split_dataset(
         df=df,
@@ -964,16 +951,8 @@ def main():
             val_annotated_df[CANDIDATE_COLUMN].eq(1)
         ].copy()
 
-        save_csv(
-            val_annotated_df,
-            output_dir,
-            "rule_annotations_val",
-        )
-        save_csv(
-            val_potential_fls_df,
-            output_dir,
-            "fls_candidates_val",
-        )
+        save_csv(val_annotated_df, output_dir, "rule_annotations_val")
+        save_csv(val_potential_fls_df, output_dir, "fls_candidates_val")
 
         # -------------------------------------------------------------
         # APPLY GLODD RULES: TEST ONLY
@@ -999,25 +978,54 @@ def main():
             test_annotated_df[CANDIDATE_COLUMN].eq(1)
         ].copy()
 
-        save_csv(
-            test_annotated_df,
-            output_dir,
-            "rule_annotations_test",
-        )
-        save_csv(
-            test_potential_fls_df,
-            output_dir,
-            "fls_candidates_test",
-        )
+        save_csv(test_annotated_df, output_dir, "rule_annotations_test")
+        save_csv(test_potential_fls_df, output_dir, "fls_candidates_test")
 
     finally:
         del nlp
         gc.collect()
 
     # -------------------------------------------------------------------------
+    # DISTRIBUTIONS (combined val + test annotated rows only)
+    # -------------------------------------------------------------------------
+
+    combined_annotated_df = pd.concat(
+        [val_annotated_df, test_annotated_df],
+        ignore_index=True,
+    )
+
+    all_distribution_df = create_distribution(combined_annotated_df)
+
+    tolsam_distribution_df = create_distribution(
+        combined_annotated_df.loc[
+            combined_annotated_df[args.label_column].eq(1)
+        ]
+    )
+
+    non_tolsam_distribution_df = create_distribution(
+        combined_annotated_df.loc[
+            combined_annotated_df[args.label_column].eq(0)
+        ]
+    )
+
+    print("\n" + "=" * 40)
+    print("DISTRIBUTIONS (VAL + TEST)")
+    print("=" * 40)
+    print("\nAll rows:")
+    print(all_distribution_df.to_string(index=False))
+    print("\nTOLSA-M rows:")
+    print(tolsam_distribution_df.to_string(index=False))
+    print("\nNon-TOLSA-M rows:")
+    print(non_tolsam_distribution_df.to_string(index=False))
+
+    save_csv(all_distribution_df, output_dir, "distribution_all")
+    save_csv(tolsam_distribution_df, output_dir, "distribution_tolsam")
+    save_csv(non_tolsam_distribution_df, output_dir, "distribution_non_tolsam")
+
+    # -------------------------------------------------------------------------
     # EVALUATE: VALIDATION AND TEST AGAINST GROUND TRUTH
     # -------------------------------------------------------------------------
-    # The train set is never evaluated. The full dataset is never evaluated.
+
     save_metrics_summary(
         val_df=val_annotated_df,
         test_df=test_annotated_df,
@@ -1048,6 +1056,7 @@ def main():
     print("✓ Dataset split before rule application")
     print("✓ Glodd rules applied to validation")
     print("✓ Glodd rules applied to test")
+    print("✓ Distributions saved (all, TOLSA-M, non-TOLSA-M)")
     print("✓ Validation evaluated against Ground Truth")
     print("✓ Test evaluated against Ground Truth")
     print("✓ Full dataset was NOT evaluated")
