@@ -5,7 +5,7 @@ Factory Method Design Pattern (https://refactoring.guru/design-patterns/factory-
 """
 from abc import ABC, abstractmethod
 from data_processing import DataProcessing
-from prediction_properties import PredictionProperties
+from tolsa_properties import Tolsa
 
 
 class BasePrompt(ABC):
@@ -84,10 +84,10 @@ class BasePrompt(ABC):
         Few-shot prompting: Provides examples for each TOLSA-M property.
         Returns system identity, task, format output, and examples.
         """
-        source_ex = PredictionProperties.get_source_examples()
-        target_ex = PredictionProperties.get_target_examples()
-        date_ex = PredictionProperties.get_date_examples()
-        outcome_ex = PredictionProperties.get_outcome_examples()
+        source_ex = Tolsa.get_source_examples()
+        target_ex = Tolsa.get_target_examples()
+        date_ex = Tolsa.get_date_examples()
+        outcome_ex = Tolsa.get_outcome_examples()
 
         few_shot_examples = f"""
         Here are examples of each property to guide you:
@@ -113,9 +113,9 @@ class SentenceClassificationPrompt(BasePrompt):
     """
 
     def default_system_identity(self):
-        tolsa_m_definition = PredictionProperties.get_tolsa_m_definition()
+        tolsa_definition = Tolsa.get_tolsa_definition()
         return f"""You are a linguistic expert that specializes in identifying TOLSA-M (Target Outcome with optionaL Source, dAte, and Metadata) from a given text input.
-        {tolsa_m_definition}"""
+        {tolsa_definition}"""
 
     def default_task(self):
         return """Classify the sentence as either a "TOLSA-M": 1 or "non-TOLSA-M": 0."""
@@ -179,10 +179,10 @@ class SentenceClassificationPrompt(BasePrompt):
             return self.system_identity(), self.task(), self.format_output(), few_shot_examples
         
         # Fallback to property examples if no dataset provided
-        source_ex = PredictionProperties.get_source_examples()
-        target_ex = PredictionProperties.get_target_examples()
-        date_ex = PredictionProperties.get_date_examples()
-        outcome_ex = PredictionProperties.get_outcome_examples()
+        source_ex = Tolsa.get_source_examples()
+        target_ex = Tolsa.get_target_examples()
+        date_ex = Tolsa.get_date_examples()
+        outcome_ex = Tolsa.get_outcome_examples()
 
         few_shot_examples = f"""
         Here are examples of each property to guide you:
@@ -222,9 +222,9 @@ class EntityExtractionPrompt(BasePrompt):
     """
 
     def default_system_identity(self):
-        tolsa_m_definition = PredictionProperties.get_tolsa_m_definition()
+        tolsa_definition = Tolsa.get_tolsa_definition()
         return f"""You are a linguistic expert that specializes in identifying TOLSA-M (Target Outcome with optionaL Source, dAte, and Metadata) properties from a given text input.
-        {tolsa_m_definition}
+        {tolsa_definition}
 """
 
     def default_task(self):
@@ -233,17 +233,17 @@ class EntityExtractionPrompt(BasePrompt):
     def few_shot(self):
         """
         Few-shot prompting for slot filling: Provides explicit sentence-to-JSON
-        mapping examples using real TOLSA-M property examples from PredictionProperties.
+        mapping examples using real TOLSA-M property examples from Tolsa.
 
         Returns
         -------
         tuple
             system_identity, task, format_output, few_shot_examples
         """
-        source_ex  = PredictionProperties.get_source_examples()
-        target_ex  = PredictionProperties.get_target_examples()
-        date_ex    = PredictionProperties.get_date_examples()
-        outcome_ex = PredictionProperties.get_outcome_examples()
+        source_ex  = Tolsa.get_source_examples()
+        target_ex  = Tolsa.get_target_examples()
+        date_ex    = Tolsa.get_date_examples()
+        outcome_ex = Tolsa.get_outcome_examples()
 
         few_shot_examples = f"""
         Here are examples of how to map a sentence to the required JSON format.
@@ -269,11 +269,11 @@ class EntityExtractionPrompt(BasePrompt):
         Sentence: "The company held its annual meeting last Tuesday."
         Output: {{"1": [], "2": [], "3": [], "4": []}}
         Key reminders:
-        - Source examples: {source_ex[:4]}
-        - Target examples: {target_ex[:4]}
-        - Date examples:   {date_ex[:4]}
-        - Outcome examples (attribute): {outcome_ex['attribute_of_interest'][:3]}
-        - Outcome examples (slope):     {outcome_ex['slope'][:3]}
+        - Source examples: {source_ex}
+        - Target examples: {target_ex}
+        - Date examples:   {date_ex}
+        - Outcome examples (attribute): {outcome_ex['attribute_of_interest']}
+        - Outcome examples (slope):     {outcome_ex['slope']}
         - Return [] for any property not present in the sentence.
         - Keep multi-word spans together as single list items.
         """

@@ -14,7 +14,7 @@ script_dir = os.getcwd()
 sys.path.append(os.path.join(script_dir, '../'))
 from prompts import EntityExtractionPrompt
 from data_processing import DataProcessing
-from prediction_properties import PredictionProperties
+from tolsa_properties import Tolsa
 from text_generation_models import TextGenerationModelFactory
 
 # How many sentence results to collect in memory before writing to disk
@@ -47,7 +47,7 @@ def load_dataset(base_data_path, dataset_name):
     print(f"Dataset path: {dataset_name}")
 
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    # df = df.sample(n=7, random_state=42)
+    df = df.sample(n=7, random_state=42)
 
     # Reset index so we have a clean 0, 1, 2, ... row numbers.
     # This is important for the resume logic later — we track which
@@ -75,7 +75,7 @@ def load_prompts_and_llm(model_name=None, prompt_type='few-shot'):
     print(f"STEP: LOAD PROMPTS & MODEL ({prompt_type})")
     print("="*50)
 
-    prediction_properties, prediction_requirements = PredictionProperties.get_prediction_properties_and_requirements()
+    prediction_properties, prediction_requirements = Tolsa.get_prediction_properties_and_requirements()
 
     prompt = EntityExtractionPrompt(prompt_type_name=prompt_type)
 
@@ -332,7 +332,9 @@ def extract_properties(
 
         if idx < 2:
             print(f"\n--- Sample Prompt (idx={idx}) ---")
-            print(prompt[:500] + "..." if len(prompt) > 500 else prompt)
+            # print(prompt[:500] + "..." if len(prompt) > 500 else prompt)
+            print(f"PROMPT: {prompt}")
+            quit()
 
         input_prompt = model.user(prompt)
         raw_response = model.safe_chat_completion([input_prompt], idx=idx)
@@ -479,7 +481,7 @@ if __name__ == "__main__":
             --no_version
 
         # ============================================================
-        # STEP 2: Extract properties for ground truth (with 10% sampling)
+        # STEP 2: Extract properties for ground truth (with 10% sampling); if no ground truth exists
         # ============================================================
         python3 llm-experiment.py \
             --dataset_path combined_datasets/naacl_2026_submission/naacl_2026_submission.csv \
@@ -509,6 +511,17 @@ if __name__ == "__main__":
             --task_name ground_truth \
             --prompt_type zero-shot \
             --sample_fraction 0.1 \
+            --seed 7
+
+        # IF GROUND TRUTH EXISTS, IGNORE THE ABOVE
+        # ============================================================
+        # Zero-shot variant
+        # ============================================================
+        python3 llm-experiment.py \
+            --dataset_path extract_tolsa_properties/naacl_2026_submission/ground_truth/extracted_properties-ground_truth.xlsx \
+            --model_name "llama-3.1-8b-instant" \
+            --task_name classification \
+            --prompt_type zero-shot \
             --seed 7
     """
     print("\n" + "="*50)
