@@ -266,64 +266,61 @@ class EntityExtractionPrompt(BasePrompt):
                 12. Only extract spans that belong to source, target, date, or outcome.
             """
 
-
-
     def few_shot(self):
         """
-        Few-shot prompting for slot filling: Provides explicit sentence-to-JSON
-        mapping examples using real TOLSA property examples from Tolsa.
+        Few-shot prompting for property extraction: Provides seven explicit
+        sentence-to-JSON mapping examples that demonstrate the expected
+        extraction behavior.
 
         Returns
         -------
         tuple
             system_identity, task, format_output, few_shot_examples
         """
-        source_ex  = Tolsa.get_source_examples()
-        target_ex  = Tolsa.get_target_examples()
-        date_ex    = Tolsa.get_date_examples()
-        outcome_ex = Tolsa.get_outcome_examples()
-
-        few_shot_examples = f"""
+        few_shot_examples = """
         Here are examples of how to map a sentence to the required JSON format.
-        Key schema: {{"1": [source], "2": [target], "3": [date], "4": [outcome]}}
+        Key schema: {"1": [source], "2": [target], "3": [date], "4": [outcome]}
 
-        Example 1 (finance — all properties present):
-        Sentence: "Goldman Sachs predicts Apple stock will rise by 20% in Q3."
-        Output: {{"1": ["{source_ex[0]}"], "2": ["{target_ex[0]}", "stock"], "3": ["{date_ex[10]}"], "4": ["{outcome_ex['slope'][0]}", "20%"]}}
+        Text Document 1 (non-TOLSA — FP: Tense and Modal Verb):
+        Sentence: "Neither major U.S. political party will hold conventions or indeed primaries to select their 2012 Presidential nominees."
+        Output: {"1": [], "2": ["major U.S. political party", "conventions", "primaries", "Presidential nominees"], "3": ["2012"], "4": []}
 
-        Example 2 (weather — source and date present):
-        Sentence: "The National Weather Service expects temperatures at the Gulf Coast to rise sharply by 2025."
-        Output: {{"1": ["{source_ex[5]}"], "2": ["{target_ex[7]}"], "3": ["{date_ex[8]}"], "4": ["{outcome_ex['slope'][4]}"]}}
+        Text Document 2 (non-TOLSA — FP: Predictive Keyword):
+        Sentence: "I have a class project."
+        Output: {"1": ["I"], "2": [], "3": [], "4": []}
 
-        Example 3 (sports — no source):
-        Sentence: "Simone Biles is expected to win in Q3."
-        Output: {{"1": [], "2": ["{target_ex[4]}"], "3": ["{date_ex[10]}"], "4": ["{outcome_ex['attribute_of_interest'][1]}"]}}
+        Text Document 3 (non-TOLSA — FP: Modal Verb):
+        Sentence: "After this purchase, Cramo will become the second largest rental services provider in the Latvian market."
+        Output: {"1": [], "2": ["Cramo", "Latvian market"], "3": [], "4": []}
 
-        Example 4 (health — no date):
-        Sentence: "Dr. Keith L. Black predicts the CDC heart rate monitoring program will decrease."
-        Output: {{"1": ["{source_ex[9]}"], "2": ["{target_ex[12]}"], "3": [], "4": ["{outcome_ex['slope'][5]}"]}}
+        Text Document 4 (non-TOLSA — FP: Time Expression):
+        Sentence: "Start by picking one word that captures your values and intentions for the next year."
+        Output: {"1": [], "2": ["your values and intentions"], "3": ["the next year"], "4": []}
 
-        Example 5 (non-TOLSA — return empty lists for all properties):
-        Sentence: "The company held its annual meeting last Tuesday."
-        Output: {{"1": [], "2": [], "3": [], "4": []}}
+        Text Document 5 (TOLSA — FN: Tense and Time Expression):
+        Sentence: "Charles Barkley predicted the Knicks would win the Eastern Conference Finals..."
+        Output: {"1": ["Charles Barkley"], "2": ["Knicks"], "3": [], "4": ["win the Eastern Conference Finals"]}
 
-        Key reminders:
-            - Source examples: {source_ex}
-            - Target examples: {target_ex}
-            - Date examples:   {date_ex}
-            - Outcome examples (attribute): {outcome_ex['attribute_of_interest']}
-            - Outcome examples (slope):     {outcome_ex['slope']}
-            - Outcome examples (metric):    {outcome_ex['metric']}
-            - Outcome is a single property. Attribute, slope, and metric spans are all part of
-            the Outcome property when they are explicitly present.
-            - If multiple outcome spans are present, put each span in its own string in the
-            Outcome list and preserve their order of occurrence in the text document.
-            - Do NOT join multiple outcome spans with "|". The processing pipeline adds "|"
-            later when converting the list to the ground-truth format.
-            - Copy every extracted span verbatim from the text document.
-            - Do not invent, infer, or paraphrase.
-            - Return [] when a property is not explicitly stated.
-            - If target or outcome is not explicitly stated, return [] for that property.
+        Text Document 6 (TOLSA — FN: Predictive Keyword, Modal Verb, Time Expression):
+        Sentence: "Sports Rage's Gabe Morency says the Seattle Seahawks win"
+        Output: {"1": ["Sports Rage's Gabe Morency"], "2": ["Seattle Seahawks"], "3": [], "4": ["win"]}
+
+        Text Document 7 (TOLSA — FN: Predictive Keyword and Modal Verb):
+        Sentence: "So, who makes it to the Final Four this time around? Who cuts down the nets?"
+        Output: {"1": [], "2": ["who", "Final Four", "Who"], "3": ["this time around"], "4": ["makes it", "cuts down the nets"]}
+
+    Key reminders:
+        - Copy every extracted span verbatim from the text document,
+        including punctuation and capitalization.
+        - Outcome is a single property. Attribute, slope, and metric spans are all part of
+        the Outcome property when they are explicitly present.
+        - If multiple outcome spans are present, put each span in its own string in the
+        Outcome list and preserve their order of occurrence in the text document.
+        - Non-TOLSA documents may still contain extractable property spans — the
+        absence of a measurable outcome is what disqualifies them as TOLSA.
+        - Do not invent, infer, or paraphrase.
+        - Return [] when a property is not explicitly stated.
+        - If target or outcome is not explicitly stated, return [] for that property.
         """
 
         return self.system_identity(), self.task(), self.format_output(), few_shot_examples
@@ -340,27 +337,46 @@ class EntityExtractionPrompt(BasePrompt):
                 Return [] for any property not explicitly stated in the text document.
             """
         elif self.get_prompt_name() == 'chain-of-thought':
-            return """Respond ONLY with valid JSON in this exact format:
-        {"1": [], "2": [], "3": [], "4": [], "reasoning": ""}
+            return """Respond ONLY with valid JSON in this exact format and key order:
+        {"reasoning": "", "1": [], "2": [], "3": [], "4": []}
 
-        Each property value for "1", "2", "3", and "4" must be a list of strings.
+        Fill in "reasoning" FIRST, then the four lists, so that the lists follow from your reasoning.
+
+        Rules for "reasoning":
+        - Keep it to 1-3 short sentences on a single line.
+        - Do NOT use double quotes, line breaks, or backslashes inside it. Use single quotes if you need to refer to text.
+        - Do NOT put the final spans or "|" in it as a substitute for the required values in keys "1", "2", "3", and "4".
+
+        Rules for the lists:
+        - Each property value for "1", "2", "3", and "4" must be a list of strings.
         - "1" = source
         - "2" = target
         - "3" = date
         - "4" = outcome
+        - Put each extracted span in its own list item.
+        - Keep multi-word spans together as one string.
+        - Do NOT use "|" to join spans.
+        - Preserve the original order of extracted spans within each property list.
+        - Copy each extracted span exactly as it appears in the text document.
+        - Preserve capitalization, punctuation, whitespace within the span, and symbols.
+        - Do NOT normalize, simplify, remove, or replace symbols or formatting.
+        - Do NOT invent, infer, or paraphrase spans.
+        - Return [] for any property not explicitly stated in the text document.
+        - If target or outcome is not explicitly stated, return [] for that property.
 
-        Put each extracted span in its own list item.
-        Keep multi-word spans together as one string.
-        Do NOT use "|" to join spans.
-        Preserve the original order of extracted spans within each property list.
-        Copy each extracted span exactly as it appears in the text document.
-        Preserve capitalization, punctuation, whitespace within the span, and symbols.
-        Do NOT normalize, simplify, remove, or replace symbols or formatting.
-        Do NOT invent, infer, or paraphrase spans.
-        Return [] for any property not explicitly stated in the text document.
-        If target or outcome is not explicitly stated, return [] for that property.
-
-        The "reasoning" field may contain the model's reasoning. Do not put extracted
-        spans or "|" into the reasoning field as a substitute for the required values
-        in keys "1", "2", "3", and "4".
+        Output only the JSON object: no text before or after it and no code fences.
         """
+
+    def default_steps(self):
+        """
+        Chain-of-thought reasoning steps for TOLSA property extraction.
+        Overrides BasePrompt.default_steps, which would otherwise repeat the system identity.
+        """
+        return """
+        - Step 1: Read the text document and identify the target: the entity, event, or location of interest that the text document is about. If no target is explicitly stated, "2" stays [].
+        - Step 2: Identify the outcome: each attribute, metric, or slope explicitly stated about the target. If no outcome is explicitly stated, "4" stays [].
+        - Step 3: Identify the source (the declaring entity) and the date (declaration or fruition timing) only if they are explicitly stated. Otherwise "1" and "3" stay [].
+        - Step 4: Check every span. It must be copied verbatim from the text document (exact wording, capitalization, punctuation, and symbols), with nothing invented, inferred, or paraphrased.
+        - Step 5: Put each span in its own string in the correct list ("1" = source, "2" = target, "3" = date, "4" = outcome), in order of occurrence. Do not join spans with "|".
+        - Step 6: Summarize steps 1-5 in a short reasoning (1-3 sentences, one line, no double quotes), then give the four lists.
+"""

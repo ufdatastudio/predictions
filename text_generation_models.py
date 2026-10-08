@@ -239,7 +239,7 @@ class TextGenerationModelFactory(ABC):
 
         return {"role": "user", "content": content}
     
-    def chat_completion(self, messages: List[Dict], max_tokens: int = None) -> str:
+    def chat_completion(self, messages: List[Dict], max_tokens: int = 1024) -> str:
         """Generate a chat completion response.
         
         Parameters:
@@ -272,7 +272,9 @@ class TextGenerationModelFactory(ABC):
             model=self.model_name,
             temperature=self.temperature,
             top_p=self.top_p,
+            max_tokens=max_tokens,
         )
+        print(f"Usage: {response.usage}")
         return response.choices[0].message.content
     
     def safe_chat_completion(self, messages: List[Dict], idx: int = 0, wait_time: int = 200, max_attempts: int = 3) -> str | None:

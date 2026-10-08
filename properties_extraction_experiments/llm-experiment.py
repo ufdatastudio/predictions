@@ -290,6 +290,66 @@ def join_property(values):
     return ''
 
 
+def strip_code_fences(text):
+    """
+    Remove ```json ... ``` fences around a model response.
+    """
+    text = str(text).strip()
+    text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\s*```$', '', text)
+    return text.strip()
+
+
+def drop_reasoning_key(raw_response):
+    """
+    For chain-of-thought responses: if the response contains a valid JSON object
+    with a 'reasoning' key, return the same JSON without that key, so the shared
+    parser only ever sees the four property lists and reasoning text can never be
+    mistaken for a property.
+
+    Anything else (no reasoning key, invalid JSON, an error string) is returned
+    unchanged so the shared parser's own recovery logic handles it.
+    The saved 'Raw Response' column is not affected; it keeps the full response.
+    """
+    if raw_response is None:
+        return raw_response
+
+    text = strip_code_fences(raw_response)
+
+    candidates = [text]
+
+    start = text.find('{')
+    end = text.rfind('}')
+
+    if start != -1 and end > start:
+        candidates.append(text[start:end + 1])
+
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except ValueError:
+            continue
+
+        if isinstance(parsed, dict) and 'reasoning' in parsed:
+            parsed.pop('reasoning')
+            return json.dumps(parsed, ensure_ascii=False)
+
+        return raw_response
+
+    return raw_response
+
+
+def looks_truncated(raw_response):
+    """
+    A complete JSON response ends with a closing brace. Anything else was
+    probably cut off by the token limit (more likely with chain-of-thought).
+    """
+    if raw_response is None:
+        return False
+
+    return not strip_code_fences(raw_response).endswith('}')
+
+
 def process_single_result(
         input_index,
         text,
@@ -319,14 +379,35 @@ def process_single_result(
         'Source':        [''],
         'Target':        [''],
         'Date':          [''],
-        'Outcome':       ['']
+        'Outcome':       [''],
+        'Reasoning':     ['']
     }
 
     results_df = pd.DataFrame(data)
 
+    # Chain-of-thought responses carry a 'reasoning' key; the parser should
+    # only see the four property lists.
+    parser_input = raw_response
+
+    if prompt_type == 'chain-of-thought':
+        try:
+            reasoning_data = json.loads(
+                strip_code_fences(raw_response)
+            )
+
+            if isinstance(reasoning_data, dict):
+                results_df.at[0, 'Reasoning'] = str(
+                    reasoning_data.get('reasoning', '')
+                ).strip()
+
+        except (ValueError, TypeError):
+            pass
+
+        parser_input = drop_reasoning_key(raw_response)
+
     parsed, parse_status = (
         DataProcessing.parse_slot_filling_response(
-            raw_response
+            parser_input
         )
     )
 
@@ -422,6 +503,7 @@ def extract_properties(
 
     batch_results = []
     sentences_processed = 0
+    truncated_count = 0
 
     for idx, row in tqdm(
         df.iterrows(),
@@ -459,13 +541,30 @@ def extract_properties(
 
         input_prompt = model.user(prompt)
 
+        start_time = time.time()
+
         raw_response = model.safe_chat_completion(
             [input_prompt],
             idx=idx
         )
 
+        elapsed_time = time.time() - start_time
+
+        print(
+            f"idx={idx}: safe_chat_completion time = "
+            f"{elapsed_time:.2f} seconds"
+        )
+
         # Proactive sleep to stay within provider rate limits
-        time.sleep(sleep_seconds)
+        # time.sleep(sleep_seconds)
+
+        # Warn when a response looks cut off (e.g., by the token limit)
+        if looks_truncated(raw_response):
+            truncated_count += 1
+            print(
+                f"\n⚠️  idx={idx}: response does not end with a closing brace "
+                f"and may have been cut off by the token limit."
+            )
 
         if raw_response is None:
             raw_response = "ERROR_MAX_RETRIES"
@@ -502,6 +601,12 @@ def extract_properties(
         save_batch(
             batch_results,
             results_path
+        )
+
+    if truncated_count:
+        print(
+            f"\n⚠️  {truncated_count} response(s) may have been truncated. "
+            f"Check max_tokens in text_generation_models."
         )
 
     print(
@@ -585,6 +690,19 @@ if __name__ == "__main__":
             --task_name extraction \\
             --prompt_type zero-shot \\
             --seed 33
+
+        # ============================================================
+        # STEP 6: Chain-of-thought extraction
+        # CoT responses are longer: check max_tokens in text_generation_models,
+        # and raise --sleep_seconds (default 7) if you hit rate limits.
+        # ============================================================
+
+        python3 llm-experiment.py \
+            --dataset_path extract_tolsa_properties_results/naacl_2026_submission/ground_truth/extracted_properties-ground_truth_only.csv \
+            --model_name "openai/gpt-oss-120b" \
+            --task_name extraction \
+            --prompt_type few-shot \
+            --seed 3
     """
 
     print("\n" + "=" * 50)
@@ -724,7 +842,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--sleep_seconds',
         type=float,
-        default=7.0,
+        default=180.0,
         help='Pause between API calls for rate limits. Use 0 if the provider has no TPM limit.'
     )
 
