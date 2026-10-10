@@ -10,65 +10,70 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=dj.brinkley@ufl.edu
 
-set -e
+set -euo pipefail
 
+# This script assumes it is submitted from the tolsa_naacl_2026_2027
+# directory, and that the logs directory exists before sbatch opens stdout/stderr.
 mkdir -p logs/ml_pipeline_spacy_small
-
 cd ../../../../prediction_classification_experiments-v2
 
 source /orange/ufdatastudios/dj.brinkley/predictions/.venv/bin/activate
 
 EXPERIMENT="tolsa_naacl_2026_2027-final"
+OUTPUT_DIR="../data/classification_results/naacl_2026_submission"
+DATASET="../data/combined_datasets/tolsa_naacl_2026_2027-final/tolsa_naacl_2026_2027_main_columns_v1.csv"
 EMBEDDING_MODEL="spacy_small"
+SEEDS=(3 7 33)
 
 echo "============================================================"
 echo "ML Pipeline (In-Domain Baseline) — ${EMBEDDING_MODEL}"
 echo "============================================================"
 echo "Experiment: ${EXPERIMENT}"
-echo "Embedding Model: ${EMBEDDING_MODEL}"
+echo "Embedding model: ${EMBEDDING_MODEL}"
+echo "Dataset: ${DATASET}"
+echo "Output root: ${OUTPUT_DIR}/${EXPERIMENT}"
 echo "Current directory: $(pwd)"
-echo ""
+echo
 
-# ============================================================
+if [[ ! -f "${DATASET}" ]]; then
+    echo "ERROR: Dataset not found: ${DATASET}" >&2
+    exit 1
+fi
 
-# ============================================================
-# TRAIN, TEST & EVALUATE
-# ============================================================
-echo ""
-echo "Running Baseline (Standard) — Seeds 3, 7, 33"
-for seed in 3 7 33; do
-    echo ""
+echo "Running seeds: ${SEEDS[*]}"
+
+for seed in "${SEEDS[@]}"; do
+    echo
     echo "============================================================"
-    echo "                      SEED: $seed"
+    echo "SEED: ${seed}"
     echo "============================================================"
-    echo ""
-    echo ">>> Running Baseline (Standard) — ${EMBEDDING_MODEL}"
-    python ml-experiment.py \
-        --dataset ../data/combined_datasets/tolsa_naacl_2026_2027-final/tolsa_naacl_2026_2027_main_columns_v1.csv \
+
+    python -u ml-experiment.py \
+        --dataset "${DATASET}" \
+        --output_dir "${OUTPUT_DIR}/${EXPERIMENT}" \
         --val_size 0.2 \
-        --seed $seed \
-        --embedding_model ${EMBEDDING_MODEL}
+        --seed "${seed}" \
+        --embedding_model "${EMBEDDING_MODEL}"
 done
 
-# ============================================================
-# AGGREGATE RESULTS
-# ============================================================
-echo ""
+echo
 echo "======================================"
 echo "All training complete. Aggregating results..."
 echo "======================================"
-mkdir -p ../data/classification_results/${EXPERIMENT}/averaged/
 
-python average_classification_results.py \
+python -u average_classification_results.py \
     --mode single \
-    --experiment ${EXPERIMENT} \
-    --embedding_model ${EMBEDDING_MODEL} \
-    --experiments seed3 seed7 seed33
+    --experiment "${EXPERIMENT}" \
+    --model_type ml \
+    --embedding_model "${EMBEDDING_MODEL}" \
+    --experiments seed3 seed7 seed33 \
+    --results_dir "${OUTPUT_DIR}"
 
-echo ""
+echo
 echo "======================================"
 echo "PIPELINE COMPLETE"
 echo "======================================"
-echo "✓ ${EMBEDDING_MODEL} experiments completed for seeds: 3, 7, 33"
-echo "✓ Results aggregated and saved"
-echo ""
+echo "Model: ${EMBEDDING_MODEL}"
+echo "Seeds completed: ${SEEDS[*]}"
+echo "Results directory: ${OUTPUT_DIR}/${EXPERIMENT}"
+echo "======================================"

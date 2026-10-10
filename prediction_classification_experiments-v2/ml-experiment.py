@@ -61,7 +61,7 @@ def load_dataset(script_dir, dataset_path):
     
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    df = df.sample(40, random_state=42).reset_index(drop=True)
+    df = df.sample(20, random_state=42).reset_index(drop=True)
     # Use the full dataset; do not silently downsample experimental data.
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
@@ -1103,8 +1103,10 @@ if __name__ == "__main__":
     
     default_dataset = os.path.join(base_data_path, 'combined_datasets/combined-full_synthetic-v1.csv')
     default_output_dir = os.path.join(
-        base_data_path, 'classification_results', 'naacl_2026_submission',
-        'naacl_2026_results_2026-10-09'
+        base_data_path,
+        'classification_results',
+        'naacl_2026_submission',
+        'tolsa_naacl_2026_2027-final'
     )
     
     parser = argparse.ArgumentParser(
