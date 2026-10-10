@@ -108,19 +108,87 @@ class BasePrompt(ABC):
 
 class SentenceClassificationPrompt(BasePrompt):
     """
-    Prompt for classifying sentences as TOLSA or non-TOLSA.
+    Prompt for classifying text documents as TOLSA or non-TOLSA.
     Supports zero-shot, few-shot, and chain-of-thought approaches.
+    Built on the TOLSA definition from Tolsa.get_tolsa_definition().
     """
 
     def default_system_identity(self):
         tolsa_definition = Tolsa.get_tolsa_definition()
-        return f"""You are a linguistic expert that specializes in extracting TOLSA (Target Outcome with optionaL Source, dAte) properties from a given text document.
+        return f"""You are a linguistic expert that specializes in classifying whether a given text document is a TOLSA or a non-TOLSA.
         {tolsa_definition}"""
 
-    
+    def linguistic_cues(self):
+        """
+        Linguistic cues for classification.
+
+        Tolsa.get_linguistic_cues() opens with a note written for extraction
+        ("They are not extraction requirements. Extract ..."). For classification we keep the
+        tense and keyword lists from Tolsa but replace that opening note with an
+        identification note.
+        """
+        cues = Tolsa.get_linguistic_cues()
+
+        # The opening note ends at the first blank line; everything after it is the cue lists.
+        header, separator, body = cues.partition("\n\n")
+
+        if not separator:
+            raise ValueError(
+                "Unexpected format from Tolsa.get_linguistic_cues(): "
+                "could not find the opening note to replace."
+            )
+
+        body = body.replace(
+            "necessary but NOT sufficient",
+            "potential cue, but neither necessary nor sufficient"
+        )
+
+
+        if not separator:
+            raise ValueError(
+                "Unexpected format from Tolsa.get_linguistic_cues(): "
+                "could not find the opening note to replace."
+            )
+
+        classification_header = """
+        Linguistic Cues for TOLSA Identification:
+
+        NOTE: No single cue below is sufficient on its own, and none is required.
+        TOLSA identification prioritizes semantic criteria and properties (target + measurable outcome) over keyword matching.
+        Tense alone is neither necessary nor sufficient for TOLSA identification. TOLSAs may be expressed in past, present, or future tense. Future-related verb constructions are potential cues only, not requirements.
+        Predictive keywords (KP), modal verbs (KMV), and time expressions (KTE) are also potential cues, not requirements. Time expressions provide date context rather than independently determining the classification.
+        """
+
+        return f"{classification_header}\n\n{body}"
+
+    def properties_and_cues(self):
+        """
+        Returns (TOLSA properties, linguistic cues) for building the classification base prompt.
+        """
+        return Tolsa.get_tolsa_properties(), self.linguistic_cues()
 
     def default_task(self):
-        return """Classify the sentence as either a "TOLSA": 1 or "non-TOLSA": 0."""
+        return """Classify the text document as either a "TOLSA": 1 or "non-TOLSA": 0.
+
+            Classify as "TOLSA": 1 only if the text document explicitly contains BOTH:
+                1. a target (entity, event, or location of interest), and
+                2. a measurable outcome (attribute, metric, or slope) about that target whose
+                   correctness may be unknown at the time of declaration.
+            The source and the date are optional. They give context but do not decide the label.
+
+            Decide from the meaning of the text document, not from single cues:
+                - Tense does not decide the label. A past, present, or future tense text document
+                  can be a TOLSA, and future tense alone does not make one.
+                - Predictive keywords, modal verbs, and time expressions are not required, and
+                  none of them alone makes a TOLSA.
+                - A text document whose outcome was already known or decided at the time of
+                  declaration (for example, a completed or decided fact) is "non-TOLSA": 0.
+                  A past tense text document whose outcome was still unknown at the time of
+                  declaration (for example, a past prediction) can be a TOLSA.
+
+            If the target or the measurable outcome is not explicitly stated, classify as
+            "non-TOLSA": 0.
+            """
 
     def few_shot(self, dataset_path: str = None, stratify_columns: list = None, seed: int = 3):
         """
@@ -205,15 +273,16 @@ class SentenceClassificationPrompt(BasePrompt):
     def default_steps(self):
         """
         Chain-of-thought reasoning steps for TOLSA classification.
-        Updated to handle past, present, and future tenses.
+        Follows the TOLSA definition: required target and measurable outcome, any tense,
+        optional source and date, and no single cue decides the label.
         """
         return """
-        - Step 1: Identify the tense (past, present, or future) and check for temporal indicators or predictive language across all tenses.
-        - Step 2: Determine if the statement contains a target entity and a measurable outcome (attribute, metric, or slope).
-        - Step 3: Check for optional source entity and date information (declaration or fruition).
-        - Step 4: Evaluate if the statement represents uncertainty, expectation, or a previously declared forecast (for past TOLSA).
-        - Step 5: Verify the statement meets at least one indicator requirement (predictive language, temporal constructions, or attribution).
-        - Step 6: Synthesize your findings to classify the sentence as a "TOLSA": 1 or "non-TOLSA": 0.
+        - Step 1: Identify the target: the entity, event, or location of interest that the text document is about. If no target is explicitly stated, it is "non-TOLSA": 0.
+        - Step 2: Identify the measurable outcome stated about the target (attribute, metric, or slope). If no measurable outcome is explicitly stated, it is "non-TOLSA": 0.
+        - Step 3: Decide whether the outcome's correctness may be unknown at the time of declaration. Tense does not matter: a past, present, or future tense text document can qualify, such as a past prediction. If the outcome was already known or decided at the time of declaration, it is "non-TOLSA": 0.
+        - Step 4: Note the optional source (declaring entity) and date (declaration or fruition timing). They give context but do not decide the label.
+        - Step 5: Do not decide from a single cue. Tense, predictive keywords, modal verbs, and time expressions are neither required nor sufficient on their own.
+        - Step 6: Synthesize your findings to classify the text document as a "TOLSA": 1 or "non-TOLSA": 0.
 """
 
 
