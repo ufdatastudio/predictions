@@ -1286,11 +1286,16 @@ class DataProcessing:
         file_name = f"batch_{batch_idx}-from_df.csv"
         
         # Create a list of all potential directories to search
-        data_folders = []
-        data_folders.append(f"{data_type}_logs")
-        data_folders.append(f"{data_type}_logs-abigail")
-        data_folders.append(f"{data_type}_logs-adriano")
-        
+        if data_type == 'prediction':
+            data_folders = [
+                'prediction_logs',
+                # 'prediction_logs-detravious',
+                'prediction_logs-abigail',
+                'prediction_logs-adriano'
+            ]
+        else:
+            data_folders = ['observation_logs']
+                
         found_paths = []
         
         # Check each folder to see if the file exists there
@@ -1348,143 +1353,209 @@ class DataProcessing:
             combined_batch_df = DataProcessing.concat_dfs(dataframes_to_combine)
             return combined_batch_df
 
-    def load_multiple_batches(notebook_dir: str, sep: str = ',', data_type: str = 'prediction', 
-                            batch_indices: list = None, start_idx: int = 1, 
-                            end_idx: int = None, return_as: str = 'dataframe') -> pd.DataFrame:
+    def load_multiple_batches(
+        notebook_dir: str,
+        sep: str = ',',
+        data_type: str = 'prediction',
+        batch_indices: list = None,
+        start_idx: int = 1,
+        end_idx: int = None,
+        return_as: str = 'dataframe'
+    ) -> pd.DataFrame:
         """
-        Load multiple batches of synthetic data and concatenate them.
-        
+        Load multiple synthetic-data batches and concatenate them.
+
+        Observations are loaded from the shared observation_logs directory.
+        Predictions are loaded from prediction_logs and all three annotator
+        directories: Detravious, Abigail, and Adriano.
+
         Parameters
         ----------
         notebook_dir : str
-            Base notebook directory
+            Base notebook directory.
         sep : str
-            Separator for CSV file. Default is ','.
+            CSV separator. Default is ','.
         data_type : str
-            Either 'prediction' or 'observation'. Default is 'prediction'.
+            Either 'prediction' or 'observation'.
         batch_indices : list, optional
-            Specific list of batch indices to load. If provided, start_idx and end_idx are ignored.
-        start_idx : int, optional
-            Starting batch index (inclusive). Default is 1.
+            Specific batch indices to load. If provided, start_idx
+            and end_idx are ignored.
+        start_idx : int
+            Starting batch index, inclusive.
         end_idx : int, optional
-            Ending batch index (inclusive). If None, automatically detects the last available batch.
+            Ending batch index, inclusive. If None, automatically
+            detects the highest available batch number.
         return_as : str
-            Either 'dataframe' or 'path'. Default is 'dataframe'.
-            If 'path', returns list of file paths instead of loading data.
-        
+            'dataframe' to load and concatenate data, or 'path'
+            to return a list of file paths.
+
         Returns
         -------
         pd.DataFrame or list
-            Concatenated DataFrame containing all batch data, or list of file paths
+            Combined DataFrame or list of file paths.
         """
+
         if data_type not in ['prediction', 'observation']:
-            raise ValueError("data_type must be either 'prediction' or 'observation'")
-        
-        # Determine which batches to load
-        if batch_indices is not None:
-            indices = batch_indices
+            raise ValueError(
+                "data_type must be either 'prediction' or 'observation'"
+            )
+
+        if return_as.lower() not in ['dataframe', 'path', 'string']:
+            raise ValueError(
+                "return_as must be either 'dataframe' or 'path'"
+            )
+
+        # Resolve the base data directory.
+        base_data_path = DataProcessing.load_base_data_path(notebook_dir)
+
+        # Select log directories based on data type.
+        if data_type == 'observation':
+            log_directories = [
+                os.path.join(base_data_path, 'observation_logs')
+            ]
         else:
-            # Auto-detect the number of available batches if end_idx is None
+            log_directories = [
+                os.path.join(base_data_path, 'prediction_logs'),
+                os.path.join(base_data_path, 'prediction_logs-detravious'),
+                os.path.join(base_data_path, 'prediction_logs-abigail'),
+                os.path.join(base_data_path, 'prediction_logs-adriano')
+            ]
+
+        # Keep only directories that exist.
+        valid_directories = [
+            directory
+            for directory in log_directories
+            if os.path.isdir(directory)
+        ]
+
+        if not valid_directories:
+            raise FileNotFoundError(
+                f"No valid {data_type} log directories found.\n"
+                f"Base data path: {base_data_path}\n"
+                f"Paths checked:\n"
+                + "\n".join(log_directories)
+            )
+
+        print(f"\nLoading {data_type} data from:")
+        for directory in valid_directories:
+            print(f"  - {directory}")
+
+        # Determine batch indices.
+        if batch_indices is not None:
+            indices = list(batch_indices)
+        else:
             if end_idx is None:
-                base_data_path = DataProcessing.load_base_data_path(notebook_dir)
-                
-                log_directories = []
-                log_directories.append(os.path.join(base_data_path, f"{data_type}_logs"))
-                log_directories.append(os.path.join(base_data_path, f"{data_type}_logs-abigail"))
-                log_directories.append(os.path.join(base_data_path, f"{data_type}_logs-adriano"))
-                
-                valid_directories = []
-                for directory in log_directories:
-                    if os.path.exists(directory):
-                        valid_directories.append(directory)
-                        
-                if len(valid_directories) == 0:
-                    raise FileNotFoundError("No log directories found.")
-                
-                batch_dirs = []
-                for valid_directory in valid_directories:
-                    for directory_name in os.listdir(valid_directory):
-                        full_path = os.path.join(valid_directory, directory_name)
-                        if os.path.isdir(full_path):
-                            if directory_name.startswith('batch_'):
-                                if directory_name.endswith(f'-{data_type}'):
-                                    batch_dirs.append(directory_name)
-                
-                if len(batch_dirs) == 0:
-                    raise ValueError("No batch directories found in the log directories.")
-                
-                # Extract batch numbers and find the maximum
-                batch_numbers = []
-                for directory_name in batch_dirs:
-                    try:
-                        num_str = directory_name.split('_')[1].split('-')[0]
-                        num = int(num_str)
-                        batch_numbers.append(num)
-                    except (IndexError, ValueError):
-                        continue
-                
-                if len(batch_numbers) > 0:
-                    end_idx = max(batch_numbers)
-                else:
-                    end_idx = start_idx
-            
-            indices = range(start_idx, end_idx + 1)
-        
-        # If return_as is 'path', return list of paths
+                batch_numbers = set()
+
+                for directory in valid_directories:
+                    for directory_name in os.listdir(directory):
+                        full_path = os.path.join(
+                            directory, directory_name
+                        )
+
+                        if not (
+                            os.path.isdir(full_path)
+                            and directory_name.startswith('batch_')
+                            and directory_name.endswith(f'-{data_type}')
+                        ):
+                            continue
+
+                        try:
+                            batch_number = int(
+                                directory_name.split('_')[1].split('-')[0]
+                            )
+                            batch_numbers.add(batch_number)
+                        except (IndexError, ValueError):
+                            continue
+
+                if not batch_numbers:
+                    raise ValueError(
+                        f"No {data_type} batch directories found in:\n"
+                        + "\n".join(valid_directories)
+                    )
+
+                end_idx = max(batch_numbers)
+
+            indices = list(range(start_idx, end_idx + 1))
+
+        if not indices:
+            raise ValueError("No batch indices were specified.")
+
+        print(f"\nBatch indices to load: {indices}")
+
+        # Return file paths without loading CSV contents.
         if return_as.lower() in ['path', 'string']:
-            paths = []
+            all_paths = []
+
             for idx in indices:
                 try:
-                    path = DataProcessing.load_single_synthetic_data(
-                        notebook_dir=notebook_dir, 
+                    paths = DataProcessing.load_single_synthetic_data(
+                        notebook_dir=notebook_dir,
                         batch_idx=idx,
                         sep=sep,
                         data_type=data_type,
                         return_as='path'
                     )
-                    paths.append(path)
-                    print(f"✓ Found batch {idx}: {path}")
+
+                    if isinstance(paths, (str, os.PathLike)):
+                        paths = [str(paths)]
+
+                    if paths:
+                        all_paths.extend(paths)
+                        print(
+                            f"✓ Batch {idx}: {len(paths)} file(s)"
+                        )
+
                 except FileNotFoundError:
-                    print(f"⚠ Warning: Batch {idx} not found, skipping...")
-                    continue
-                except Exception as e:
-                    print(f"⚠ Error locating batch {idx}: {e}")
-                    continue
-            
-            if len(paths) == 0:
-                raise ValueError("No batch paths were found")
-            
-            print(f"\nFound {len(paths)} batch file(s)")
-            return paths
-        
-        # Default behavior: load as dataframes
-        dfs = []
+                    print(f"⚠ Batch {idx} not found; skipping.")
+
+            if not all_paths:
+                raise ValueError("No batch file paths were found.")
+
+            # Remove duplicate path strings while preserving order.
+            all_paths = list(dict.fromkeys(all_paths))
+
+            print(
+                f"\nTotal unique file paths found: {len(all_paths)}"
+            )
+
+            return all_paths
+
+        # Load each batch. _build_batch_path() must return every
+        # matching annotator file for prediction batches.
+        dataframes = []
+
         for idx in indices:
             try:
                 df = DataProcessing.load_single_synthetic_data(
-                    notebook_dir=notebook_dir, 
+                    notebook_dir=notebook_dir,
                     batch_idx=idx,
                     sep=sep,
                     data_type=data_type,
                     return_as='dataframe'
                 )
-                dfs.append(df)
-                print(f"✓ Loaded batch {idx}")
+
+                if df is not None and not df.empty:
+                    dataframes.append(df)
+                    print(f"✓ Loaded batch {idx}: {len(df)} rows")
+                else:
+                    print(f"⚠ Batch {idx} returned no rows.")
+
             except FileNotFoundError:
-                print(f"⚠ Warning: Batch {idx} not found, skipping...")
-                continue
-            except Exception as e:
-                print(f"⚠ Error loading batch {idx}: {e}")
-                continue
-        
-        if len(dfs) == 0:
-            raise ValueError("No batches were successfully loaded")
-        
-        # Concatenate all dataframes
-        combined_df = DataProcessing.concat_dfs(dfs)
-        print(f"\nSuccessfully loaded and combined {len(dfs)} batches")
+                print(f"⚠ Batch {idx} not found; skipping.")
+
+        if not dataframes:
+            raise ValueError(
+                f"No {data_type} batches were successfully loaded."
+            )
+
+        combined_df = DataProcessing.concat_dfs(dataframes)
+
+        print("\nSuccessfully loaded and combined batches.")
+        print(f"Number of batches loaded: {len(dataframes)}")
         print(f"Total rows: {len(combined_df)}")
-        
+        print(f"Combined shape: {combined_df.shape}")
+
         return combined_df
 
     def match_text_label_to_int(df: pd.DataFrame, text_label_col_name: str, 
@@ -2317,14 +2388,14 @@ class DataProcessing:
         base_data_path = DataProcessing.load_base_data_path(script_dir)
         dataset_path = os.path.join(
             base_data_path,
-            "clients_rivals_rogues/clients_rivals_rogues.tsv"
+            "clients_rivals_rogues/clients_rivals_rogues.csv"
         )
 
         print(f"Loading from: {dataset_path}")
         df = DataProcessing.load_from_file(
             dataset_path,
             file_type="csv",
-            sep=sep,
+            sep=',',
             encoding=encoding,
             **kwargs
         )
@@ -2406,10 +2477,9 @@ class DataProcessing:
 
         return df
     
-    # not yet
     def load_smart_hospitals_dataset(
         script_dir,
-        sep="\t",
+        sep=",",
         encoding="utf-8",
         predictions_only: bool = True,
         visualize: bool = False,
@@ -2422,7 +2492,7 @@ class DataProcessing:
         base_data_path = DataProcessing.load_base_data_path(script_dir)
         dataset_path = os.path.join(
             base_data_path,
-            "smart_hospitals/smart_hospitals.tsv"
+            "smart_hospitals/smart_hospitals.csv"
         )
 
         print(f"Loading from: {dataset_path}")
