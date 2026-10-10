@@ -1,15 +1,14 @@
 # average_classification_results.py
 
+import argparse
+import json
 import os
 import re
 import sys
-import json
-import argparse
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
-
-from datetime import datetime
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(script_dir, "../"))
@@ -34,7 +33,6 @@ def get_latest_seed_version(experiment_dir, base_seed):
 
         if item == seed_pattern:
             versioned_folders.append((0, item))
-
         elif item.startswith(f"{seed_pattern}_v"):
             try:
                 version = int(item.split("_v")[-1])
@@ -45,11 +43,7 @@ def get_latest_seed_version(experiment_dir, base_seed):
     if not versioned_folders:
         return None
 
-    _, latest_folder = max(
-        versioned_folders,
-        key=lambda item: item[0],
-    )
-
+    _, latest_folder = max(versioned_folders, key=lambda item: item[0])
     return latest_folder
 
 
@@ -61,6 +55,8 @@ def get_target_files(model_type):
         "rnn": ["metrics_summary_rnn.csv"],
         "gru": ["metrics_summary_gru.csv"],
         "bert": ["metrics_summary_bert.csv"],
+        "conll": ["metrics_summary_conll.csv"],
+        "glodd": ["metrics_summary_glodd_step0.csv"],
     }
 
     if model_type == "all":
@@ -70,6 +66,8 @@ def get_target_files(model_type):
             "metrics_summary_rnn.csv",
             "metrics_summary_gru.csv",
             "metrics_summary_bert.csv",
+            "metrics_summary_conll.csv",
+            "metrics_summary_glodd_step0.csv",
         ]
 
     return model_files[model_type]
@@ -77,28 +75,20 @@ def get_target_files(model_type):
 
 def get_file_tag(target_file):
     """Assign a concise label to a result-file type."""
-    if target_file == "metrics_summary_ml_models.csv":
-        return "ml"
+    tags = {
+        "metrics_summary_ml_models.csv": "ml",
+        "metrics_summary_llms.csv": "llm",
+        "metrics_summary_rnn.csv": "rnn",
+        "metrics_summary_gru.csv": "gru",
+        "metrics_summary_bert.csv": "bert",
+        "metrics_summary_conll.csv": "conll",
+        "metrics_summary_glodd_step0.csv": "glodd",
+    }
 
-    if target_file == "metrics_summary_llms.csv":
-        return "llm"
-
-    if target_file == "metrics_summary_rnn.csv":
-        return "rnn"
-
-    if target_file == "metrics_summary_gru.csv":
-        return "gru"
-
-    if target_file == "metrics_summary_bert.csv":
-        return "bert"
-
-    return "unknown"
+    return tags.get(target_file, "unknown")
 
 
-def get_seed_folders(
-    experiment_dir,
-    filter_experiments=None,
-):
+def get_seed_folders(experiment_dir, filter_experiments=None):
     """Return selected seed folders from one experiment directory."""
     seed_folders = []
 
@@ -125,6 +115,27 @@ def get_walk_root(
     model_name=None,
 ):
     """Return the directory within a seed folder to search for metrics files."""
+
+    if model_type == "conll":
+        return os.path.join(
+            seed_folder_path,
+            "in_domain",
+            "conll_2010_hedge_rule",
+        )
+
+    if model_type == "glodd":
+        walk_root = os.path.join(
+            seed_folder_path,
+            "in_domain",
+            "glodd_hristova_step0",
+        )
+
+        # Glodd outputs are stored under the selected spaCy model.
+        if embedding_model:
+            walk_root = os.path.join(walk_root, embedding_model)
+
+        return walk_root
+
     if model_type == "bert":
         if not model_name:
             raise ValueError(
@@ -195,7 +206,6 @@ def collect_results(
             )
 
         experiment_dirs = [target_experiment]
-
     else:
         experiment_dirs = []
 
@@ -237,7 +247,9 @@ def collect_results(
         )
 
         if not seed_folders:
-            print(f"⚠️ No matching seed folders found in: {exp_dir_path}")
+            print(
+                f"⚠️ No matching seed folders found in: {exp_dir_path}"
+            )
             continue
 
         for seed_folder in seed_folders:
@@ -300,11 +312,13 @@ def collect_results(
                         sep=",",
                     )
 
-                    experiments[eval_key].append({
-                        "seed": seed,
-                        "folder": rel_path,
-                        "data": df,
-                    })
+                    experiments[eval_key].append(
+                        {
+                            "seed": seed,
+                            "folder": rel_path,
+                            "data": df,
+                        }
+                    )
 
                     print(
                         f"✓ Loaded [{file_tag}]: "
@@ -380,7 +394,6 @@ def format_mean_std(mean_df, std_df, key_cols=None):
 
     if key_cols is None:
         available_columns = mean_reset.columns.tolist()
-
     else:
         available_columns = [
             "model",
@@ -466,10 +479,12 @@ def save_averaged_results(
         seed_details = []
 
         for item in exp_data:
-            seed_details.append({
-                "seed": item["seed"],
-                "folder": item["folder"],
-            })
+            seed_details.append(
+                {
+                    "seed": item["seed"],
+                    "folder": item["folder"],
+                }
+            )
 
         if mode == "single":
             averaged_base = os.path.join(
@@ -483,7 +498,6 @@ def save_averaged_results(
                 evaluation_path,
                 file_tag,
             )
-
         else:
             save_dir = None
 
@@ -539,14 +553,16 @@ def save_averaged_results(
 
             print(f"✓ Saved averaged results to: {save_dir}")
 
-        all_summaries.append({
-            "experiment": display_name,
-            "model_type": file_tag,
-            "n_seeds": n_seeds,
-            "seed_info": seed_details,
-            "mean": mean_df,
-            "std": std_df,
-        })
+        all_summaries.append(
+            {
+                "experiment": display_name,
+                "model_type": file_tag,
+                "n_seeds": n_seeds,
+                "seed_info": seed_details,
+                "mean": mean_df,
+                "std": std_df,
+            }
+        )
 
     return all_summaries
 
@@ -607,12 +623,14 @@ def compute_cross_dataset_margins(summaries):
     for mean_df in dataset_means.values():
         all_models.update(mean_df.index.tolist())
 
-    all_models = sorted([
-        model
-        for model in all_models
-        if not model.startswith("mean_")
-        and not model.startswith("std_")
-    ])
+    all_models = sorted(
+        [
+            model
+            for model in all_models
+            if not model.startswith("mean_")
+            and not model.startswith("std_")
+        ]
+    )
 
     metric_columns = [
         "train_accuracy",
@@ -630,6 +648,22 @@ def compute_cross_dataset_margins(summaries):
         "val_f1_class_1",
         "test_f1_class_0",
         "test_f1_class_1",
+        "val_precision_class_0",
+        "val_precision_class_1",
+        "val_recall_class_0",
+        "val_recall_class_1",
+        "test_precision_class_0",
+        "test_precision_class_1",
+        "test_recall_class_0",
+        "test_recall_class_1",
+        "val_tn",
+        "val_fp",
+        "val_fn",
+        "val_tp",
+        "test_tn",
+        "test_fp",
+        "test_fn",
+        "test_tp",
         "roc_auc",
         "pr_auc",
         "train_roc_auc",
@@ -695,31 +729,33 @@ def compute_cross_dataset_margins(summaries):
         if accuracy_column not in model_only_df.columns:
             continue
 
-        dataset_accuracy_rows.append({
-            "dataset": dataset_type,
-            "accuracy_mean": model_only_df[
-                accuracy_column
-            ].mean(),
-            "accuracy_std": model_only_df[
-                accuracy_column
-            ].std(),
-            "accuracy_min": model_only_df[
-                accuracy_column
-            ].min(),
-            "accuracy_max": model_only_df[
-                accuracy_column
-            ].max(),
-            "accuracy_margin": (
-                model_only_df[accuracy_column].max()
-                - model_only_df[accuracy_column].min()
-            ),
-            "best_model": model_only_df[
-                accuracy_column
-            ].idxmax(),
-            "worst_model": model_only_df[
-                accuracy_column
-            ].idxmin(),
-        })
+        dataset_accuracy_rows.append(
+            {
+                "dataset": dataset_type,
+                "accuracy_mean": model_only_df[
+                    accuracy_column
+                ].mean(),
+                "accuracy_std": model_only_df[
+                    accuracy_column
+                ].std(),
+                "accuracy_min": model_only_df[
+                    accuracy_column
+                ].min(),
+                "accuracy_max": model_only_df[
+                    accuracy_column
+                ].max(),
+                "accuracy_margin": (
+                    model_only_df[accuracy_column].max()
+                    - model_only_df[accuracy_column].min()
+                ),
+                "best_model": model_only_df[
+                    accuracy_column
+                ].idxmax(),
+                "worst_model": model_only_df[
+                    accuracy_column
+                ].idxmin(),
+            }
+        )
 
     dataset_accuracy_df = pd.DataFrame(
         dataset_accuracy_rows
@@ -845,6 +881,19 @@ def print_latex_summary(summaries, model_margins_df=None):
         "test_pr_auc",
     ]
 
+    # Glodd has one row per seed with validation and test metrics
+    # stored as separate columns.
+    glodd_key_columns = [
+        "val_precision_class_1",
+        "val_recall_class_1",
+        "val_f1_class_1",
+        "val_accuracy",
+        "test_precision_class_1",
+        "test_recall_class_1",
+        "test_f1_class_1",
+        "test_accuracy",
+    ]
+
     for summary in summaries:
         experiment_name = summary["experiment"]
         mean_df = summary["mean"]
@@ -853,12 +902,12 @@ def print_latex_summary(summaries, model_margins_df=None):
         print(f"% {experiment_name}")
         print(f"% Seeds: {summary['n_seeds']}\n")
 
-        if "test_f1_class_1" in mean_df.columns:
+        if summary["model_type"] == "glodd":
+            key_columns = glodd_key_columns
+        elif "test_f1_class_1" in mean_df.columns:
             key_columns = bert_key_columns
-
         elif "test_accuracy" in mean_df.columns:
             key_columns = ml_key_columns
-
         else:
             key_columns = fallback_key_columns
 
@@ -929,7 +978,16 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--model_type",
-        choices=["ml", "llm", "rnn", "gru", "bert", "all"],
+        choices=[
+            "ml",
+            "llm",
+            "rnn",
+            "gru",
+            "bert",
+            "conll",
+            "glodd",
+            "all",
+        ],
         default="ml",
         help="Model family whose result files should be averaged.",
     )
@@ -948,8 +1006,8 @@ if __name__ == "__main__":
             "st_minilm_l6",
         ],
         help=(
-            "Embedding-model directory used by ML, RNN, "
-            "or GRU experiments."
+            "Embedding model directory used by ML, RNN, "
+            "GRU, or Glodd experiments."
         ),
     )
 
@@ -984,7 +1042,7 @@ if __name__ == "__main__":
 
     if args.mode == "single" and not args.experiment:
         parser.error(
-            "--experiment is required when --mode single."
+            "--experiment is required when mode='single'."
         )
 
     if args.model_type == "bert" and not args.model_name:

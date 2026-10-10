@@ -55,7 +55,7 @@ class DataVisualizing:
         
         # Auto-detect if binary (0,1) for better labeling
         if set(counts.index) == {0, 1}:
-            labels = ['Non-Prediction', 'Prediction']
+            labels = ['non-TOLSA', 'TOLSA']
             colors = ['#1f77b4', '#ff7f0e']
         else:
             labels = counts.index
@@ -111,9 +111,9 @@ class DataVisualizing:
         y = list(range(n_cats))
 
         ax.barh(y, cross_tab[0], height=bar_height,
-                color='#1f77b4', label='Non-Predictions (0)', edgecolor='black')
+                color='#1f77b4', label='Non-TOLSAs (0)', edgecolor='black')
         ax.barh(y, cross_tab[1], height=bar_height,
-                left=cross_tab[0], color='#ff7f0e', label='Predictions (1)', edgecolor='black')
+                left=cross_tab[0], color='#ff7f0e', label='TOLSAs (1)', edgecolor='black')
 
         for i in range(n_cats):
             non_pred = cross_tab.iloc[i, 0]

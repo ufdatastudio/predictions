@@ -35,19 +35,17 @@ EMBEDDING_SIZES = {
     'st_minilm_l6': 384,
 }
 
-def create_output_directory(args, experiment_name):
-    """Create unique output directory with date and seed."""
-    seed_number = f"seed{args.seed}"
-    
-    experiment_dir = os.path.join(args.save_path, experiment_name)
-    seed_dir = os.path.join(experiment_dir, seed_number)
-    
-    # This single call creates both the experiment_dir and the seed_dir inside it
+def create_output_directory(args, experiment_name=None):
+    """Create output directories using the user-specified experiment path."""
+
+    experiment_dir = os.path.abspath(args.output_dir)
+    seed_dir = os.path.join(experiment_dir, f"seed{args.seed}")
+
     os.makedirs(seed_dir, exist_ok=True)
-    
+
     print(f"\n✓ Experiment directory: {experiment_dir}")
     print(f"✓ Seed directory: {seed_dir}")
-    
+
     return experiment_dir, seed_dir
 
 def load_dataset(script_dir, dataset_path):
@@ -63,7 +61,8 @@ def load_dataset(script_dir, dataset_path):
     
     print(f"Dataset path: {data_path}")
     df = DataProcessing.load_from_file(data_path, 'csv', sep=',')
-    df = df.sample(n=1000, random_state=args.seed)
+    df = df.sample(40, random_state=42).reset_index(drop=True)
+    # Use the full dataset; do not silently downsample experimental data.
     
     # INJECT MISSING DATASET NAMES FOR STANDALONE FILES
     if 'Dataset Name' not in df.columns:
@@ -181,7 +180,6 @@ def extract_averaged_word_embeddings(df, text_column='Base Sentence', embedding_
     df_out[embeddings_col_name] = df_out[text_column].map(sentence_to_embedding)
 
     return df_out, embeddings_col_name
-
 
 def resample_train_data(X_train_df, technique, col_name, seed, embeddings_col_name, y_col_name, save_visual_path):
     print("\n" + "="*40)
@@ -406,6 +404,64 @@ def split_train_test(
     # Remove the label column from X if present
     X_full = df.drop(columns=[stratify_by]) if stratify_by in df.columns else df.copy()
     return {"X": X_full, "y": y_df}
+
+def save_shared_split_files(
+    processed_df, args, seed_dir, script_dir
+):
+    """Save the seed's text/label splits once, independently of embedding model.
+
+    The splitter is deterministic for a fixed seed and row order, so the embedding
+    pipeline below uses the same split parameters and seed for every embedding model.
+    These files intentionally contain only the original text and label columns.
+    """
+    if args.stratified_kfold is not None:
+        print("K-fold selected; shared train/validation/test CSVs are not generated.")
+        return
+
+    split_dir = os.path.join(seed_dir, 'in_domain', 'splits')
+    os.makedirs(split_dir, exist_ok=True)
+    filenames = {
+        'X_train': 'x_y_train_set.csv',
+        'X_val': 'x_y_val_set.csv',
+        'X_test': 'x_y_test_set.csv',
+    }
+    # Do not overwrite the shared files every time a different embedding model runs.
+    expected_files = ['x_y_train_set.csv']
+    if args.val_size:
+        expected_files.append('x_y_val_set.csv')
+    if not args.no_test_split:
+        expected_files.append('x_y_test_set.csv')
+    if all(os.path.exists(os.path.join(split_dir, name)) for name in expected_files):
+        print(f"✓ Shared split files already exist: {split_dir}")
+        return
+
+    raw_splits = split_train_test(
+        df=processed_df,
+        test_size=None if args.no_test_split else 0.2,
+        val_size=args.val_size,
+        seed=args.seed,
+        stratify_kfold=None,
+        stratify_by=args.label_column,
+        resampling_technique=None,
+        resampling_col_name=None,
+        save_visual_path=seed_dir,
+    )
+    for split_key, filename in filenames.items():
+        X_part = raw_splits.get(split_key)
+        y_key = {'X_train': 'y_train', 'X_val': 'y_val', 'X_test': 'y_test'}[split_key]
+        y_part = raw_splits.get(y_key)
+        if X_part is None or y_part is None:
+            continue
+        combined = X_part.copy()
+        # Ensure exactly the text and target columns are exported, with no embeddings.
+        if args.text_column not in combined.columns:
+            raise KeyError(f"Text column '{args.text_column}' missing from split output.")
+        combined[args.label_column] = y_part[args.label_column].to_numpy()
+        combined = combined[[args.text_column, args.label_column]]
+        out_path = os.path.join(split_dir, filename)
+        combined.to_csv(out_path, index=False)
+        print(f"✓ Saved shared split ({len(combined)} rows): {out_path}")
+
 
 def build_models(factory, model_names, seed, reweight_class):
     """Initialize ML models from factory."""
@@ -805,9 +861,7 @@ def evaluate_external_datasets(
         test_dataset_name = os.path.splitext(os.path.basename(test_dataset_path))[0]
         # metrics_folder_name = f'external_{test_dataset_name}'
         metrics_folder_name = os.path.join(
-            embedding_model_name,
-            embedding_level,
-            f'external_{test_dataset_name}'
+            embedding_model_name, f'external_{test_dataset_name}'
         )
         
         print(f"\n{'='*40}")
@@ -1016,7 +1070,7 @@ def create_experiment_log(args, experiment_name, seed_dir, ml_model_names, split
     else:
         log_lines.append("  None")
     log_lines.append("")
-    log_dir = os.path.join(seed_dir, 'in_domain', embedding_model_name, args.embedding_level, 'experiment_log')
+    log_dir = os.path.join(seed_dir, 'in_domain', embedding_model_name, 'experiment_log')
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, 'experiment_log.txt')
     with open(log_path, 'w') as f:
@@ -1048,14 +1102,20 @@ if __name__ == "__main__":
     base_data_path = DataProcessing.load_base_data_path(script_dir)
     
     default_dataset = os.path.join(base_data_path, 'combined_datasets/combined-full_synthetic-v1.csv')
-    default_save_path = os.path.join(base_data_path, 'classification_results/')
+    default_output_dir = os.path.join(
+        base_data_path, 'classification_results', 'naacl_2026_submission',
+        'naacl_2026_results_2026-10-09'
+    )
     
     parser = argparse.ArgumentParser(
         description='Train ML classifiers for prediction sentence classification'
     )
     
     parser.add_argument('--dataset', default=default_dataset, help='Path to dataset file. Dataset to learn on.')
-    parser.add_argument('--save_path', default=default_save_path, help='Directory to save results')
+    parser.add_argument(
+        '--output_dir', default=default_output_dir,
+        help='Exact experiment root directory; seed/model folders are created inside it.'
+    )
     parser.add_argument('--dataset_type', default=None, 
                        choices=['synthetic_fin_phrasebank', 'synthetic', 'fin_phrasebank'],
                        help='Filter combined dataset by source')
@@ -1095,21 +1155,9 @@ if __name__ == "__main__":
     # ============================================================
     # 2. EXPERIMENT SETUP
     # ============================================================
-    current_date = datetime.now().strftime('%Y-%m-%d')
-    dataset_filename = os.path.basename(args.dataset)
-    dataset_base = os.path.splitext(dataset_filename)[0]
-    
-    if args.dataset_type and args.dataset_type != 'synthetic_fin_phrasebank':
-        experiment_base = args.dataset_type
-    else:
-        experiment_base = dataset_base
-    
-    experiment_base = experiment_base + args.experiment_suffix
-    experiment_name = f"{experiment_base}_{current_date}"
-    
-    # Unpack the tuple directly into two variables
-    experiment_dir, seed_dir = create_output_directory(args, experiment_name)
-    
+    experiment_dir, seed_dir = create_output_directory(args)
+    experiment_name = os.path.basename(os.path.abspath(args.output_dir))
+
     print(f"\nExperiment: {experiment_name}")
     print(f"\nExperiment directory: {experiment_dir}")
     print(f"Seed: {args.seed}")
@@ -1146,6 +1194,9 @@ if __name__ == "__main__":
     else:
         processed_df = df
         
+    # Save the common text/label splits once per seed, outside model-specific folders.
+    save_shared_split_files(processed_df, args, seed_dir, script_dir)
+
     if args.embedding_level == 'word_averaged':
         embeddings_df, embeddings_col_name = extract_averaged_word_embeddings(
             processed_df, 
@@ -1189,57 +1240,8 @@ if __name__ == "__main__":
     model_checkpoint_path = os.path.join(seed_dir, 'model_checkpoints', args.embedding_model, args.embedding_level)
     os.makedirs(model_checkpoint_path, exist_ok=True)
 
-    # ============================================================
-    # 4b. FOR LLM PIPELINE, SAVE IN-DOMAIN TRAIN (few-shot) TEST (evaluation) SPLITs
-    # ============================================================
-    # LLM classifiers load this file directly into few-shot prompt
-    if X_train_df is not None and y_train_df is not None:
-        in_domain_train_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, args.embedding_level)
-        os.makedirs(in_domain_train_dir, exist_ok=True)
-        # Combine X and y into one file so LLM script only needs one path
-        x_y_train_df = X_train_df.copy()
-        x_y_train_df[args.label_column] = y_train_df[args.label_column].values
-        DataProcessing.save_to_file(
-            x_y_train_df,
-            path=in_domain_train_dir,
-            prefix='x_y_train_set',
-            save_file_type='csv',
-            include_version=False
-        )
-        print(f"✓ Saved in-domain train set to: {os.path.join(in_domain_train_dir, 'x_y_train_set.csv')}")
-
-    # LLM and RNN classifiers load this file for hyperparameter tuning / validation tracking.
-    if X_val_df is not None and y_val_df is not None:
-        in_domain_val_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, args.embedding_level)
-        os.makedirs(in_domain_val_dir, exist_ok=True)
-        # Combine X and y into one file
-        x_y_val_df = X_val_df.copy()
-        x_y_val_df[args.label_column] = y_val_df[args.label_column].values
-        DataProcessing.save_to_file(
-            x_y_val_df,
-            path=in_domain_val_dir,
-            prefix='x_y_val_set',
-            save_file_type='csv',
-            include_version=False
-        )
-        print(f"✓ Saved in-domain val set to: {os.path.join(in_domain_val_dir, 'x_y_val_set.csv')}")
-
-    # LLM classifiers load this file directly so they evaluate
-    # on the exact same test sentences as the ML models.
-    if X_test_df is not None and y_test_df is not None:
-        in_domain_test_dir = os.path.join(seed_dir, 'in_domain', args.embedding_model, args.embedding_level)
-        os.makedirs(in_domain_test_dir, exist_ok=True)
-        # Combine X and y into one file so LLM script only needs one path
-        x_y_test_df = X_test_df.copy()
-        x_y_test_df[args.label_column] = y_test_df[args.label_column].values
-        DataProcessing.save_to_file(
-            x_y_test_df,
-            path=in_domain_test_dir,
-            prefix='x_y_test_set',
-            save_file_type='csv',
-            include_version=False
-        )
-        print(f"✓ Saved in-domain test set to: {os.path.join(in_domain_test_dir, 'x_y_test_set.csv')}")
+    # Shared text/label split CSVs were saved to seedN/in_domain/splits above.
+    # Model-specific directories contain model outputs, not copies of the split data.
 
     if all_folds is None:
         # ============================================================
@@ -1267,7 +1269,7 @@ if __name__ == "__main__":
                 embeddings_col_name=embeddings_col_name, 
                 label_column=args.label_column, 
                 output_dir=seed_dir, 
-                metrics_folder_name=os.path.join('in_domain', args.embedding_model, args.embedding_level),
+                metrics_folder_name=os.path.join('in_domain', args.embedding_model),
                 csv_prefix='ml_classifiers_in_domain', 
                 train_val_metrics=train_val_metrics,
                 seed=args.seed
@@ -1317,7 +1319,7 @@ if __name__ == "__main__":
                     embeddings_col_name=embeddings_col_name, 
                     label_column=args.label_column, 
                     output_dir=seed_dir, 
-                    metrics_folder_name=os.path.join('in_domain', args.embedding_model, args.embedding_level, f'fold_{fold_idx}'),
+                    metrics_folder_name=os.path.join('in_domain', args.embedding_model, f'fold_{fold_idx}'),
                     csv_prefix=f'ml_classifiers_in_domain_fold_{fold_idx}',
                     train_val_metrics=train_val_metrics,
                     seed=args.seed
@@ -1359,8 +1361,7 @@ if __name__ == "__main__":
                 save_path=os.path.join(
                     seed_dir,
                     'in_domain',
-                    args.embedding_model,
-                    args.embedding_level
+                    args.embedding_model
                 )
             )
 
@@ -1374,7 +1375,7 @@ if __name__ == "__main__":
     print("PIPELINE COMPLETE")
     print("="*40)
     print(f"Experiment: {experiment_name}")
-    print(f"Training data: {experiment_base}")
+    print(f"Training data: {args.dataset}")
     print(f"Embedding model: {args.embedding_model}")
     print(f"Embedding level: {args.embedding_level}")
     if args.test_datasets:

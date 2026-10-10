@@ -467,6 +467,25 @@ wheels = [
 ]
 
 [[package]]
+name = "bert-score"
+version = "0.3.13"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pandas" },
+    { name = "requests" },
+    { name = "torch" },
+    { name = "tqdm" },
+    { name = "transformers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1c/93/2c97a85cbb66a8a256a13176e11c9c4508074e2341299fe75ee955c81eff/bert_score-0.3.13.tar.gz", hash = "sha256:8ffe5838eac8cdd988b8b1a896af7f49071188c8c011a1ed160d71a9899a2ba4", size = 48621, upload_time = "2023-02-20T21:07:29.477Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c6/8c/bc5457de4c004b1a623b31f7bc8d0375fb699b7d67df11879098b4b7b7c8/bert_score-0.3.13-py3-none-any.whl", hash = "sha256:bbbb4c7fcdaa46d7681aff49f37f96faa09ed74e1b150e659bdc6b58a66989b9", size = 61135, upload_time = "2023-02-20T21:07:27.226Z" },
+]
+
+[[package]]
 name = "bleach"
 version = "6.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4906,6 +4925,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "accelerate" },
     { name = "azureopenai" },
+    { name = "bert-score" },
     { name = "cython" },
     { name = "d2l" },
     { name = "datasets" },
@@ -4973,6 +4993,7 @@ dependencies = [
 requires-dist = [
     { name = "accelerate", specifier = ">=1.6.0" },
     { name = "azureopenai", specifier = ">=0.0.1" },
+    { name = "bert-score", specifier = ">=0.3.13" },
     { name = "cython", specifier = ">=3.1.1" },
     { name = "d2l", specifier = ">=0.17.0" },
     { name = "datasets", specifier = ">=4.2.0" },

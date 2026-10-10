@@ -25,14 +25,13 @@ from metrics import EvaluationMetric
 from data_processing import DataProcessing
 from data_visualizing import DataVisualizing
 from prompts import SentenceClassificationPrompt
-from prediction_properties import PredictionProperties
 from text_generation_models import TextGenerationModelFactory
 
 # How many sentence results to collect in memory before writing to disk
-BATCH_SIZE = 50
+BATCH_SIZE = 2
 # Stop after this many sentences (set to None to process all)
-# STOP_AFTER = 10
-STOP_AFTER = None
+STOP_AFTER = 10
+# STOP_AFTER = None
 
 def load_dataset(dataset_path, text_column='Base Sentence', label_column='Sentence Label'):
     """
@@ -87,8 +86,9 @@ def build_model(model_name):
 
 def load_prompts(prompt_type, train_data_path=None, stratify_columns=None, seed=42):
     """
-    Build the base prompt using SentenceClassificationPrompt with few-shot examples.
-    Combines system identity, TOLSA-M properties, requirements, and examples.
+    Build the base prompt using SentenceClassificationPrompt and the TOLSA definition.
+    Combines system identity (with the TOLSA definition), TOLSA properties,
+    linguistic cues, and examples or steps.
 
     Parameters
     ----------
@@ -113,48 +113,43 @@ def load_prompts(prompt_type, train_data_path=None, stratify_columns=None, seed=
     print("\n" + "="*50)
     print(f"LOAD PROMPT: {prompt_type}")
     print("="*50)
-    
-    # Get TOLSA-M properties and requirements
-    tolsa_m_properties, tolsa_m_requirements = PredictionProperties.get_prediction_properties_and_requirements()
-    
+
+    prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
+
+    # TOLSA properties and linguistic cues (cues framed for classification)
+    tolsa_properties, linguistic_cues = prompt.properties_and_cues()
+
     if prompt_type == 'zero-shot':
-        prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
         system_identity, task, format_output = prompt.zero_shot()
-        base_prompt = f"""{system_identity}
-        TOLSA-M Properties:
-        {tolsa_m_properties}
-        Requirements:
-        {tolsa_m_requirements}
-        """
-    
+        extra_text = ""
+
     elif prompt_type == 'few-shot':
-        prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
         system_identity, task, format_output, examples = prompt.few_shot(
             dataset_path=train_data_path,
             stratify_columns=stratify_columns,
             seed=seed
         )
-        
-        base_prompt = f"""{system_identity}
-        TOLSA-M Properties:
-        {tolsa_m_properties}
-        Requirements:
-        {tolsa_m_requirements}
-        Examples:
-        {examples}
-        """
+        extra_text = f"Examples:\n{examples}"
+
     elif prompt_type == 'chain-of-thought':
-        prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
         system_identity, task, format_output, steps = prompt.chain_of_thought()
-        base_prompt = f"""{system_identity}
-        TOLSA-M Properties:
-        {tolsa_m_properties}
-        Requirements:
-        {tolsa_m_requirements}
-        Steps:
-        {steps}
-        """
-    
+        extra_text = f"Steps:\n{steps}"
+
+    else:
+        raise ValueError(
+            f"Unknown prompt_type: '{prompt_type}'. "
+            f"Choose from: 'zero-shot', 'few-shot', 'chain-of-thought'"
+        )
+
+    base_prompt = f"""{system_identity}
+
+{tolsa_properties}
+
+{linguistic_cues}
+
+{extra_text}
+"""
+
     return base_prompt, task, format_output
 
 def _llm_classifier(
@@ -197,10 +192,12 @@ def _llm_classifier(
     # sentence_to_classify = sentence_to_classify.encode('ascii', errors='ignore').decode('ascii')
 
     prompt = f"""{base_prompt}
-    Sentence to Label: '{sentence_to_classify}'
-    Task: {task}
-    Format Output: {format_output}
-    """
+
+<text_document>{sentence_to_classify}</text_document>
+
+{task}
+
+{format_output}"""
 
     if is_first:
         print(f"\n\tPrompt: {prompt}\n")
@@ -274,7 +271,13 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
         # Initialize empty CSV with headers so append mode works correctly later
         pd.DataFrame(columns=['seed', 'original_index', 'text', 'raw_response', 'llm_label', 'llm_name', model_name]).to_csv(checkpoint_file, index=False)
 
-    print(f"Rows remaining to process: {len(remaining_df)}\n")
+    # --------------------------------------------------------
+    # Limit the number of sentences processed (for testing)
+    # --------------------------------------------------------
+    if STOP_AFTER is not None:
+        remaining_df = remaining_df.head(STOP_AFTER)
+
+    print(f"Rows to process in this run: {len(remaining_df)}\n")
     print(model_name, model)
 
     batch_buffer = []
@@ -285,7 +288,7 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
         text = row['Base Sentence']
 
         if loop_idx < 3:
-            print("Classify sentence as either TOLSA-M (1) or non-TOLSA-M (0)")
+            print("Classify text document as either TOLSA (1) or non-TOLSA (0)")
             print(f"    {idx} --- Sentence: {text}")
 
         is_first = (loop_idx == 0)
@@ -530,19 +533,19 @@ if __name__ == "__main__":
     # Run single LLM job on HiPerGator, loading test split saved by ml-train.py
 
     # In-domain test set (saved by ml-train.py at seed_dir/in_domain/x_y_test_set.csv):
-    python llm-classifiers.py \
-        --model_name gpt-oss-120b \
-        --test_dataset ../data/classification_results/synthetic-fpb-c2050-yt-news-timebank_2026-04-17/seed3/in_domain/x_y_test_set.csv \
+    python llm-experiment.py \
+        --model_name openai/gpt-oss-120b \
+        --test_dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
         --label_column 'Ground Truth' \
-        --prompt_type zero-shot \
+        --prompt_type chain-of-thought \
         --seed 3
 
     # External cross-domain test set (saved by ml-train.py at seed_dir/external_*/x_y_test_set.csv):
-    python llm-classifiers.py \
-        --model_name gpt-oss-120b \
-        --test_dataset ../data/classification_results/emnlp_2026_results_2026-05-22/seed3/in_domain/x_y_test_set.csv \
-        --label_column 'Ground Truth' \
-        --prompt_type zero-shot \
+    python llm-classifiers.py \\
+        --model_name gpt-oss-120b \\
+        --test_dataset ../data/classification_results/emnlp_2026_results_2026-05-22/seed3/in_domain/x_y_test_set.csv \\
+        --label_column 'Ground Truth' \\
+        --prompt_type zero-shot \\
         --seed 3
     """
     # ============================================================
