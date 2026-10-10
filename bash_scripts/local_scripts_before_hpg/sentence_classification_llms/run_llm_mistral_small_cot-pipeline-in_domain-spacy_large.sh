@@ -12,7 +12,7 @@ EXPERIMENT="tolsa_naacl_2026_2027-final"
 BASE_RESULTS="../data/classification_results/naacl_2026_submission/${EXPERIMENT}"
 
 MODEL="mistral-small-3.1"
-MODEL="gpt-oss-120b"
+# MODEL="gpt-oss-20b"
 PROMPT_TYPE="chain-of-thought"
 
 echo "============================================================"
