@@ -1,41 +1,67 @@
 #!/bin/bash
-# run_llm_classifiers-mistral_small.sh - Run LLM sentence classification for all seeds
-#
-# Usage:
-#   chmod +x run_llm_mistral_small_cot-pipeline-in_domain-spacy_large.sh
-#   bash run_llm_mistral_small_cot-pipeline-in_domain-spacy_large.sh
+
+# run_llm_mistral_small_cot-pipeline-in_domain-spacy_large.sh
+# Run local LLM sentence classification on validation and test splits
+# for seeds 3, 7, and 33.
 
 set -e
 
 cd ../../../prediction_classification_experiments-v2
 
-# EXPERIMENT="eacl_2026_results_$(date +%Y-%m-%d)"
-EXPERIMENT="july_2026_results_2026-07-08"
-BASE_RESULTS="../data/classification_results/${EXPERIMENT}"
-EMBEDDING_MODEL="spacy_large"  # Which embedding model's test set to use
+EXPERIMENT="tolsa_naacl_2026_2027-final"
+BASE_RESULTS="../data/classification_results/naacl_2026_submission/${EXPERIMENT}"
+
+MODEL="mistral-small-3.1"
+MODEL="gpt-oss-120b"
+PROMPT_TYPE="chain-of-thought"
 
 echo "============================================================"
-echo "     SENTENCE CLASSIFICATION (LOCAL): mistral-small-3.1"
+echo " SENTENCE CLASSIFICATION (LOCAL): ${MODEL}"
+echo " Experiment: ${EXPERIMENT}"
+echo " Seeds: 3, 7, 33"
+echo " Splits: validation and test"
 echo "============================================================"
 
-for seed in 3; do
-    echo ""
-    echo "============================================================"
-    echo "                      SEED: $seed"
-    echo "============================================================"
-    echo ""
+for SEED in 3 7 33; do
 
-    python llm-experiment.py \
-        --model_name mistral-small-3.1 \
-        --test_dataset ${BASE_RESULTS}/seed${seed}/in_domain/${EMBEDDING_MODEL}/x_y_test_set.csv \
-        --label_column 'Ground Truth' \
-        --seed $seed \
-        --prompt_type chain-of-thought
+    SPLIT_DIR="${BASE_RESULTS}/seed${SEED}/in_domain/splits"
+
+    echo ""
+    echo "############################################################"
+    echo " SEED: ${SEED}"
+    echo "############################################################"
+
+    for SPLIT in val test; do
+
+        DATASET="${SPLIT_DIR}/x_y_${SPLIT}_set.csv"
+
+        echo ""
+        echo "============================================================"
+        echo " SEED: ${SEED} | SPLIT: ${SPLIT}"
+        echo "============================================================"
+        echo "Dataset: ${DATASET}"
+
+        if [[ ! -f "${DATASET}" ]]; then
+            echo "ERROR: Dataset not found: ${DATASET}"
+            exit 1
+        fi
+
+        python llm-experiment.py \
+            --model_name "${MODEL}" \
+            --test_dataset "${DATASET}" \
+            --label_column 'Ground Truth' \
+            --seed "${SEED}" \
+            --prompt_type "${PROMPT_TYPE}"
+
+    done
 done
 
 echo ""
 echo "======================================"
-echo "PIPELINE COMPLETE"
+echo " PIPELINE COMPLETE"
 echo "======================================"
-echo "✓ Mistral classification completed for seeds: 3, 7, 33"
+echo "Model: ${MODEL}"
+echo "Seeds completed: 3, 7, 33"
+echo "Splits completed: validation and test"
+echo "Total runs: 6"
 echo ""
