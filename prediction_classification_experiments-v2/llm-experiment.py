@@ -605,8 +605,27 @@ if __name__ == "__main__":
     # ============================================================
     current_date = datetime.now().strftime('%Y-%m-%d')
 
-    # Save results alongside the test file so ML and LLM outputs sit in the same folder
-    save_directory = os.path.dirname(args.test_dataset)
+    # Save LLM outputs separately from the dataset splits.
+    splits_dir = os.path.dirname(os.path.abspath(args.test_dataset))
+    in_domain_dir = os.path.dirname(splits_dir)
+
+    split_name = (
+        "val" if os.path.basename(args.test_dataset) == "x_y_val_set.csv"
+        else "test" if os.path.basename(args.test_dataset) == "x_y_test_set.csv"
+        else "other"
+    )
+
+    safe_model_name = args.model_name.replace("/", "_")
+
+    save_directory = os.path.join(
+        in_domain_dir,
+        "llm",
+        safe_model_name,
+        args.prompt_type,
+        split_name
+    )
+
+    os.makedirs(save_directory, exist_ok=True)
     print(f"\nSave directory: {save_directory}")
 
     # ============================================================
