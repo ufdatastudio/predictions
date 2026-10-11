@@ -1,0 +1,2 @@
+seed,model,train_accuracy,val_accuracy,test_accuracy,precision_class_0,precision_class_1,recall_class_0,recall_class_1,f1_class_0,f1_class_1,tn,fp,fn,tp,roc_auc,pr_auc
+7,gpt-oss-20b,,,0.8583317921213242,0.9067357512953368,0.8164251207729468,0.8104738154613467,0.91,0.8559066967644846,0.8606766096762459,2275,532,234,2366,0.8602369077306734,0.7862240931195829

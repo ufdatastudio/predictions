@@ -1,0 +1,27 @@
+{
+  "experiment": "tolsa_naacl_2026_2027-final \u2192 in_domain/st_mpnet_base [ml]",
+  "model_type": "ml",
+  "embedding_model": "st_mpnet_base",
+  "model_name": "N/A",
+  "n_seeds": 3,
+  "seeds_used": [
+    {
+      "seed": 3,
+      "folder": "in_domain/st_mpnet_base"
+    },
+    {
+      "seed": 33,
+      "folder": "in_domain/st_mpnet_base"
+    },
+    {
+      "seed": 7,
+      "folder": "in_domain/st_mpnet_base"
+    }
+  ],
+  "date_averaged": "2026-10-10 05:37:11",
+  "files_generated": {
+    "mean": "mean.csv",
+    "std": "std.csv",
+    "mean_std": "mean_std.csv"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "experiment": "tolsa_naacl_2026_2027-final \u2192 in_domain/st_minilm_l12 [ml]",
+  "model_type": "ml",
+  "embedding_model": "st_minilm_l12",
+  "model_name": "N/A",
+  "n_seeds": 3,
+  "seeds_used": [
+    {
+      "seed": 3,
+      "folder": "in_domain/st_minilm_l12"
+    },
+    {
+      "seed": 33,
+      "folder": "in_domain/st_minilm_l12"
+    },
+    {
+      "seed": 7,
+      "folder": "in_domain/st_minilm_l12"
+    }
+  ],
+  "date_averaged": "2026-10-10 03:46:42",
+  "files_generated": {
+    "mean": "mean.csv",
+    "std": "std.csv",
+    "mean_std": "mean_std.csv"
+  }
+}
