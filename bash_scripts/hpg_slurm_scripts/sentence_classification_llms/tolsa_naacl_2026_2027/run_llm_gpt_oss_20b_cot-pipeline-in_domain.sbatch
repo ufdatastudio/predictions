@@ -1,4 +1,3 @@
-```bash
 #!/bin/bash
 
 #SBATCH --job-name=llm_gpt_oss_20b_cot
@@ -56,4 +55,3 @@ for SEED in 3 7 33; do
 done
 
 echo "All CoT test runs completed for $MODEL_NAME."
-```
