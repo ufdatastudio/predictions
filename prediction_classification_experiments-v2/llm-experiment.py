@@ -1,5 +1,3 @@
-# Before running, be sure ml-train.py has produced a test file via evaluate_external_datasets
-# or the in-domain split saved by split_train_test.
 import os
 import re
 import sys
@@ -8,18 +6,20 @@ import time
 import pprint
 import argparse
 import matplotlib
-matplotlib.use('Agg')  # Prevent GUI windows from opening
+
+matplotlib.use("Agg")
+
 import warnings
 warnings.filterwarnings("ignore")
+
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
 
-# Get the current working directory of the script
+# Get the current working directory of the script.
 script_dir = os.getcwd()
-# Add the parent directory to the system path
-sys.path.append(os.path.join(script_dir, '../'))
+sys.path.append(os.path.join(script_dir, "../"))
 
 from metrics import EvaluationMetric
 from data_processing import DataProcessing
@@ -27,42 +27,40 @@ from data_visualizing import DataVisualizing
 from prompts import SentenceClassificationPrompt
 from text_generation_models import TextGenerationModelFactory
 
-# How many sentence results to collect in memory before writing to disk
-BATCH_SIZE = 2
-# Stop after this many sentences (set to None to process all)
-STOP_AFTER = 10
-# STOP_AFTER = None
 
-def load_dataset(dataset_path, text_column='Base Sentence', label_column='Sentence Label'):
-    """
-    Load the test split saved by ml-train.py.
-    Does NOT resample — the split is already fixed by the ML pipeline
-    so LLM and ML models evaluate on the exact same sentences.
+# Number of results buffered before writing to disk.
+BATCH_SIZE = 50
 
-    Parameters
-    ----------
-    dataset_path : str
-        Path to the x_y_test_set.csv saved by ml-train.py.
-    text_column : str
-        Column name containing the sentences. Default is 'Base Sentence'.
-    label_column : str
-        Column name containing the true labels. Default is 'Sentence Label'.
-    """
-    print("\n" + "="*40)
+# Process the complete dataset.
+STOP_AFTER = None
+
+
+def load_dataset(
+    dataset_path,
+    text_column="Base Sentence",
+    label_column="Sentence Label",
+):
+    """Load a fixed dataset split without resampling."""
+    print("\n" + "=" * 40)
     print("LOAD DATASET")
-    print("="*40)
-
+    print("=" * 40)
     print(f"Dataset path: {dataset_path}")
-    df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='utf-8')
-    # Strip all non-ASCII characters entirely from string columns
-    # This is the safest fix when source data has deep unicode corruption
-    # df = df.sample(n=40)
 
-    # Validate required columns exist
+    df = DataProcessing.load_from_file(
+        dataset_path, "csv", sep=",", encoding="utf-8"
+    )
+
     if text_column not in df.columns:
-        raise ValueError(f"Text column '{text_column}' not found. Available: {list(df.columns)}")
+        raise ValueError(
+            f"Text column '{text_column}' not found. "
+            f"Available: {list(df.columns)}"
+        )
+
     if label_column not in df.columns:
-        raise ValueError(f"Label column '{label_column}' not found. Available: {list(df.columns)}")
+        raise ValueError(
+            f"Label column '{label_column}' not found. "
+            f"Available: {list(df.columns)}"
+        )
 
     print(f"Shape: {df.shape}")
     print(f"\nPreview:\n{df.head(7)}\n")
@@ -71,74 +69,111 @@ def load_dataset(dataset_path, text_column='Base Sentence', label_column='Senten
 
     return df
 
+
 def build_model(model_name):
-    """Initialize single LLM from factory for this SLURM job."""
+    """Initialize the requested LLM."""
     tgmf = TextGenerationModelFactory()
 
-    print("\n" + "="*40)
+    print("\n" + "=" * 40)
     print("LLM TO LOAD")
-    print("="*40)
-    pp = pprint.PrettyPrinter(indent=3)
-    pp.pprint(model_name)
+    print("=" * 40)
 
-    model = tgmf.create_instance(model_name)
-    return model
+    pprint.PrettyPrinter(indent=3).pprint(model_name)
 
-def load_prompts(prompt_type, train_data_path=None, stratify_columns=None, seed=42):
-    """
-    Build the base prompt using SentenceClassificationPrompt and the TOLSA definition.
-    Combines system identity (with the TOLSA definition), TOLSA properties,
-    linguistic cues, and examples or steps.
+    return tgmf.create_instance(model_name)
 
-    Parameters
-    ----------
-    prompt_type : str
-        The prompt can be zero-shot, few-shot, or chain-of-thought
-    train_data_path : str, optional
-        Path to training data CSV for few-shot examples
-    stratify_columns : list of str, optional
-        Columns to stratify by (e.g., ['Sentence Label', 'Dataset'])
-    seed : int
-        Random seed for reproducible sampling
-        
-    Returns
-    -------
-    base_prompt : str
-        The full prompt sent to the model before each sentence.
-    task : str
-        The labeling instruction for the model.
-    format_output : str
-        The expected JSON output format.
-    """
-    print("\n" + "="*50)
+
+
+def load_prompts(
+    prompt_type,
+    few_shot_samples_path=None,
+    seed=42,
+):
+    """Build the classification prompt using prepared few-shot samples."""
+    print("\n" + "=" * 50)
     print(f"LOAD PROMPT: {prompt_type}")
-    print("="*50)
+    print("=" * 50)
 
     prompt = SentenceClassificationPrompt(prompt_type_name=prompt_type)
-
-    # TOLSA properties and linguistic cues (cues framed for classification)
     tolsa_properties, linguistic_cues = prompt.properties_and_cues()
 
-    if prompt_type == 'zero-shot':
+    if prompt_type == "zero-shot":
         system_identity, task, format_output = prompt.zero_shot()
         extra_text = ""
 
-    elif prompt_type == 'few-shot':
+    elif prompt_type == "few-shot":
+        if not few_shot_samples_path:
+            raise ValueError(
+                "--few_shot_samples is required for few-shot prompts."
+            )
+
+        if not os.path.isfile(few_shot_samples_path):
+            raise FileNotFoundError(
+                f"Few-shot samples not found: {few_shot_samples_path}"
+            )
+
+        samples_df = pd.read_csv(few_shot_samples_path)
+
+        required_columns = {
+            "Dataset Name",
+            "Base Sentence",
+            "Ground Truth",
+        }
+        missing_columns = required_columns - set(samples_df.columns)
+
+        if missing_columns:
+            raise ValueError(
+                f"Few-shot CSV is missing columns: "
+                f"{sorted(missing_columns)}"
+            )
+
+        if samples_df.empty:
+            raise ValueError(
+                f"Few-shot samples file is empty: "
+                f"{few_shot_samples_path}"
+            )
+
+        if samples_df[
+            ["Base Sentence", "Ground Truth"]
+        ].isna().any().any():
+            raise ValueError(
+                "Few-shot samples contain missing sentences or labels."
+            )
+
+        if not samples_df["Ground Truth"].astype(str).isin(
+            ["0", "1"]
+        ).all():
+            raise ValueError(
+                "Few-shot Ground Truth values must be binary labels 0 or 1."
+            )
+
+        print(f"Few-shot samples: {len(samples_df)}")
+        print(f"Samples file: {few_shot_samples_path}")
+        print(
+            "Examples per dataset:\n"
+            f"{samples_df['Dataset Name'].value_counts(dropna=False)}"
+        )
+
+        # Pass the prepared file to the existing prompt formatter.
+        # The prompt formatter must use all rows as provided, without
+        # performing another sampling operation.
         system_identity, task, format_output, examples = prompt.few_shot(
-            dataset_path=train_data_path,
-            stratify_columns=stratify_columns,
-            seed=seed
+            dataset_path=few_shot_samples_path,
+            stratify_columns=None,
+            seed=seed,
         )
         extra_text = f"Examples:\n{examples}"
 
-    elif prompt_type == 'chain-of-thought':
-        system_identity, task, format_output, steps = prompt.chain_of_thought()
+    elif prompt_type == "chain-of-thought":
+        system_identity, task, format_output, steps = (
+            prompt.chain_of_thought()
+        )
         extra_text = f"Steps:\n{steps}"
 
     else:
         raise ValueError(
             f"Unknown prompt_type: '{prompt_type}'. "
-            f"Choose from: 'zero-shot', 'few-shot', 'chain-of-thought'"
+            "Choose from: zero-shot, few-shot, chain-of-thought"
         )
 
     base_prompt = f"""{system_identity}
@@ -148,131 +183,168 @@ def load_prompts(prompt_type, train_data_path=None, stratify_columns=None, seed=
 {linguistic_cues}
 
 {extra_text}
+
 """
 
     return base_prompt, task, format_output
 
+
 def _llm_classifier(
-        sentence_to_classify,
-        base_prompt,
-        model,
-        task,
-        format_output,
-        is_first):
-    """
-    Send a single sentence to the LLM and return the raw response and parsed label.
-
-    Uses model.safe_chat_completion which already handles rate limiting,
-    progressive retries, and bad request errors internally.
-
-    Uses DataProcessing.parse_llm_json_response for robust JSON parsing which
-    handles markdown code blocks, single quotes, and conversational filler text.
-
-    Parameters
-    ----------
-    sentence_to_classify : str
-        The sentence to classify.
-    base_prompt : str
-        The full prompt sent before each sentence.
-    model : TextGenerationModelFactory
-        The loaded LLM instance.
-    task : str
-        The labeling instruction for the model.
-    format_output : str
-        The expected JSON output format.
-    is_first : bool
-        If True, print the full prompt to terminal for debugging.
-
-    Returns
-    -------
-    tuple
-        (raw_text_llm_generation, label) or (None, None) on unrecoverable failure.
-    """
-    # Sanitize sentence to prevent Unicode encoding errors crashing the API call
-    # sentence_to_classify = sentence_to_classify.encode('ascii', errors='ignore').decode('ascii')
-
+    sentence_to_classify,
+    base_prompt,
+    model,
+    task,
+    format_output,
+    is_first,
+):
+    """Classify one sentence and return its raw response and label."""
     prompt = f"""{base_prompt}
 
 <text_document>{sentence_to_classify}</text_document>
 
 {task}
-
 {format_output}"""
 
     if is_first:
         print(f"\n\tPrompt: {prompt}\n")
-        # quit()
 
     input_prompt = model.user(prompt)
+    raw_response = model.safe_chat_completion([input_prompt])
 
-    # safe_chat_completion handles rate limiting, retries, and bad request errors internally
-    # Returns None if all attempts fail
-    raw_text_llm_generation = model.safe_chat_completion([input_prompt])
-
-    if raw_text_llm_generation is None:
+    if raw_response is None:
         return None, None
 
-    # Use DataProcessing.parse_llm_json_response for robust JSON parsing
-    # Handles markdown code blocks, single quotes, and conversational filler
-    parsed = DataProcessing.parse_llm_json_response(raw_text_llm_generation)
-    label = parsed.get('y_hat') if parsed else None
+    parsed = DataProcessing.parse_llm_json_response(raw_response)
+    label = parsed.get("y_hat") if parsed else None
 
-    return raw_text_llm_generation, label
+    # Accept only actual binary labels.
+    try:
+        numeric_label = float(label)
+        if numeric_label not in (0.0, 1.0):
+            numeric_label = None
+    except (TypeError, ValueError):
+        numeric_label = None
 
-def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, sentence_label_format_output, save_directory, seed, prompt_type):
+    return raw_response, numeric_label
+
+
+def llm_classifer(
+    model_name,
+    model,
+    test_df,
+    base_prompt,
+    sentence_label_task,
+    sentence_label_format_output,
+    save_directory,
+    seed,
+    prompt_type,
+):
     """
-    Run inference over all sentences in test_df with incremental checkpointing.
-    Automatically resumes from checkpoint if the job was previously interrupted.
+    Run LLM inference with resumable checkpointing.
 
-    Parameters
-    ----------
-    model_name : str
-        Name of the LLM being used.
-    model : TextGenerationModelFactory
-        The loaded LLM instance.
-    test_df : pd.DataFrame
-        The test dataset loaded from ml-train.py's saved test split.
-    base_prompt : str
-        The full prompt sent before each sentence.
-    sentence_label_task : str
-        The labeling instruction for the model.
-    sentence_label_format_output : str
-        The expected JSON output format.
-    save_directory : str
-        Directory where checkpoint and results CSVs are saved.
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with columns: original_index, text, raw_response, llm_label, llm_name.
+    Successful binary classifications are preserved. Rows with missing
+    or invalid labels are retried on the next run.
     """
     print(f"Shape: {test_df.shape}")
     print(f"\nPreview:\n{test_df.head(7)}\n")
     print(f"\nPreview:\n{test_df.tail(7)}\n")
 
-    # Create safe filename for checkpoint (handles model names with slashes e.g. openai/gpt)
+    os.makedirs(save_directory, exist_ok=True)
+
     safe_model_name = model_name.replace("/", "_")
-    # checkpoint_file = os.path.join(save_directory, f"checkpoint_{safe_model_name}.csv")
-    checkpoint_file = os.path.join(save_directory, f"checkpoint_{safe_model_name}_{prompt_type}.csv")
+    checkpoint_file = os.path.join(
+        save_directory,
+        f"checkpoint_{safe_model_name}_{prompt_type}.csv",
+    )
+
+    checkpoint_columns = [
+        "seed",
+        "original_index",
+        "text",
+        "raw_response",
+        "llm_label",
+        "llm_name",
+    ]
 
     # --------------------------------------------------------
-    # Resume from checkpoint if it exists
+    # Resume from checkpoint
     # --------------------------------------------------------
     if os.path.exists(checkpoint_file):
-        print(f"\n[!] Found checkpoint file. Resuming from: {checkpoint_file}")
+        print(
+            f"\n[!] Found checkpoint file. "
+            f"Resuming from: {checkpoint_file}"
+        )
+
         processed_df = pd.read_csv(checkpoint_file)
-        processed_indices = set(processed_df['original_index'].tolist())
-        remaining_df = test_df[~test_df.index.isin(processed_indices)]
-        results = processed_df.to_dict('records')
+
+        required_columns = set(checkpoint_columns)
+        missing_columns = required_columns - set(processed_df.columns)
+
+        if missing_columns:
+            raise ValueError(
+                "Checkpoint is missing required columns: "
+                f"{sorted(missing_columns)}. "
+                "The checkpoint was not modified."
+            )
+
+        labels = pd.to_numeric(
+            processed_df["llm_label"], errors="coerce"
+        )
+
+        indices = pd.to_numeric(
+            processed_df["original_index"], errors="coerce"
+        )
+
+        # Keep rows with a valid binary label and valid original index.
+        valid_mask = labels.isin([0, 1]) & indices.notna()
+
+        valid_df = processed_df.loc[valid_mask].copy()
+        valid_df["llm_label"] = labels.loc[valid_mask].astype(int)
+        valid_df["original_index"] = (
+            indices.loc[valid_mask].astype(int)
+        )
+
+        # Discard unintended columns from older checkpoint formats.
+        valid_df = valid_df.reindex(columns=checkpoint_columns)
+
+        # Deduplicate checkpoint entries by original index, keeping the
+        # most recent successful result.
+        valid_df = valid_df.drop_duplicates(
+            subset=["original_index"], keep="last"
+        )
+
+        # Only reuse results whose original indices exist in this split.
+        test_indices = set(test_df.index)
+        valid_df = valid_df[
+            valid_df["original_index"].isin(test_indices)
+        ].copy()
+
+        processed_indices = set(valid_df["original_index"].tolist())
+
+        remaining_df = test_df[
+            ~test_df.index.isin(processed_indices)
+        ]
+
+        results = valid_df.to_dict("records")
+
+        # Rewrite the checkpoint with clean, consistent columns.
+        # The backup should be retained until the run is verified.
+        valid_df.to_csv(checkpoint_file, index=False)
+
+        print(f"Successful checkpoint rows: {len(valid_df)}")
+        print(f"Rows remaining: {len(remaining_df)}")
+
     else:
         remaining_df = test_df.copy()
         results = []
-        # Initialize empty CSV with headers so append mode works correctly later
-        # Initialize empty CSV with headers so append mode works correctly later
-        pd.DataFrame(columns=['seed', 'original_index', 'text', 'raw_response', 'llm_label', 'llm_name', model_name]).to_csv(checkpoint_file, index=False)
+
+        # Initialize a checkpoint with the correct header.
+        pd.DataFrame(columns=checkpoint_columns).to_csv(
+            checkpoint_file, index=False
+        )
 
     # --------------------------------------------------------
-    # Limit the number of sentences processed (for testing)
+    # Optional testing limit
     # --------------------------------------------------------
     if STOP_AFTER is not None:
         remaining_df = remaining_df.head(STOP_AFTER)
@@ -282,96 +354,120 @@ def llm_classifer(model_name, model, test_df, base_prompt, sentence_label_task, 
 
     batch_buffer = []
 
-    for loop_idx, (idx, row) in enumerate(tqdm(remaining_df.iterrows(), total=len(remaining_df), desc="Processing")):
-        print(idx, row)
-        print()
-        text = row['Base Sentence']
+    # --------------------------------------------------------
+    # Inference and checkpoint writing
+    # --------------------------------------------------------
+    for loop_idx, (idx, row) in enumerate(
+        tqdm(
+            remaining_df.iterrows(),
+            total=len(remaining_df),
+            desc="Processing",
+        )
+    ):
+        text = row["Base Sentence"]
 
         if loop_idx < 3:
-            print("Classify text document as either TOLSA (1) or non-TOLSA (0)")
+            print(
+                "Classify text document as either TOLSA (1) "
+                "or non-TOLSA (0)"
+            )
             print(f"    {idx} --- Sentence: {text}")
 
-        is_first = (loop_idx == 0)
         raw_response, llm_label = _llm_classifier(
-            text, base_prompt, model,
-            sentence_label_task, sentence_label_format_output, is_first
+            text,
+            base_prompt,
+            model,
+            sentence_label_task,
+            sentence_label_format_output,
+            loop_idx == 0,
         )
 
         result_dict = {
-            'seed': seed,
-            'original_index': idx,
-            'text': text,
-            'raw_response': raw_response,
-            'llm_label': llm_label,
-            'llm_name': model_name,
-            model_name: llm_label
+            "seed": seed,
+            "original_index": idx,
+            "text": text,
+            "raw_response": raw_response,
+            "llm_label": llm_label,
+            "llm_name": model_name,
         }
+
         batch_buffer.append(result_dict)
         results.append(result_dict)
 
         if loop_idx < 3:
             print(f"\tLabel: {llm_label} via Model: {model_name}")
 
-        # Checkpoint save every BATCH_SIZE rows so we don't lose progress on timeout
+        # Append using exactly the same columns as the checkpoint header.
         if len(batch_buffer) >= BATCH_SIZE:
-            pd.DataFrame(batch_buffer).to_csv(checkpoint_file, mode='a', header=False, index=False)
-            print(f"✓ Checkpoint saved: {len(batch_buffer)} rows flushed to disk.")
-            batch_buffer = []  # Clear buffer after flush
+            pd.DataFrame(
+                batch_buffer, columns=checkpoint_columns
+            ).to_csv(
+                checkpoint_file,
+                mode="a",
+                header=False,
+                index=False,
+            )
 
-    # Save any remaining rows that didn't fill a full batch
+            print(
+                f"Checkpoint saved: {len(batch_buffer)} rows flushed."
+            )
+            batch_buffer = []
+
+    # Flush the final partial batch.
     if batch_buffer:
-        pd.DataFrame(batch_buffer).to_csv(checkpoint_file, mode='a', header=False, index=False)
-        print(f"✓ Final checkpoint saved: {len(batch_buffer)} remaining rows flushed to disk.")
+        pd.DataFrame(
+            batch_buffer, columns=checkpoint_columns
+        ).to_csv(
+            checkpoint_file,
+            mode="a",
+            header=False,
+            index=False,
+        )
 
-    # Reconstruct full DataFrame in the EXACT original order for metric mapping
-    results_with_llm_label_df = pd.DataFrame(results)
-    if not results_with_llm_label_df.empty:
-        results_with_llm_label_df = (
-            results_with_llm_label_df
-            .set_index('original_index')
+        print(
+            f"Final checkpoint saved: {len(batch_buffer)} rows flushed."
+        )
+
+    # --------------------------------------------------------
+    # Reconstruct results in original test-set order
+    # --------------------------------------------------------
+    results_df = pd.DataFrame(results, columns=checkpoint_columns)
+
+    if not results_df.empty:
+        results_df = results_df.drop_duplicates(
+            subset=["original_index"], keep="last"
+        )
+
+        results_df = (
+            results_df.set_index("original_index")
             .reindex(test_df.index)
+            .rename_axis("original_index")
             .reset_index()
         )
 
-    print(f"Shape: {results_with_llm_label_df.shape}")
-    print(f"\nPreview:\n{results_with_llm_label_df}\n")
+    print(f"Shape: {results_df.shape}")
+    print(f"\nPreview:\n{results_df.head(10)}\n")
 
-    return results_with_llm_label_df
+    return results_df
+
 
 def create_results_dataframe(X_test_df, y_hat_df, model_name, seed):
-    """
-    Combine test data with model predictions.
-
-    Parameters
-    ----------
-    X_test_df : pd.DataFrame
-        The original test DataFrame.
-    y_hat_df : pd.DataFrame
-        The LLM inference results containing llm_label column.
-    model_name : str
-        The model name used as the prediction column name.
-
-    Returns
-    -------
-    pd.DataFrame
-        Test DataFrame with model predictions appended as a new column.
-    """
-    print("\n" + "="*40)
+    """Combine the test data with model predictions."""
+    print("\n" + "=" * 40)
     print("CREATE RESULTS DATAFRAME")
-    print("="*40)
+    print("=" * 40)
 
     results_df = X_test_df.copy()
-    results_df['seed'] = seed
+    results_df["seed"] = seed
 
-    # Map predictions back into the original dataframe
-    # y_hat_df is guaranteed to be in the same order as X_test_df (reindexed in llm_classifer)
-    results_df[model_name] = y_hat_df['llm_label'].to_list()
-    print(f"✓ Added predictions: {model_name}")
+    results_df[model_name] = y_hat_df["llm_label"].to_list()
 
+    print(f"Added predictions: {model_name}")
     print(f"\nFinal shape: {results_df.shape}")
     print(f"\nPreview:\n{results_df.head(3)}\n")
 
     return results_df
+
 
 def evaluate_models(
     results_df,
@@ -379,239 +475,225 @@ def evaluate_models(
     label_col_name,
     save_path,
     seed,
-    prompt_type
+    prompt_type,
 ):
-    """
-    Evaluate LLM predictions and save unified metrics to disk.
-    
-    Parameters
-    ----------
-    results_df : pd.DataFrame
-        DataFrame containing both ground truth labels and LLM predictions.
-    model_name : str
-        The model name used as the prediction column name.
-    label_col_name : str
-        The column name containing true labels.
-    save_path : str
-        Directory path to save metrics and visualizations.
-    seed : int
-        Random seed used in this run, stored in printed summary for tracking.
-    
-    Returns
-    -------
-    pd.DataFrame
-        A single-row DataFrame of all evaluation metrics for this model.
-    """
-    print("\n" + "="*40)
+    """Evaluate predictions and save metrics and the confusion matrix."""
+    print("\n" + "=" * 40)
     print("EVALUATION RESULTS")
-    print("="*40)
+    print("=" * 40)
     print(f"Label: {label_col_name}\n")
-    
+
     actual_labels = results_df[label_col_name].values
     predictions = results_df[model_name].values
-    
-    # Recreate X_test_list and y_test_df for DataVisualizing methods
-    X_test_list = results_df['Base Sentence'].to_list()
+
+    # Preserve the existing evaluation convention for failed predictions.
+    predictions = np.nan_to_num(
+        np.asarray(predictions, dtype=float), nan=0.0
+    )
+
+    X_test_list = results_df["Base Sentence"].to_list()
     y_test_df = results_df[[label_col_name]]
-    
-    # Fill NaN predictions with 0 if LLM failed to parse a valid JSON label
-    predictions = np.nan_to_num(np.array(predictions, dtype=float), nan=0.0)
-    
-    metrics_summary = []
-    
-    print(f"### Model: {model_name} ###")
-    
-    # For LLMs, we don't have predict_proba so we fallback to binary predictions for AUC
-    continuous_scores = predictions
-    
-    # Classification report: precision, recall, f1, test accuracy
-    eval_report = EvaluationMetric.eval_classification_report(actual_labels, predictions)
-    
-    # Confusion matrix
-    confusion_mat, tn, fp, fn, tp = EvaluationMetric.get_confusion_matrix(actual_labels, predictions, by_category=True)
+
+    eval_report = EvaluationMetric.eval_classification_report(
+        actual_labels, predictions
+    )
+
+    confusion_mat, tn, fp, fn, tp = (
+        EvaluationMetric.get_confusion_matrix(
+            actual_labels, predictions, by_category=True
+        )
+    )
+
     print(f"Confusion Matrix:\n{confusion_mat}\n")
-    
-    # Save confusion matrix visualization
+
     DataVisualizing.confusion_matrix(
         f"{model_name}_{prompt_type}",
         confusion_mat,
         save_path,
-        include_version=False
+        include_version=False,
     )
-    # print(f"✓ Saved confusion matrix: confusion_matrix_{model_name}.png\n")
-    print(f"✓ Saved confusion matrix: confusion_matrix_{model_name}_{prompt_type}.png\n")
-    
-    # ROC-AUC score
-    roc_auc_score = EvaluationMetric.get_roc_auc(actual_labels, continuous_scores)
+
+    print(
+        f"Saved confusion matrix: "
+        f"confusion_matrix_{model_name}_{prompt_type}.png\n"
+    )
+
+    roc_auc_score = EvaluationMetric.get_roc_auc(
+        actual_labels, predictions
+    )
     print(f"ROC-AUC Score: {roc_auc_score:.4f}\n")
-    
-    # PR-AUC
-    pr_auc_score = EvaluationMetric.get_pr_auc(actual_labels, continuous_scores)
+
+    pr_auc_score = EvaluationMetric.get_pr_auc(
+        actual_labels, predictions
+    )
     print(f"PR-AUC Score: {pr_auc_score:.4f}\n")
-    
-    # Extract precision, recall, f1 from eval_report
-    # Try both string and integer keys for class labels
-    precision_0 = eval_report.get('0', {}).get('precision') or eval_report.get(0, {}).get('precision')
-    precision_1 = eval_report.get('1', {}).get('precision') or eval_report.get(1, {}).get('precision')
-    recall_0 = eval_report.get('0', {}).get('recall') or eval_report.get(0, {}).get('recall')
-    recall_1 = eval_report.get('1', {}).get('recall') or eval_report.get(1, {}).get('recall')
-    f1_0 = eval_report.get('0', {}).get('f1-score') or eval_report.get(0, {}).get('f1-score')
-    f1_1 = eval_report.get('1', {}).get('f1-score') or eval_report.get(1, {}).get('f1-score')
-    
-    # If any metrics are missing (None or 0), calculate from confusion matrix
-    if not all([precision_0, precision_1, recall_0, recall_1, f1_0, f1_1]):
-        print("⚠️  Some metrics missing from eval_report. Calculating from confusion matrix...")
-        
-        # Calculate precision: TP / (TP + FP)
-        precision_0 = tn / (tn + fn) if (tn + fn) > 0 else 0.0
-        precision_1 = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-        
-        # Calculate recall: TP / (TP + FN)
-        recall_0 = tn / (tn + fp) if (tn + fp) > 0 else 0.0
-        recall_1 = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        
-        # Calculate F1: 2 * (precision * recall) / (precision + recall)
-        f1_0 = 2 * (precision_0 * recall_0) / (precision_0 + recall_0) if (precision_0 + recall_0) > 0 else 0.0
-        f1_1 = 2 * (precision_1 * recall_1) / (precision_1 + recall_1) if (precision_1 + recall_1) > 0 else 0.0
-        
-        print(f"✓ Calculated metrics from confusion matrix")
-        print(f"  Precision - Class 0: {precision_0:.4f}, Class 1: {precision_1:.4f}")
-        print(f"  Recall    - Class 0: {recall_0:.4f}, Class 1: {recall_1:.4f}")
-        print(f"  F1-Score  - Class 0: {f1_0:.4f}, Class 1: {f1_1:.4f}\n")
-    
-    # Build unified metrics row matching ML pipeline's metrics_summary_ml_models.csv format
+
+    # Support both string and integer class keys.
+    def get_metric(class_id, metric):
+        class_report = eval_report.get(
+            str(class_id), eval_report.get(class_id, {})
+        )
+        return class_report.get(metric)
+
+    precision_0 = get_metric(0, "precision")
+    precision_1 = get_metric(1, "precision")
+    recall_0 = get_metric(0, "recall")
+    recall_1 = get_metric(1, "recall")
+    f1_0 = get_metric(0, "f1-score")
+    f1_1 = get_metric(1, "f1-score")
+
+    # Calculate metrics from the confusion matrix when absent.
+    if any(
+        value is None
+        for value in (
+            precision_0,
+            precision_1,
+            recall_0,
+            recall_1,
+            f1_0,
+            f1_1,
+        )
+    ):
+        precision_0 = tn / (tn + fn) if (tn + fn) else 0.0
+        precision_1 = tp / (tp + fp) if (tp + fp) else 0.0
+        recall_0 = tn / (tn + fp) if (tn + fp) else 0.0
+        recall_1 = tp / (tp + fn) if (tp + fn) else 0.0
+
+        f1_0 = (
+            2 * precision_0 * recall_0 / (precision_0 + recall_0)
+            if (precision_0 + recall_0)
+            else 0.0
+        )
+        f1_1 = (
+            2 * precision_1 * recall_1 / (precision_1 + recall_1)
+            if (precision_1 + recall_1)
+            else 0.0
+        )
+
+        print("Calculated missing metrics from the confusion matrix.")
+        print(
+            f"Precision - Class 0: {precision_0:.4f}, "
+            f"Class 1: {precision_1:.4f}"
+        )
+        print(
+            f"Recall - Class 0: {recall_0:.4f}, "
+            f"Class 1: {recall_1:.4f}"
+        )
+        print(
+            f"F1-Score - Class 0: {f1_0:.4f}, "
+            f"Class 1: {f1_1:.4f}\n"
+        )
+
     metrics_row = {
-        'seed': seed,
-        'model': model_name,
-        # Train & val metrics are N/A for zero-shot LLMs
-        'train_accuracy': None,
-        'val_accuracy': None,
-        
-        # Classification report metrics
-        'test_accuracy': eval_report.get('accuracy', None),
-        'precision_class_0': precision_0,
-        'precision_class_1': precision_1,
-        'recall_class_0': recall_0,
-        'recall_class_1': recall_1,
-        'f1_class_0': f1_0,
-        'f1_class_1': f1_1,
-        'tn': tn,
-        'fp': fp,
-        'fn': fn,
-        'tp': tp,
-        
-        # AUC metrics
-        'roc_auc': roc_auc_score,
-        'pr_auc': pr_auc_score
+        "seed": seed,
+        "model": model_name,
+        "train_accuracy": None,
+        "val_accuracy": None,
+        "test_accuracy": eval_report.get("accuracy"),
+        "precision_class_0": precision_0,
+        "precision_class_1": precision_1,
+        "recall_class_0": recall_0,
+        "recall_class_1": recall_1,
+        "f1_class_0": f1_0,
+        "f1_class_1": f1_1,
+        "tn": tn,
+        "fp": fp,
+        "fn": fn,
+        "tp": tp,
+        "roc_auc": roc_auc_score,
+        "pr_auc": pr_auc_score,
     }
-    metrics_summary.append(metrics_row)
-    
-    # Save unified metrics summary
-    metrics_summary_df = pd.DataFrame(metrics_summary)
-    print("\n" + "="*40)
+
+    metrics_summary_df = pd.DataFrame([metrics_row])
+
+    print("\n" + "=" * 40)
     print(f"METRICS SUMMARY WITH SEED {seed}")
-    print("="*40)
+    print("=" * 40)
     print(metrics_summary_df)
     print()
-    
-    # Save metrics CSV alongside ML model metrics for easy comparison
+
     DataProcessing.save_to_file(
         data=metrics_summary_df,
         path=save_path,
         prefix=f"metrics_summary_{model_name}_{prompt_type}",
-        save_file_type='csv',
-        include_version=False
+        save_file_type="csv",
+        include_version=False,
     )
-    # print(f"✓ Saved metrics summary: metrics_summary_{model_name}.csv\n")
-    print(f"✓ Saved metrics summary: metrics_summary_{model_name}_{prompt_type}.csv\n")
-    
+
+    print(
+        f"Saved metrics summary: "
+        f"metrics_summary_{model_name}_{prompt_type}.csv\n"
+    )
+
     return metrics_summary_df
 
+
 if __name__ == "__main__":
-    """
-    usage:
-    # Run single LLM job on HiPerGator, loading test split saved by ml-train.py
-
-    # In-domain test set (saved by ml-train.py at seed_dir/in_domain/x_y_test_set.csv):
-    python llm-experiment.py \
-        --model_name openai/gpt-oss-120b \
-        --test_dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
-        --label_column 'Ground Truth' \
-        --prompt_type chain-of-thought \
-        --seed 3
-
-    # External cross-domain test set (saved by ml-train.py at seed_dir/external_*/x_y_test_set.csv):
-    python llm-classifiers.py \\
-        --model_name gpt-oss-120b \\
-        --test_dataset ../data/classification_results/emnlp_2026_results_2026-05-22/seed3/in_domain/x_y_test_set.csv \\
-        --label_column 'Ground Truth' \\
-        --prompt_type zero-shot \\
-        --seed 3
-    """
-    # ============================================================
-    # 1. CONFIGURATION
-    # ============================================================
+    # --------------------------------------------------------
+    # 1. Configuration
+    # --------------------------------------------------------
     base_data_path = DataProcessing.load_base_data_path(script_dir)
 
-    # Default points to the external test set saved by ml-train.py
     default_load_save_path = os.path.join(
         base_data_path,
-        'classification_results/train_synthetic-v1_2026-03-23/seed3/external_fpb-maya-binary-imbalanced-96d-v1'
+        "classification_results/train_synthetic-v1_2026-03-23/"
+        "seed3/external_fpb-maya-binary-imbalanced-96d-v1",
     )
-    default_dataset_path = os.path.join(default_load_save_path, 'x_y_test_set.csv')
+    default_dataset_path = os.path.join(
+        default_load_save_path, "x_y_test_set.csv"
+    )
 
     parser = argparse.ArgumentParser(
-        description='LLM zero-shot sentence classification. Loads test split produced by ml-train.py.'
+        description=(
+            "LLM sentence classification using a saved dataset split."
+        )
     )
 
     parser.add_argument(
-        '--test_dataset',
+        "--test_dataset",
         default=default_dataset_path,
-        help='Path to x_y_test_set.csv saved by ml-train.py. '
-             'Can be an in_domain or external_* subfolder path.'
+        help="Path to x_y_val_set.csv or x_y_test_set.csv.",
     )
-
     parser.add_argument(
-        '--model_name',
+        "--model_name",
         required=True,
-        help='The specific single LLM to use as the classifier for this SLURM job.'
+        help="The model used for sentence classification.",
     )
-
     parser.add_argument(
-        '--label_column',
-        default='Ground Truth',
-        help='The column name in the dataset containing the true labels.'
+        "--label_column",
+        default="Ground Truth",
+        help="Column containing the true labels.",
     )
-
     parser.add_argument(
-        '--prompt_type',
+        "--prompt_type",
         required=True,
-        help='How to prompt the LLMs: zero-shot, few-shot, chain-of-thougt'
+        choices=["zero-shot", "few-shot", "chain-of-thought"],
+        help="Prompt strategy.",
     )
-
     parser.add_argument(
-        '--seed',
+        "--seed",
         type=int,
-        help='Seed so experiments can be reproduced. Get from ML folder name e.g. seed3 -> 3'
+        help="Experiment seed, e.g. 3, 7, or 33.",
     )
-
-    # Placeholder for val datasets arguments
-    # parser.add_argument('--val_datasets', default=None, help='Paths to validation datasets.')
+    parser.add_argument(
+        "--few_shot_samples",
+        default=None,
+        help="Path to the prepared few-shot samples CSV.",
+    )
 
     args = parser.parse_args()
 
-    # ============================================================
-    # 2. EXPERIMENT SETUP
-    # ============================================================
-    current_date = datetime.now().strftime('%Y-%m-%d')
-
-    # Save LLM outputs separately from the dataset splits.
+    # --------------------------------------------------------
+    # 2. Experiment paths
+    # --------------------------------------------------------
     splits_dir = os.path.dirname(os.path.abspath(args.test_dataset))
     in_domain_dir = os.path.dirname(splits_dir)
 
+    split_filename = os.path.basename(args.test_dataset)
+
     split_name = (
-        "val" if os.path.basename(args.test_dataset) == "x_y_val_set.csv"
-        else "test" if os.path.basename(args.test_dataset) == "x_y_test_set.csv"
+        "val" if split_filename == "x_y_val_set.csv"
+        else "test" if split_filename == "x_y_test_set.csv"
         else "other"
     )
 
@@ -622,41 +704,43 @@ if __name__ == "__main__":
         "llm",
         safe_model_name,
         args.prompt_type,
-        split_name
+        split_name,
     )
-
     os.makedirs(save_directory, exist_ok=True)
+
     print(f"\nSave directory: {save_directory}")
 
-    # ============================================================
-    # 3. LOAD & PREPARE DATA
-    # ============================================================
-    # Construct training dataset path from test dataset path
-    test_dir = os.path.dirname(args.test_dataset)
-    train_filename = 'x_y_train_set.csv'  # Match the filename from ml-train.py
-    train_path = os.path.join(test_dir, train_filename)
 
-    # Load datasets
-    test_df = load_dataset(args.test_dataset, label_column=args.label_column)
-
-    # Build the single LLM for this SLURM job
-    model = build_model(args.model_name)
-
-    # Define stratification columns for few-shot sampling
-    # Stratify by both label AND dataset for truly representative examples
-    stratify_columns = ['Ground Truth', 'Dataset Name'] if 'Dataset Name' in test_df.columns else ['Ground Truth']
-
-    # Load the base prompt, task instruction, and output format
-    base_prompt, sentence_label_task, sentence_label_format_output = load_prompts(
-        prompt_type=args.prompt_type,
-        train_data_path=train_path if args.prompt_type == 'few-shot' else None,
-        stratify_columns=stratify_columns if args.prompt_type == 'few-shot' else None,
-        seed=args.seed
+    # --------------------------------------------------------
+    # 3. Load data and prompts
+    # --------------------------------------------------------
+    test_df = load_dataset(
+        args.test_dataset,
+        label_column=args.label_column,
     )
 
-    # ============================================================
-    # 4. RUN INFERENCE
-    # ============================================================
+    if args.prompt_type == "few-shot" and not args.few_shot_samples:
+        parser.error(
+            "--few_shot_samples is required when --prompt_type=few-shot."
+        )
+
+    model = build_model(args.model_name)
+
+    base_prompt, sentence_label_task, sentence_label_format_output = (
+        load_prompts(
+            prompt_type=args.prompt_type,
+            few_shot_samples_path=(
+                args.few_shot_samples
+                if args.prompt_type == "few-shot"
+                else None
+            ),
+            seed=args.seed,
+        )
+    )
+
+    # --------------------------------------------------------
+    # 4. Run inference
+    # --------------------------------------------------------
     y_hat_df = llm_classifer(
         model_name=args.model_name,
         model=model,
@@ -666,34 +750,34 @@ if __name__ == "__main__":
         sentence_label_format_output=sentence_label_format_output,
         save_directory=save_directory,
         seed=args.seed,
-        prompt_type=args.prompt_type
+        prompt_type=args.prompt_type,
     )
 
-    # ============================================================
-    # 5. CREATE RESULTS DATAFRAME
-    # ============================================================
-    results_df = create_results_dataframe(test_df, y_hat_df, args.model_name, args.seed)
+    # --------------------------------------------------------
+    # 5. Create results dataframe
+    # --------------------------------------------------------
+    results_df = create_results_dataframe(
+        test_df, y_hat_df, args.model_name, args.seed
+    )
 
-    # ============================================================
-    # 6. EVALUATE MODELS
-    # ============================================================
-    metrics_summary_df = evaluate_models(
+    # --------------------------------------------------------
+    # 6. Evaluate
+    # --------------------------------------------------------
+    evaluate_models(
         results_df=results_df,
         model_name=args.model_name,
         label_col_name=args.label_column,
         save_path=save_directory,
         seed=args.seed,
-        prompt_type=args.prompt_type
-        # X_val_df=val_df,
-        # y_val_df=val_df[[args.label_column]] if val_df is not None else None
+        prompt_type=args.prompt_type,
     )
 
-    # ============================================================
-    # 9. COMPLETE
-    # ============================================================
-    print("\n" + "="*40)
+    # --------------------------------------------------------
+    # 7. Complete
+    # --------------------------------------------------------
+    print("\n" + "=" * 40)
     print("PIPELINE COMPLETE")
-    print("="*40)
+    print("=" * 40)
     print(f"Model: {args.model_name}")
     print(f"Test dataset: {args.test_dataset}")
     print(f"Results saved to: {save_directory}")
