@@ -1,0 +1,27 @@
+{
+  "experiment": "tolsa_naacl_2026_2027-final \u2192 in_domain/glodd_hristova_step0/spacy_large [glodd]",
+  "model_type": "glodd",
+  "embedding_model": "spacy_large",
+  "model_name": "N/A",
+  "n_seeds": 3,
+  "seeds_used": [
+    {
+      "seed": 3,
+      "folder": "in_domain/glodd_hristova_step0/spacy_large"
+    },
+    {
+      "seed": 33,
+      "folder": "in_domain/glodd_hristova_step0/spacy_large"
+    },
+    {
+      "seed": 7,
+      "folder": "in_domain/glodd_hristova_step0/spacy_large"
+    }
+  ],
+  "date_averaged": "2026-10-12 11:58:22",
+  "files_generated": {
+    "mean": "mean.csv",
+    "std": "std.csv",
+    "mean_std": "mean_std.csv"
+  }
+}
