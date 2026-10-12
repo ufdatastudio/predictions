@@ -1,0 +1,22 @@
+{
+  "val_dataset": "../data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed7/in_domain/splits/x_y_val_set.csv",
+  "test_dataset": "../data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed7/in_domain/splits/x_y_test_set.csv",
+  "experiment": "tolsa_naacl_2026_2027-final",
+  "seed": 7,
+  "validation_rows": 5407,
+  "test_rows": 5407,
+  "validation_potential_fls_candidates": 1339,
+  "test_potential_fls_candidates": 1302,
+  "text_column": "Base Sentence",
+  "label_column": "Ground Truth",
+  "spacy_model": "spacy_medium",
+  "spacy_package": "en_core_web_md",
+  "rule_based_signals": [
+    "time-word + time-period combination",
+    "predictive word used as a verb"
+  ],
+  "candidate_definition": "Rule_TimePeriod OR Rule_PredictiveVerb",
+  "distribution_scope": "Combined validation and test annotated rows only.",
+  "processing_scope": "Pre-split validation and test files are supplied directly; no splitting is done in this script. The same spaCy pipeline is loaded once and applied separately to the validation and test files. Benchmark metrics compare each held-out split against the supplied Ground Truth labels. No manual labeling, classifier training, classifier selection, classifier application, or classifier-specific FLS datasets are produced.",
+  "completed_at": "2026-10-12 03:43:07"
+}
