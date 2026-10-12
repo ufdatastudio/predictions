@@ -5,17 +5,16 @@
 # This implementation stops at the rule-based identification of potential FLS.
 #
 # Pipeline:
-#   1. Load reports
-#   2. Create stratified train/validation/test splits
-#   3. Save the exact data splits
-#   4. Apply the Glodd & Hristova rule-based patterns to validation
-#   5. Identify and save potential FLS from validation
-#   6. Apply the Glodd & Hristova rule-based patterns to test
-#   7. Identify and save potential FLS from test
-#   8. Evaluate validation predictions against Ground Truth
-#   9. Evaluate test predictions against Ground Truth
-#  10. Save distributions (all, TOLSA-M, non-TOLSA-M) on combined val+test
-#  11. Save metrics and stop
+#   1. Load the pre-split validation and test files (no splitting happens here)
+#   2. Load the spaCy pipeline once
+#   3. Apply the Glodd & Hristova rule-based patterns to validation
+#   4. Identify and save potential FLS from validation
+#   5. Apply the Glodd & Hristova rule-based patterns to test
+#   6. Identify and save potential FLS from test
+#   7. Evaluate validation predictions against Ground Truth
+#   8. Evaluate test predictions against Ground Truth
+#   9. Save distributions (all, TOLSA-M, non-TOLSA-M) on combined val+test
+#  10. Save metrics and stop
 #
 # This script does NOT reproduce the paper's later classifier stages:
 #   - manual FLS/non-FLS labeling
@@ -27,6 +26,7 @@
 # The --embedding_model argument names the spaCy pipeline used for the
 # linguistic rule application. It is NOT a classifier-selection mechanism.
 # Run one spaCy model per invocation, consistent with the ML/BERT pipeline.
+# The same loaded spaCy model is applied to the val and test files separately.
 # =============================================================================
 
 import argparse
@@ -38,7 +38,6 @@ from datetime import datetime
 
 import pandas as pd
 import spacy
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -144,13 +143,12 @@ def load_dataset(
     base_data_path,
     dataset_path,
     text_column,
-    label_column=None,
-    sample_size=None,
-    seed=300,
+    label_column,
+    split_name,
 ):
-    """Load, clean, and optionally sample the input reports."""
+    """Load and clean one pre-split file (validation or test)."""
     print("\n" + "=" * 40)
-    print("LOAD DATASET")
+    print(f"LOAD {split_name.upper()} SET")
     print("=" * 40)
 
     data_path = resolve_path(base_data_path, dataset_path)
@@ -163,12 +161,9 @@ def load_dataset(
     )
 
     if df.empty:
-        raise ValueError("The input dataset is empty.")
+        raise ValueError(f"The {split_name} dataset is empty.")
 
-    required_columns = [text_column]
-
-    if label_column is not None:
-        required_columns.append(label_column)
+    required_columns = [text_column, label_column]
 
     missing_columns = [
         column
@@ -178,7 +173,8 @@ def load_dataset(
 
     if missing_columns:
         raise ValueError(
-            f"Required columns are missing: {missing_columns}\n"
+            f"Required columns are missing from the {split_name} set: "
+            f"{missing_columns}\n"
             f"Available columns: {list(df.columns)}"
         )
 
@@ -194,54 +190,37 @@ def load_dataset(
 
     df = df[df[text_column] != ""].copy()
 
-    if label_column is not None:
-        labels = pd.to_numeric(
-            df[label_column].astype(str).str.strip(),
-            errors="coerce",
+    labels = pd.to_numeric(
+        df[label_column].astype(str).str.strip(),
+        errors="coerce",
+    )
+
+    invalid_labels = ~labels.isin([0, 1])
+
+    if invalid_labels.any():
+        examples = (
+            df.loc[invalid_labels, label_column]
+            .head(5)
+            .tolist()
         )
 
-        invalid_labels = ~labels.isin([0, 1])
+        raise ValueError(
+            f"Every row in the {split_name} set needs a binary label "
+            f"(0 or 1). Invalid examples: {examples}"
+        )
 
-        if invalid_labels.any():
-            examples = (
-                df.loc[invalid_labels, label_column]
-                .head(5)
-                .tolist()
-            )
-
-            raise ValueError(
-                "Every row needs a binary label (0 or 1) when "
-                f"--label_column is supplied. Invalid examples: {examples}"
-            )
-
-        df[label_column] = labels.astype(int)
-
-    if sample_size is not None:
-        if sample_size >= len(df):
-            print(
-                f"sample_size={sample_size} is not smaller than "
-                f"usable rows={len(df)}. Using all rows."
-            )
-        else:
-            df = (
-                df.sample(
-                    n=sample_size,
-                    random_state=seed,
-                )
-                .reset_index(drop=True)
-            )
+    df[label_column] = labels.astype(int)
 
     print(f"Original rows: {original_count}")
     print(f"Usable rows:   {len(df)}")
     print(f"Shape:         {df.shape}")
 
-    if label_column is not None:
-        print("\nClass distribution:")
-        print(df[label_column].value_counts())
+    print("\nClass distribution:")
+    print(df[label_column].value_counts())
 
     print(
         f"\nPreview:\n"
-        f"{df[[text_column] + ([label_column] if label_column else [])].head(5)}\n"
+        f"{df[[text_column, label_column]].head(5)}\n"
     )
 
     return df.reset_index(drop=True)
@@ -449,10 +428,10 @@ def load_spacy_pipeline(model_key):
     return nlp
 
 
-def apply_glodd_rules(df, model_key, nlp, text_column):
+def apply_glodd_rules(df, model_key, nlp, text_column, split_name):
     """Apply the Glodd rule-based extraction to the supplied split only."""
     print("\n" + "=" * 40)
-    print("APPLY GLODD & HRISTOVA RULES")
+    print(f"APPLY GLODD & HRISTOVA RULES ({split_name.upper()} SET)")
     print("=" * 40)
     print(f"spaCy model: {model_key}")
     print(f"Sentences:   {len(df)}")
@@ -487,7 +466,7 @@ def apply_glodd_rules(df, model_key, nlp, text_column):
 
     if conflicting_columns:
         raise ValueError(
-            "Input already contains rule-output columns: "
+            f"The {split_name} input already contains rule-output columns: "
             f"{conflicting_columns}"
         )
 
@@ -499,71 +478,6 @@ def apply_glodd_rules(df, model_key, nlp, text_column):
     annotated_df["Spacy_Model"] = model_key
 
     return annotated_df
-
-
-# =============================================================================
-# DATA SPLITS: CREATE + SAVE
-# =============================================================================
-
-def split_dataset(df, label_id_column, test_size, val_size, seed):
-    """Create stratified train, validation, and optional test splits."""
-    print("\n" + "=" * 40)
-    print("CREATE DATA SPLITS")
-    print("=" * 40)
-
-    if not 0 <= test_size < 1:
-        raise ValueError("test_size must be at least 0 and less than 1.")
-
-    if not 0 < val_size < 1:
-        raise ValueError("val_size must be greater than 0 and less than 1.")
-
-    if test_size > 0:
-        train_val_df, test_df = train_test_split(
-            df,
-            test_size=test_size,
-            random_state=seed,
-            stratify=df[label_id_column],
-        )
-
-        adjusted_val_size = val_size / (1 - test_size)
-
-    else:
-        train_val_df = df.copy()
-        test_df = None
-        adjusted_val_size = val_size
-
-    train_df, val_df = train_test_split(
-        train_val_df,
-        test_size=adjusted_val_size,
-        random_state=seed,
-        stratify=train_val_df[label_id_column],
-    )
-
-    train_df = train_df.reset_index(drop=True)
-    val_df = val_df.reset_index(drop=True)
-
-    if test_df is not None:
-        test_df = test_df.reset_index(drop=True)
-
-    print(f"Train size:      {len(train_df)}")
-    print(f"Validation size: {len(val_df)}")
-    print(f"Test size:       {len(test_df) if test_df is not None else 0}")
-
-    return train_df, val_df, test_df
-
-
-def save_data_splits(train_df, val_df, test_df, output_dir):
-    """Save the exact train, validation, and test splits used."""
-    split_dir = os.path.join(output_dir, "data_splits")
-    os.makedirs(split_dir, exist_ok=True)
-
-    save_csv(train_df, split_dir, "x_y_train_set")
-    save_csv(val_df, split_dir, "x_y_val_set")
-
-    if test_df is not None:
-        save_csv(test_df, split_dir, "x_y_test_set")
-
-    print(f"✓ Saved data splits to: {split_dir}")
 
 
 # =============================================================================
@@ -702,28 +616,23 @@ def save_metrics_summary(
 def save_experiment_metadata(
     args,
     output_dir,
-    input_rows,
-    train_rows,
     val_rows,
     test_rows,
     val_candidate_rows,
     test_candidate_rows,
 ):
-    """Save a compact record of the rule-based split-first run."""
+    """Save a compact record of the rule-based run."""
     metadata = {
-        "dataset": args.dataset,
+        "val_dataset": args.val_dataset,
+        "test_dataset": args.test_dataset,
+        "experiment": args.experiment,
         "seed": args.seed,
-        "input_rows": int(input_rows),
-        "train_rows": int(train_rows),
         "validation_rows": int(val_rows),
         "test_rows": int(test_rows),
         "validation_potential_fls_candidates": int(val_candidate_rows),
         "test_potential_fls_candidates": int(test_candidate_rows),
         "text_column": args.text_column,
         "label_column": args.label_column,
-        "sample_size": args.sample_size,
-        "val_size": args.val_size,
-        "test_size": args.test_size,
         "spacy_model": args.embedding_model,
         "spacy_package": SPACY_MODELS[args.embedding_model],
         "rule_based_signals": [
@@ -734,17 +643,16 @@ def save_experiment_metadata(
             "Rule_TimePeriod OR Rule_PredictiveVerb"
         ),
         "distribution_scope": (
-            "Combined validation and test annotated rows only. "
-            "Train split is never processed or included."
+            "Combined validation and test annotated rows only."
         ),
         "processing_scope": (
-            "Dataset is split before rule application. Glodd rules are applied "
-            "only to validation and test splits. The train split is saved but "
-            "is not processed or evaluated. Benchmark metrics compare each "
-            "held-out split against the supplied Ground Truth labels. No "
-            "manual labeling, classifier training, classifier selection, "
-            "classifier application, or classifier-specific FLS datasets are "
-            "produced."
+            "Pre-split validation and test files are supplied directly; "
+            "no splitting is done in this script. The same spaCy pipeline "
+            "is loaded once and applied separately to the validation and "
+            "test files. Benchmark metrics compare each held-out split "
+            "against the supplied Ground Truth labels. No manual labeling, "
+            "classifier training, classifier selection, classifier "
+            "application, or classifier-specific FLS datasets are produced."
         ),
         "completed_at": datetime.now().strftime(
             "%Y-%m-%d %H:%M:%S"
@@ -779,15 +687,14 @@ def main():
     Example:
 
     python glodd-hristova-step0-experiment.py \
-        --dataset ../data/combined_datasets/july_2026_results/july_2026_results.csv \
+        --val_dataset ../data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed3/in_domain/splits/x_y_val_set.csv \
+        --test_dataset ../data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed3/in_domain/splits/x_y_test_set.csv \
+        --experiment tolsa_naacl_2026_2027-final \
         --save_path ../data/classification_results/naacl_2026_submission \
         --text_column "Base Sentence" \
         --label_column "Ground Truth" \
         --embedding_model spacy_small \
-        --seed 3 \
-        --val_size 0.2 \
-        --test_size 0.2 \
-        --sample_size 1000
+        --seed 3
     """
     print("\n" + "=" * 40)
     print("GLODD & HRISTOVA STEP 0 CANDIDATE BASELINE")
@@ -799,20 +706,28 @@ def main():
 
     parser = argparse.ArgumentParser(
         description=(
-            "Split the dataset first, then apply the Glodd & Hristova "
-            "rule-based potential-FLS extraction separately to validation "
-            "and test splits."
+            "Apply the Glodd & Hristova rule-based potential-FLS extraction "
+            "separately to pre-split validation and test files."
         )
     )
 
     parser.add_argument(
-        "--dataset",
+        "--val_dataset",
         required=True,
+        help="Path to the pre-split validation CSV",
     )
 
     parser.add_argument(
-        "--save_path",
+        "--test_dataset",
         required=True,
+        help="Path to the pre-split test CSV",
+    )
+
+    parser.add_argument(
+        "--experiment",
+        required=True,
+        help="Experiment folder name under save_path "
+             "(e.g. tolsa_naacl_2026_2027-final)",
     )
 
     parser.add_argument(
@@ -831,56 +746,25 @@ def main():
         choices=list(SPACY_MODELS.keys()),
     )
 
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=300,
-    )
+    parser.add_argument("--seed", type=int, required=True)
 
     parser.add_argument(
-        "--val_size",
-        type=float,
-        default=0.2,
-    )
-
-    parser.add_argument(
-        "--test_size",
-        type=float,
-        default=0.2,
-    )
-
-    parser.add_argument(
-        "--sample_size",
-        type=int,
-        default=None,
+        "--save_path",
+        default=os.path.join(
+            base_data_path,
+            "classification_results/naacl_2026_submission"
+        )
     )
 
     args = parser.parse_args()
-
-    if args.sample_size is not None and args.sample_size < 1:
-        parser.error("--sample_size must be at least 1.")
-
-    if not 0 < args.val_size < 1:
-        parser.error("--val_size must be greater than 0 and less than 1.")
-
-    if not 0 <= args.test_size < 1:
-        parser.error("--test_size must be at least 0 and less than 1.")
-
-    if args.val_size + args.test_size >= 1:
-        parser.error("val_size + test_size must be less than 1.")
 
     # -------------------------------------------------------------------------
     # EXPERIMENT SETUP
     # -------------------------------------------------------------------------
 
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    dataset_filename = os.path.basename(args.dataset)
-    dataset_base = os.path.splitext(dataset_filename)[0]
-    experiment_name = f"{dataset_base}_{current_date}"
-
     output_dir = os.path.join(
         args.save_path,
-        experiment_name,
+        args.experiment,
         f"seed{args.seed}",
         "in_domain",
         "glodd_hristova_step0",
@@ -889,45 +773,32 @@ def main():
 
     os.makedirs(output_dir, exist_ok=True)
 
-    print(f"Dataset base:     {dataset_base}")
-    print(f"Experiment name:  {experiment_name}")
+    print(f"Experiment name:  {args.experiment}")
     print(f"spaCy model:      {args.embedding_model}")
     print(f"Output directory: {output_dir}")
 
     # -------------------------------------------------------------------------
-    # LOAD REPORTS
+    # LOAD PRE-SPLIT VALIDATION AND TEST FILES
     # -------------------------------------------------------------------------
 
-    df = load_dataset(
+    val_df = load_dataset(
         base_data_path=base_data_path,
-        dataset_path=args.dataset,
+        dataset_path=args.val_dataset,
         text_column=args.text_column,
         label_column=args.label_column,
-        sample_size=args.sample_size,
-        seed=args.seed,
+        split_name="val",
+    )
+
+    test_df = load_dataset(
+        base_data_path=base_data_path,
+        dataset_path=args.test_dataset,
+        text_column=args.text_column,
+        label_column=args.label_column,
+        split_name="test",
     )
 
     # -------------------------------------------------------------------------
-    # DATA SPLITS: CREATE + SAVE FIRST
-    # -------------------------------------------------------------------------
-
-    train_df, val_df, test_df = split_dataset(
-        df=df,
-        label_id_column=args.label_column,
-        test_size=args.test_size,
-        val_size=args.val_size,
-        seed=args.seed,
-    )
-
-    save_data_splits(
-        train_df=train_df,
-        val_df=val_df,
-        test_df=test_df,
-        output_dir=output_dir,
-    )
-
-    # -------------------------------------------------------------------------
-    # LOAD SPACY
+    # LOAD SPACY (once; applied to val and test separately below)
     # -------------------------------------------------------------------------
 
     nlp = load_spacy_pipeline(args.embedding_model)
@@ -936,15 +807,12 @@ def main():
         # -------------------------------------------------------------
         # APPLY GLODD RULES: VALIDATION ONLY
         # -------------------------------------------------------------
-        print("\n" + "=" * 40)
-        print("APPLY GLODD RULES TO VALIDATION SET")
-        print("=" * 40)
-
         val_annotated_df = apply_glodd_rules(
             df=val_df,
             model_key=args.embedding_model,
             nlp=nlp,
             text_column=args.text_column,
+            split_name="val",
         )
 
         val_potential_fls_df = val_annotated_df.loc[
@@ -957,21 +825,12 @@ def main():
         # -------------------------------------------------------------
         # APPLY GLODD RULES: TEST ONLY
         # -------------------------------------------------------------
-        print("\n" + "=" * 40)
-        print("APPLY GLODD RULES TO TEST SET")
-        print("=" * 40)
-
-        if test_df is None:
-            raise ValueError(
-                "A test set is required because Glodd benchmark metrics "
-                "are defined for validation and test splits."
-            )
-
         test_annotated_df = apply_glodd_rules(
             df=test_df,
             model_key=args.embedding_model,
             nlp=nlp,
             text_column=args.text_column,
+            split_name="test",
         )
 
         test_potential_fls_df = test_annotated_df.loc[
@@ -1038,8 +897,6 @@ def main():
     save_experiment_metadata(
         args=args,
         output_dir=output_dir,
-        input_rows=len(df),
-        train_rows=len(train_df),
         val_rows=len(val_df),
         test_rows=len(test_df),
         val_candidate_rows=len(val_potential_fls_df),
@@ -1053,13 +910,12 @@ def main():
     print("\n" + "=" * 40)
     print("GLODD & HRISTOVA STEP 0 COMPLETE")
     print("=" * 40)
-    print("✓ Dataset split before rule application")
+    print("✓ Pre-split val and test files loaded (no splitting)")
     print("✓ Glodd rules applied to validation")
     print("✓ Glodd rules applied to test")
     print("✓ Distributions saved (all, TOLSA-M, non-TOLSA-M)")
     print("✓ Validation evaluated against Ground Truth")
     print("✓ Test evaluated against Ground Truth")
-    print("✓ Full dataset was NOT evaluated")
     print("✓ No classifier stages were run")
 
 
