@@ -206,47 +206,50 @@ class SentenceClassificationPrompt(BasePrompt):
             Random seed for reproducible sampling
         """
         if dataset_path:
-            # Load training data
-            train_df = DataProcessing.load_from_file(dataset_path, 'csv', sep=',', encoding='utf-8')
-            
-            # Default to stratifying by label only
-            if stratify_columns is None:
-                stratify_columns = ['Ground Truth']
-            
-            # Choose sampling strategy based on number of stratification columns
-            if len(stratify_columns) == 2:
-                # Balanced pair sampling: 1 pos + 1 neg from each dataset
-                few_shot_df = DataProcessing.balanced_pair_sampling(
-                    train_df,
-                    label_column=stratify_columns[0],
-                    dataset_column=stratify_columns[1],
-                    n_samples=7,
-                    random_state=seed
+            # Load the prepared few-shot examples; do not resample.
+            few_shot_df = DataProcessing.load_from_file(
+                dataset_path,
+                'csv',
+                sep=',',
+                encoding='utf-8'
+            )
+
+            required_columns = ['Dataset Name', 'Base Sentence', 'Ground Truth']
+            missing_columns = [
+                column for column in required_columns
+                if column not in few_shot_df.columns
+            ]
+
+            if missing_columns:
+                raise ValueError(
+                    f"Few-shot CSV is missing required columns: {missing_columns}"
                 )
-            else:
-                # Single-level stratification
-                few_shot_df = DataProcessing.stratified_sample(
-                    train_df,
-                    label_column=stratify_columns[0],
-                    n_samples=7,
-                    random_state=seed
+
+            if few_shot_df.empty:
+                raise ValueError(
+                    f"Few-shot CSV contains no examples: {dataset_path}"
                 )
-            
-            # Format examples for prompt
+
+            # Format the prepared examples for the prompt.
             few_shot_examples = "\n"
+
             for idx, row in few_shot_df.iterrows():
                 sentence = row['Base Sentence']
-                label = row['Ground Truth']
-                label_name = "TOLSA" if label == 1.0 else "non-TOLSA"
-                
-                # Include dataset info for transparency
-                dataset_info = ""
-                if 'Dataset Name' in row:
-                    dataset_info = f" [Source: {row['Dataset Name']}]"
-                
-                few_shot_examples += f"\n\t\tExample {idx+1}{dataset_info}: \"{sentence}\" → {label_name}\n\n"
-            
-            return self.system_identity(), self.task(), self.format_output(), few_shot_examples
+                label = int(row['Ground Truth'])
+                label_name = "TOLSA" if label == 1 else "non-TOLSA"
+                dataset_info = f" [Source: {row['Dataset Name']}]"
+
+                few_shot_examples += (
+                    f'\n\t\tExample {idx + 1}{dataset_info}: '
+                    f'"{sentence}" → {label_name}\n\n'
+                )
+
+            return (
+                self.system_identity(),
+                self.task(),
+                self.format_output(),
+                few_shot_examples
+            )
         
         # Fallback to property examples if no dataset provided
         source_ex = Tolsa.get_source_examples()
