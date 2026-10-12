@@ -1,0 +1,16 @@
+,mean
+train_accuracy,
+val_accuracy,
+test_accuracy,0.8590715738857039
+precision_class_0,0.8946451180683268
+precision_class_1,0.8263576534818364
+recall_class_0,0.8257926612041325
+recall_class_1,0.895
+f1_class_0,0.8588353108290719
+f1_class_1,0.8593052980637919
+tn,2318.0
+fp,489.0
+fn,273.0
+tp,2327.0
+roc_auc,0.8603963306020663
+pr_auc,0.7900761798569116

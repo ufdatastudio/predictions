@@ -1,0 +1,24 @@
+{
+  "model": "mistral-small-3.1",
+  "prompt_type": "chain-of-thought",
+  "split": "test",
+  "expected_seeds": [
+    3,
+    7,
+    33
+  ],
+  "seeds_used": [
+    3,
+    7,
+    33
+  ],
+  "missing_seeds": [],
+  "n_seeds": 3,
+  "input_files": [
+    "data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed3/in_domain/llm/mistral-small-3.1/chain-of-thought/test/metrics_summary_mistral-small-3.1_chain-of-thought.csv",
+    "data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed7/in_domain/llm/mistral-small-3.1/chain-of-thought/test/metrics_summary_mistral-small-3.1_chain-of-thought.csv",
+    "data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed33/in_domain/llm/mistral-small-3.1/chain-of-thought/test/metrics_summary_mistral-small-3.1_chain-of-thought.csv"
+  ],
+  "date_averaged": "2026-10-12T11:19:29",
+  "note": "Verify run completeness before final reporting."
+}

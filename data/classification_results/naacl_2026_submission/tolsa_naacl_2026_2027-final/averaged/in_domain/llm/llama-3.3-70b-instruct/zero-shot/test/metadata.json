@@ -1,0 +1,24 @@
+{
+  "model": "llama-3.3-70b-instruct",
+  "prompt_type": "zero-shot",
+  "split": "test",
+  "expected_seeds": [
+    3,
+    7,
+    33
+  ],
+  "seeds_used": [
+    3,
+    7,
+    33
+  ],
+  "missing_seeds": [],
+  "n_seeds": 3,
+  "input_files": [
+    "data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed3/in_domain/llm/llama-3.3-70b-instruct/zero-shot/test/metrics_summary_llama-3.3-70b-instruct_zero-shot.csv",
+    "data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed7/in_domain/llm/llama-3.3-70b-instruct/zero-shot/test/metrics_summary_llama-3.3-70b-instruct_zero-shot.csv",
+    "data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed33/in_domain/llm/llama-3.3-70b-instruct/zero-shot/test/metrics_summary_llama-3.3-70b-instruct_zero-shot.csv"
+  ],
+  "date_averaged": "2026-10-12T11:19:29",
+  "note": "Verify run completeness before final reporting."
+}
