@@ -881,8 +881,8 @@ def print_latex_summary(summaries, model_margins_df=None):
         "test_pr_auc",
     ]
 
-    # Glodd has one row per seed with validation and test metrics
-    # stored as separate columns.
+    # Glodd and CoNLL have one row per seed with validation and test
+    # metrics stored as separate columns.
     glodd_key_columns = [
         "val_precision_class_1",
         "val_recall_class_1",
@@ -902,7 +902,7 @@ def print_latex_summary(summaries, model_margins_df=None):
         print(f"% {experiment_name}")
         print(f"% Seeds: {summary['n_seeds']}\n")
 
-        if summary["model_type"] == "glodd":
+        if summary["model_type"] in ("glodd", "conll"):
             key_columns = glodd_key_columns
         elif "test_f1_class_1" in mean_df.columns:
             key_columns = bert_key_columns
