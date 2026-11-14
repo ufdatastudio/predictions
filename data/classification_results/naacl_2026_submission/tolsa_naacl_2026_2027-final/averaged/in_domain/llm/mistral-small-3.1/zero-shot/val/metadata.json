@@ -1,0 +1,24 @@
+{
+  "model": "mistral-small-3.1",
+  "prompt_type": "zero-shot",
+  "split": "val",
+  "expected_seeds": [
+    3,
+    7,
+    33
+  ],
+  "seeds_used": [
+    3,
+    7
+  ],
+  "missing_seeds": [
+    33
+  ],
+  "n_seeds": 2,
+  "input_files": [
+    "data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed3/in_domain/llm/mistral-small-3.1/zero-shot/val/metrics_summary_mistral-small-3.1_zero-shot.csv",
+    "data/classification_results/naacl_2026_submission/tolsa_naacl_2026_2027-final/seed7/in_domain/llm/mistral-small-3.1/zero-shot/val/metrics_summary_mistral-small-3.1_zero-shot.csv"
+  ],
+  "date_averaged": "2026-10-12T11:19:29",
+  "note": "Verify run completeness before final reporting."
+}

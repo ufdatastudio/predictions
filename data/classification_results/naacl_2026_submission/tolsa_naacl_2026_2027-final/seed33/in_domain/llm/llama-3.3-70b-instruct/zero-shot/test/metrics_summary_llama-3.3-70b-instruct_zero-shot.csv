@@ -1,0 +1,2 @@
+seed,model,train_accuracy,val_accuracy,test_accuracy,precision_class_0,precision_class_1,recall_class_0,recall_class_1,f1_class_0,f1_class_1,tn,fp,fn,tp,roc_auc,pr_auc
+33,llama-3.3-70b-instruct,,,0.8562973922692806,0.9447852760736196,0.79168,0.7680798004987531,0.9515384615384616,0.8473177441540578,0.8642794759825327,2156,651,126,2474,0.8598091310186072,0.7766170948087238

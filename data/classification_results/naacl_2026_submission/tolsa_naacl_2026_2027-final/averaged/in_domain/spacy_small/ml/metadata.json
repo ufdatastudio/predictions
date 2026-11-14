@@ -1,0 +1,27 @@
+{
+  "experiment": "tolsa_naacl_2026_2027-final \u2192 in_domain/spacy_small [ml]",
+  "model_type": "ml",
+  "embedding_model": "spacy_small",
+  "model_name": "N/A",
+  "n_seeds": 3,
+  "seeds_used": [
+    {
+      "seed": 3,
+      "folder": "in_domain/spacy_small"
+    },
+    {
+      "seed": 33,
+      "folder": "in_domain/spacy_small"
+    },
+    {
+      "seed": 7,
+      "folder": "in_domain/spacy_small"
+    }
+  ],
+  "date_averaged": "2026-10-10 03:41:26",
+  "files_generated": {
+    "mean": "mean.csv",
+    "std": "std.csv",
+    "mean_std": "mean_std.csv"
+  }
+}

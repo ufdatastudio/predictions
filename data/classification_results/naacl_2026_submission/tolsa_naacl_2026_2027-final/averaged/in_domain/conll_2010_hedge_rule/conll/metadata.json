@@ -1,0 +1,27 @@
+{
+  "experiment": "tolsa_naacl_2026_2027-final \u2192 in_domain/conll_2010_hedge_rule [conll]",
+  "model_type": "conll",
+  "embedding_model": "N/A",
+  "model_name": "N/A",
+  "n_seeds": 3,
+  "seeds_used": [
+    {
+      "seed": 3,
+      "folder": "in_domain/conll_2010_hedge_rule"
+    },
+    {
+      "seed": 33,
+      "folder": "in_domain/conll_2010_hedge_rule"
+    },
+    {
+      "seed": 7,
+      "folder": "in_domain/conll_2010_hedge_rule"
+    }
+  ],
+  "date_averaged": "2026-10-12 11:58:11",
+  "files_generated": {
+    "mean": "mean.csv",
+    "std": "std.csv",
+    "mean_std": "mean_std.csv"
+  }
+}

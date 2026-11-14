@@ -1,0 +1,16 @@
+metric,mean,std,mean_pm_std
+train_accuracy,,,nan ± nan
+val_accuracy,,,nan ± nan
+test_accuracy,0.8581468466802293,,0.8581 ± nan
+precision_class_0,0.9481546572934972,,0.9482 ± nan
+precision_class_1,0.7927179814755669,,0.7927 ± nan
+recall_class_0,0.768792304951906,,0.7688 ± nan
+recall_class_1,0.9546153846153846,,0.9546 ± nan
+f1_class_0,0.8491048593350383,,0.8491 ± nan
+f1_class_1,0.8661664630954459,,0.8662 ± nan
+tn,2158.0,,2158.0000 ± nan
+fp,649.0,,649.0000 ± nan
+fn,118.0,,118.0000 ± nan
+tp,2482.0,,2482.0000 ± nan
+roc_auc,0.8617038447836454,,0.8617 ± nan
+pr_auc,0.7785643428270251,,0.7786 ± nan

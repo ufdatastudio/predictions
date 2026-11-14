@@ -1,0 +1,2 @@
+seed,model,train_accuracy,val_accuracy,test_accuracy,precision_class_0,precision_class_1,recall_class_0,recall_class_1,f1_class_0,f1_class_1,tn,fp,fn,tp,roc_auc,pr_auc
+33,mistral-small-3.1,,,0.8228222674311079,0.9177586985991866,0.7570444583594239,0.7235482721767011,0.93,0.8091633466135458,0.8346565412495686,2031,776,182,2418,0.8267741360883506,0.7377114165535318
